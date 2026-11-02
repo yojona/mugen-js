@@ -178,6 +178,7 @@ export class World {
       p.hitPauseLastTick = p.hitPause > 0;
       p.cmdInput!.update(this.gameTime, this.frozen(p), p.ai?.cmds, hold);
       p.commands = p.cmdInput!.active();
+      p.keyEventRecovery();
     }
     // Built-in transitions for everyone first, then each player runs its
     // states and moves before the next one (both measured against MUGEN 1.1).

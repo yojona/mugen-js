@@ -324,7 +324,7 @@ export class Player {
     // The get-up count starts with a falling hit and again on hitting the
     // ground (5100); lying down (5110) counts its entry tick (measured).
     if (no === 5100) this.ghv.recovertime = this.const('data.liedown.time');
-    if (no === 5110) this.ghv.recovertime = (this.ghv.recovertime > 0 ? this.ghv.recovertime : this.const('data.liedown.time')) - 1;
+    if (no === 5110) this.ghv.recovertime -= 1;
     this.stateChanged = true;
     this.changedStateThisTick = true;
     this.pendingStateType = undefined;
@@ -576,6 +576,19 @@ export class Player {
    * Engine rules for downed players: lying in state 5110 counts down
    * data.liedown.time (shortened by key events), then gets up via 5120.
    */
+  /**
+   * Every key event the player's input consumes shortens the get-up wait
+   * (mugen.exe 0x43557f, truncated): to 75% lying down, else to 90% while
+   * falling. Part of input processing, so it runs every tick, hit pause
+   * included (measured: a CPU mashing while knocked down).
+   */
+  keyEventRecovery(): void {
+    const g = this.ghv;
+    if (!this.cmdInput?.lastEvent || this.moveType !== 'h') return;
+    if (this.stateType === 'l') g.recovertime = Math.trunc(g.recovertime * 0.75);
+    else if (g.fall) g.recovertime = Math.trunc(g.recovertime * 0.9);
+  }
+
   private engineHitTransitions(): void {
     // Guard end (140) has no exit in common1.cns: when its animation ends the
     // engine returns to standing, crouching or falling, and the new state runs
@@ -585,13 +598,6 @@ export class Player {
       return;
     }
     const g = this.ghv;
-    // Every key event the player's input consumes shortens the get-up wait
-    // (mugen.exe 0x43557f, truncated): to 75% lying down, to 90% while
-    // falling (measured: releasing a key during a trip's fall).
-    if (this.cmdInput?.lastEvent && this.moveType === 'h') {
-      if (this.stateType === 'l') g.recovertime = Math.trunc(g.recovertime * 0.75);
-      else if (this.stateType === 'a' && g.fall) g.recovertime = Math.trunc(g.recovertime * 0.9);
-    }
     if (this.stateNo !== 5110 || !this.alive) return;
     // mugen.exe 0x43cb34: get up once the count is spent, else count down.
     if (g.recovertime <= 0 && this.time > 0) this.changeState(5120);
