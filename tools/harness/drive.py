@@ -4,7 +4,7 @@ probes' state from memory, press the keys the input script wants for the next
 tick, and framestep. Writes /out/mugen-states.log.
 
 Env: STEPS, SEED, P1, P2 (character names), STAGE, INPUTS (path or empty)."""
-import os, re, subprocess, sys, time
+import struct, os, re, subprocess, sys, time
 
 sys.path.insert(0, '/')
 import memread  # noqa: E402
@@ -79,14 +79,19 @@ def main():
     def apply_keys(clock):
         # Keys for the next tick (clock + 1), applied as key state changes.
         want = wanted(spans, clock + 1) if clock > 0 else [set(), set()]
+        batch = []
         for i in (0, 1):
             # Sorted, so simultaneous key changes reach MUGEN in a fixed order
             # (it consumes one key event per tick); mugen-web replays the same.
             for k in sorted(held[i] - want[i]):
-                xdo('keyup', KEYS[i][k])
+                batch += ['keyup', KEYS[i][k]]
             for k in sorted(want[i] - held[i]):
-                xdo('keydown', KEYS[i][k])
+                batch += ['keydown', KEYS[i][k]]
             held[i] = set(want[i])
+        # One xdotool call per tick: separate calls are slow enough under
+        # emulation for a key to miss the frame.
+        if batch:
+            xdo(*batch)
 
     def dump(step, rows):
         clock = 0
@@ -104,6 +109,35 @@ def main():
         for step in range(1, STEPS + 1):
             if not loc:
                 loc = memread.find(pid)
+                if os.environ.get('PEEK'):
+                    # One-off reads of MUGEN globals: PEEK=0x5040a0:d,0x5040e8:i
+                    # Addresses may dereference: [[0x5040e8]+0x12278]+0x94:i
+                    with open(f'/proc/{pid}/mem', 'rb', 0) as mem:
+                        def rd(a, n):
+                            mem.seek(a)
+                            return mem.read(n)
+                        def ev(e):
+                            e = e.strip()
+                            if e.startswith('['):
+                                depth = 0
+                                for j, ch in enumerate(e):
+                                    depth += ch == '['
+                                    depth -= ch == ']'
+                                    if depth == 0:
+                                        break
+                                base = struct.unpack('<I', rd(ev(e[1:j]), 4))[0]
+                                rest = e[j + 1:]
+                                return base + (int(rest.lstrip('+'), 16) if rest else 0)
+                            return int(e, 16)
+                        for item in os.environ['PEEK'].split(';'):
+                            addr, fmt = item.rsplit(':', 1)
+                            try:
+                                raw = rd(ev(addr), 8)
+                            except OSError:
+                                out.write(f"PEEK|{addr}|ERR\n")
+                                continue
+                            val = struct.unpack('<d' if fmt == 'd' else '<i', raw[:8 if fmt == 'd' else 4])[0]
+                            out.write(f"PEEK|{addr}|{val}\n")
             dump(step, memread.read(pid, loc))
             xdo('key', 'Scroll_Lock')
             time.sleep(float(os.environ.get('STEP_DELAY', '0.03')))
