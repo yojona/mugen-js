@@ -109,8 +109,12 @@ export class World {
 
   /** Distance from the player to the front (or back) screen edge, in the player's units. */
   edgeDist(p: Player, front: boolean): number {
-    const left = this.camera.x - this.screenWidth / 2;
-    const right = this.camera.x + this.screenWidth / 2;
+    // Like EdgeBodyDist (mugen.exe 0x4343d0): from the camera target, to the
+    // stage's screenleft/right limit (measured: KFM's 1028 turns 16 units
+    // from that limit, 31 from the screen edge, with BackEdgeDist < 30).
+    const cam = this.camTarget ?? this.camera.x;
+    const left = cam - this.screenWidth / 2 + this.screenLeft;
+    const right = cam + this.screenWidth / 2 - this.screenRight;
     const towardRight = (p.facing > 0) === front;
     return (towardRight ? right - p.wx : p.wx - left) / p.scale;
   }
