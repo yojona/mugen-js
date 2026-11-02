@@ -27,8 +27,15 @@ function match(): { w: World; p1: Player; p2: Player } {
   return { w, p1, p2 };
 }
 
-function run(w: World, ticks: number, input = 0): void {
-  for (let i = 0; i < ticks; i++) w.tick([input, 0]);
+function run(w: World, ticks: number, input = 0, input2 = 0): void {
+  for (let i = 0; i < ticks; i++) w.tick([input, input2]);
+}
+
+function close(): { w: World; p1: Player; p2: Player } {
+  const m = match();
+  m.p1.pos.x = -25;
+  m.p2.pos.x = 25;
+  return m;
 }
 
 describe('kfm state machine', () => {
@@ -115,5 +122,59 @@ describe('kfm state machine', () => {
     }
     // Action 10 = 11,0 x2 then 11,1 x2, then crouch (action 11) with no stand frame between.
     expect(seen).toEqual(['10:11,0', '10:11,0', '10:11,1', '10:11,1', '11:11,2', '11:11,2']);
+  });
+});
+
+describe('kfm combat', () => {
+  it('lands a standing punch: damage, hit pause, hit state and recovery', () => {
+    const { w, p1, p2 } = close();
+    run(w, 1, IN_X);
+    let hitTick = -1;
+    for (let i = 0; i < 30 && hitTick < 0; i++) {
+      run(w, 1);
+      if (p2.moveType === 'h') hitTick = i;
+    }
+    expect(hitTick).toBeGreaterThanOrEqual(0);
+    expect(p2.stateNo).toBe(5000);
+    expect(p2.life).toBeLessThan(1000);
+    expect(p1.moveHit).toBeGreaterThan(0);
+    expect(p1.hitPause).toBeGreaterThan(0);
+    const life = p2.life;
+    run(w, 60);
+    expect(p2.life).toBe(life); // a single HitDef hits once
+    expect(p2.stateNo).toBe(0);
+    expect(p2.ctrl).toBe(true);
+    expect(p1.stateNo).toBe(0);
+  });
+
+  it('guards when holding back', () => {
+    const { w, p1, p2 } = close();
+    // P2 faces left, so "back" is right.
+    run(w, 1, IN_X, IN_R);
+    let guarded = false;
+    let p1Guarded = false;
+    for (let i = 0; i < 30; i++) {
+      run(w, 1, 0, IN_R);
+      if (p2.stateNo >= 150 && p2.stateNo <= 153) guarded = true;
+      if (p1.moveGuarded > 0) p1Guarded = true;
+    }
+    expect(guarded).toBe(true);
+    expect(p1Guarded).toBe(true);
+    expect(p2.life).toBe(1000);
+  });
+
+  it('knocks down with the Kung Fu Palm and the opponent gets back up', () => {
+    const { w, p1, p2 } = close();
+    for (const bits of [IN_D, IN_D | IN_R, IN_R, IN_R | IN_X]) run(w, 1, bits);
+    expect(p1.stateNo).toBe(1000);
+    const states = new Set<number>();
+    for (let i = 0; i < 240; i++) {
+      run(w, 1);
+      states.add(p2.stateNo);
+    }
+    expect(states.has(5000) || states.has(5020)).toBe(true);
+    expect([...states].some((s) => s >= 5050 && s <= 5120)).toBe(true);
+    expect(p2.stateNo).toBe(0);
+    expect(p2.life).toBeLessThan(1000);
   });
 });
