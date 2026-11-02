@@ -129,13 +129,18 @@ export class Match {
       p.ai?.resetRound();
       p.hitDefActive = false;
       p.hitDefSet = false;
-      // Round 1 plays intros (state 190) when the character has one.
-      p.changeState(this.round === 1 && p.compiledState(190) ? 190 : 0);
+      // Every round starts in 5900 (common1: clears the variables, then
+      // 190 on round 1 or 0; measured: a probe's variables restart each
+      // round in mugen.exe).
+      if (p.compiledState(5900)) p.changeState(5900);
+      else p.changeState(this.round === 1 && p.compiledState(190) ? 190 : 0);
       p.ctrl = false;
     });
     w.explods = [];
     w.projectiles = [];
     w.helpers = [];
+    // The floor-dust cadence counts from each round's start (G+0x12760).
+    w.fightTime = 0;
     w.camera.x = 0;
     w.camTarget = undefined;
     this.clock = this.cfg.roundSeconds < 0 ? -1 : this.cfg.roundSeconds * this.cfg.framesPerCount;
@@ -171,7 +176,7 @@ export class Match {
       case 'intro':
         w.roundState = 1;
         // Intros last while any player asserts "intro".
-        if (this.phaseTime > 1 && !this.players.some((p) => p.special.has('intro'))) {
+        if ((this.round > 1 || this.phaseTime > 1) && !this.players.some((p) => p.special.has('intro'))) {
           for (const p of this.players) if (p.stateNo === 190 || p.stateNo === 191) p.changeState(0);
           this.enter('announce');
         }
