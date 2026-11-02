@@ -26,6 +26,20 @@ power, camera, RNG).
 | CPU vs CPU per level | Levels 2, 4 and 7, whole first round | `kfm-ai-level2/7`, `kfm-aivsai` |
 | Whole match | 3 rounds: KO, slowdown, round end, rounds 2 and 3 | `kfm-match` |
 
+### Whole game flow (lockstep captures, `tools/harness/run-flow.sh LOCKSTEP=1`)
+
+Compared screen by screen and frame by frame with the same key script
+(`tools/harness/flow-ours.ts` drives mugen-web in headless Chrome):
+
+| Flow | Matches |
+|---|---|
+| Arcade, P1 wins (rival life held at 1) | Title, select, intro storyboard, VS, match 1 (2 rounds), victory screen, VS, match 2 (2 rounds, including kfm720's own stuck-in-5101 KO), ending storyboard, back to title. Session RNG (opponent order, match seeds) and every round's RNG state identical. |
+| Arcade, P1 loses (P1 life held at 1) | Same up to the lost match, continue screen ("No"), back to title. |
+
+Screen boundaries agree within one frame (mugen.exe switches its gameflow
+variable on the leaving screen's last frame). Comparisons use `?pristine=1`
+(no content fixes).
+
 **Limit:** everything above is verified with KFM (and kfm720) only.
 Controllers and triggers KFM does not use are implemented from the Elecbyte
 documentation but not yet compared against the original.
@@ -37,7 +51,7 @@ documentation but not yet compared against the original.
 | 1 | Community characters | CPU vs CPU with 2-3 real characters; fix the controllers and triggers KFM does not use | Needs the characters |
 | 2 | AI coverage | Whole matches at levels 1, 3, 5, 6 and 8; time-over round; draw | Ready to start |
 | 3 | Exact camera | Reproduce the float math at `0x4167xx` (tiny drifts left in round 1) | Optional hardening |
-| 4 | Game modes | Team (simul/turns), Survival, Arcade with AI ramp | Pending |
+| 4 | Game modes | Team (simul/turns), Survival, Arcade with AI ramp; demo mode (title idle 600 frames); continue "Yes" path verified | Pending |
 | 5 | Interface | Options menu, key config, gamepad | Pending |
 | 6 | Audio | Stage and menu music (no music files in `ref/`) | Pending |
 | 7 | External content | Load user characters and stages from files | Pending |
