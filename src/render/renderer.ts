@@ -151,6 +151,23 @@ export class Renderer {
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
   }
 
+  /** Restrict drawing to a rectangle in game pixels (undefined = no clip). */
+  setClip(rect: [number, number, number, number] | undefined): void {
+    const gl = this.gl;
+    if (!rect) {
+      gl.disable(gl.SCISSOR_TEST);
+      return;
+    }
+    const kx = this.canvas.width / this.width;
+    const ky = this.canvas.height / this.height;
+    const x1 = Math.round(Math.min(rect[0], rect[2]) * kx);
+    const x2 = Math.round(Math.max(rect[0], rect[2]) * kx);
+    const y1 = Math.round(Math.min(rect[1], rect[3]) * ky);
+    const y2 = Math.round(Math.max(rect[1], rect[3]) * ky);
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(x1, this.canvas.height - y2, Math.max(0, x2 - x1), Math.max(0, y2 - y1));
+  }
+
   clear(r: number, g: number, b: number): void {
     const gl = this.gl;
     gl.clearColor(r, g, b, 1);
