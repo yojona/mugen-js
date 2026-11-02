@@ -1,0 +1,18 @@
+# Lie-down timing after a trip (P1 sweeps P2 four times).
+# A: no keys. B: tap d once. C: hold d. D: hold d and r together.
+
+40-90     1  r      ; P1 walks in until pushing P2
+100-104   1  d      ; sweep A
+102       1  b
+200-232   1  r      ; walk in again
+240-244   1  d      ; sweep B
+242       1  b
+290       2  d      ; B: tap while lying
+340-372   1  r      ; walk in again
+380-384   1  d      ; sweep C
+382       1  b
+430-470   2  d      ; C: hold while lying
+480-512   1  r      ; walk in again
+520-524   1  d      ; sweep D
+522       1  b
+570-610   2  dr     ; D: hold two keys while lying

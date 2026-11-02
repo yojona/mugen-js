@@ -52,6 +52,8 @@ describe('MUGEN 1.1 reference (KFM probe)', () => {
     ['basic', 1200, 1600],
     ['moves', 1100, 1500],
     ['push', 700, 900],
+    ['guard', 1000, 1100],
+    ['liedown', 1100, 1400],
     ['taps', 700, 1000],
     ['slide', 700, 700],
     ['slide2', 700, 600],
