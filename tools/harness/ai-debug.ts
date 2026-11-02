@@ -14,4 +14,4 @@ MugenAI.prototype.tick = function (this: MugenAI, f: boolean) {
   orig.call(this, f);
   if (on) console.log('clock', c, 'side', this.p.side, 'face', this.p.facing, 'x', this.p.wx.toFixed(2), 'ex', this.p.world.enemyOf(this.p)?.wx.toFixed(2), 'state', st0, '->', this.state, 'held', held, 'st', this.p.stateNo, this.p.moveType, 'ctrl', this.p.ctrl, 't', this.p.time, 'cmds', this.cmds.join(','), log.join(' '));
 };
-await runProbe(1000, { char: 'probeai', inputs, seed: 937167434, ai: (process.env.AI ?? ',4').split(',').map((v) => (v ? Number(v) : undefined)) as [number | undefined, number | undefined] });
+await runProbe(Number(process.env.TICKS ?? 1000), { char: 'probeai', inputs, seed: 937167434, ai: (process.env.AI ?? ',4').split(',').map((v) => (v ? Number(v) : undefined)) as [number | undefined, number | undefined] });

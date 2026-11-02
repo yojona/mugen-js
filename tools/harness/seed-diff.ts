@@ -18,7 +18,7 @@ World.prototype.tick = function (this: World, inp: number[]) {
   const c = this.players[0]!.vars[58]!;
   if (c > 0) ours.set(c, this.seed);
 };
-await runProbe(1000, { char: char!, inputs, seed: Number(seed), ai: (ai2?.includes(',') ? ai2 : ',' + (ai2 ?? '4')).split(',').map((v) => (v ? Number(v) : undefined)) as [number | undefined, number | undefined] });
+await runProbe(Number(process.env.TICKS ?? 1000), { char: char!, inputs, seed: Number(seed), ai: (ai2?.includes(',') ? ai2 : ',' + (ai2 ?? '4')).split(',').map((v) => (v ? Number(v) : undefined)) as [number | undefined, number | undefined] });
 for (const [c, s] of [...mugen].sort((a, b) => a[0] - b[0])) {
   if (ours.get(c) !== s) {
     console.log('first seed diff at clock', c, 'mugen', s, 'ours', ours.get(c), 'prev ok clock', c - 1);

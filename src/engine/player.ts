@@ -628,10 +628,12 @@ export class Player {
   private updateGuardFlag(): void {
     this.guardFlag = false;
     if (this.isHelper) return;
-    const cmd = this.commands;
     const no = this.stateNo;
     const st = this.stateType;
-    if (!cmd.has('holdback') || cmd.has('holdup')) return;
+    const ci = this.cmdInput;
+    const back = ci ? ci.heldAt(4) !== 0 : this.commands.has('holdback');
+    const up = ci ? ci.heldAt(1) !== 0 : this.commands.has('holdup');
+    if (!back || up) return;
     if (!((this.moveType === 'i' && this.ctrl) || no === 52 || no === 151 || no === 153 || no === 155)) return;
     if (this.special.has(st === 'a' ? 'noairguard' : st === 'c' ? 'nocrouchguard' : 'nostandguard')) return;
     for (const e of this.world.players) {
@@ -647,10 +649,13 @@ export class Player {
     const cmd = this.commands;
     const no = this.stateNo;
     const st = this.stateType;
-    const up = cmd.has('holdup');
-    const down = cmd.has('holddown');
-    const fwd = cmd.has('holdfwd');
-    const back = cmd.has('holdback');
+    // Held keys (p+0x390..0x39c), not commands: an AI.Cheat "holdup" does
+    // not jump (measured).
+    const held = (k: number) => (this.cmdInput ? this.cmdInput.heldAt(k) !== 0 : cmd.has(['', 'holdup', 'holdfwd', 'holddown', 'holdback'][k]!));
+    const up = held(1);
+    const down = held(3);
+    const fwd = held(2);
+    const back = held(4);
     let action: 'walk' | 'jump' | 'crouch' | 'airjump' | 'guard' | 'none' = 'none';
     if (st === 's') {
       if (fwd !== back) action = 'walk';
