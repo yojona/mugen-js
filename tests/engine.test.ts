@@ -198,7 +198,9 @@ describe('kfm combat', () => {
     p1.pos.x = -16;
     p2.pos.x = 16;
     run(w, 2);
-    run(w, 2, IN_R | IN_Y);
+    // Pressed together, forward and y reach MUGEN's command queue on different
+    // ticks (one key event per tick, then the button waits for an idle tick).
+    run(w, 3, IN_R | IN_Y);
     expect([800, 810]).toContain(p1.stateNo); // the grab can connect on its first tick
     let borrowed = false;
     let minY = 0;

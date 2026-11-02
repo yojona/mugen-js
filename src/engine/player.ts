@@ -5,7 +5,7 @@ import type { Animation } from '../formats/air';
 import { parseIni } from '../formats/text';
 import { AnimPlayer } from './anim';
 import type { CharacterData } from './character';
-import { activeCommands, InputHistory, parseCmd, type CommandSet } from './cmd';
+import { CommandInput, InputHistory, parseCmd, type CommandSet } from './cmd';
 import { parseConstants, parseStates, type Constants, type ControllerDef, type StateDef, type StateMap } from './cns';
 import { compileController, type CompiledController } from './controllers';
 import { emptyGetHitVars, type GetHitVars, type HitDefData } from './hitdef';
@@ -47,7 +47,7 @@ export async function loadProgram(vfs: Vfs, data: CharacterData): Promise<Charac
   // state entries, then stcommon. The first definition of any state wins,
   // special states included (measured: a second [Statedef -2] is ignored).
   // The cns file only provides constants.
-  let cmd: CommandSet = { commands: [], names: new Set() };
+  let cmd: CommandSet = { commands: [], names: new Set(), slots: 0 };
   if (f.cns) constDocs.push(parseIni(await vfs.text(f.cns, dir)));
   for (const st of f.st) parseStates(await vfs.text(st, dir), st, states);
   if (f.cmd) {
@@ -75,6 +75,8 @@ export class Player {
   readonly id = nextId++;
   /** Helpers with keyctrl share their root's input history. */
   input = new InputHistory();
+  /** MUGEN's command pipeline (root players; World.tick feeds it every tick). */
+  cmdInput?: CommandInput;
 
   // Helper hierarchy
   isHelper = false;
@@ -461,7 +463,8 @@ export class Player {
 
   private runStatesInner(): void {
     this.resetTickFlags();
-    this.commands = activeCommands(this.prog.cmd, this.input, this.facing);
+    // Helpers with keyctrl read their root's command buffer.
+    if (this.isHelper) this.commands = this.keyCtrl ? this.root.commands : new Set();
     if (this.hitPause > 0) {
       // Frozen by hit pause: only ignorehitpause controllers run.
       const sp = this.isHelper ? (this.keyCtrl ? [-1] : []) : [-3, -2, -1];
@@ -544,7 +547,6 @@ export class Player {
    */
   startOfTick(): void {
     if (this.hitPause > 0) return;
-    this.commands = activeCommands(this.prog.cmd, this.input, this.facing);
     this.engineTransitions();
   }
 

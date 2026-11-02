@@ -1,5 +1,6 @@
 // Match world: players, camera, stage bounds and the fixed 60 Hz tick.
 
+import { CommandInput } from './cmd';
 import type { AnimationMap } from '../formats/air';
 import type { Sff } from '../formats/sff';
 import { applyHits, detectHits, detectProjectileHits } from './combat';
@@ -126,7 +127,14 @@ export class World {
   /** Feed this tick's raw inputs (one bitmask per player) and advance one tick. */
   tick(inputs: number[]): void {
     // Before the round starts (and after it ends) input is ignored and nobody has control.
-    this.players.forEach((p, i) => p.input.push(this.inputLocked ? 0 : (inputs[i] ?? 0)));
+    this.players.forEach((p, i) => {
+      const raw = this.inputLocked ? 0 : (inputs[i] ?? 0);
+      p.input.push(raw);
+      // Every player's input is processed each tick, frozen or in hit pause.
+      p.cmdInput ??= new CommandInput(p.prog.cmd);
+      p.cmdInput.tick(raw, p.facing, this.gameTime, this.frozen(p));
+      p.commands = p.cmdInput.active();
+    });
     const active = this.allPlayers().filter((p) => !this.frozen(p));
     for (const p of active) p.advanceAnim();
     // Built-in transitions for everyone first, then each player runs its
