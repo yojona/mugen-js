@@ -75,6 +75,15 @@ describe('MUGEN 1.1 reference (KFM probe)', () => {
     expect(r.reports).toEqual([]);
   }, 60_000);
 
+  it('matches the original CPU vs CPU (level 4): records, guards, counters, push and turns', async () => {
+    // Both sides at AI level 4 for 930 clocks of the round.
+    const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kfm-aivsai.mugen.log.gz'))).toString('latin1');
+    const ours = (await runProbe(1100, { char: 'probeai', seed: 937167434, ai: [4, 4] })).join('\n');
+    const r = compareLogs(ref, ours, 10);
+    expect(r.compared).toBeGreaterThan(1800);
+    expect(r.reports).toEqual([]);
+  }, 60_000);
+
   // Keyboard scenarios (tools/harness/inputs/*.txt), captured with MUGEN
   // running slowly while the harness types the keys.
   for (const [name, ticks, min] of [
