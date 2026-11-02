@@ -6,6 +6,8 @@ import type { ControllerDef } from './cns';
 import { compileHitDef, parseAttrList } from './hitdef';
 import { compileExplod, compileExplodBindTime, compileGameMakeAnim, compileMakeDust, compileModifyExplod, compileRemoveExplod, simpleExplod, transBlend } from './explod';
 import { newAfterImage, type PalFxState } from './fx';
+import { compileBindTo, compileDestroySelf, compileHelper, compileParentVar } from './helper';
+import { compileProjectile } from './projectile';
 import type { MoveType, Physics, Player, StateType } from './player';
 
 type P = Player;
@@ -489,6 +491,14 @@ const EXTRA: Record<string, Impl> = {
     }
   },
 
+  helper: (c, _prm, env) => compileHelper(c, env),
+  destroyself: () => compileDestroySelf(),
+  parentvarset: (c, _prm, env) => compileParentVar(c, env, false),
+  parentvaradd: (c, _prm, env) => compileParentVar(c, env, true),
+  bindtoparent: (c, _prm, env) => compileBindTo(c, env, false),
+  bindtoroot: (c, _prm, env) => compileBindTo(c, env, true),
+  projectile: (c, _prm, env) => compileProjectile(c, env),
+
   reversaldef: (c, _prm, env) => {
     const build = compileHitDef(c, env);
     const attrs = parseAttrList(c.params.get('reversal.attr'));
@@ -510,10 +520,9 @@ let playerEnvRef: TriggerEnv<P> | undefined;
 
 /** Controllers accepted but not simulated yet (no effect). */
 const PENDING = [
-  'projectile', 'helper', 'attackmulset',
+  'attackmulset',
   'envcolor', 'forcefeedback', 'stopsnd', 'sndpan',
-  'bindtoparent', 'bindtoroot',
-  'destroyself', 'parentvarset', 'parentvaradd', 'displaytoclipboard', 'appendtoclipboard', 'clearclipboard', 'hitadd', 'attackdist', 'victoryquote', 'zoom', 'gravity',
+  'displaytoclipboard', 'appendtoclipboard', 'clearclipboard', 'hitadd', 'attackdist', 'victoryquote', 'zoom', 'gravity',
 ];
 
 /** NotHitBy / HitBy: value = SCA, NA, SA (value2 uses the second slot). */
@@ -577,7 +586,7 @@ export function compileController(c: ControllerDef, env: TriggerEnv<P>): Compile
   const impl = IMPLS[c.type];
   if (impl) {
     run = impl(c, prm, env);
-    if (!['playsnd', 'statetypeset', 'hitdef', 'reversaldef', 'nothitby', 'hitby', 'hitoverride', 'explod', 'modifyexplod', 'superpause', 'trans', 'assertspecial', 'afterimage', 'remappal'].includes(c.type)) prm.validate(STRING_PARAMS);
+    if (!['playsnd', 'statetypeset', 'hitdef', 'projectile', 'helper', 'reversaldef', 'nothitby', 'hitby', 'hitoverride', 'explod', 'modifyexplod', 'superpause', 'trans', 'assertspecial', 'afterimage', 'remappal'].includes(c.type)) prm.validate(STRING_PARAMS);
   } else if (PENDING.includes(c.type)) {
     run = () => {};
   } else {
