@@ -706,13 +706,12 @@ export class Player {
         if (no !== 10 && no !== 11) this.enterLater(10);
         return;
       case 'airjump': {
-        const n = this.const('movement.airjump.num');
         // The height is compared with y in internal (GameWidth) units, the
         // constant unscaled (mugen.exe 0x43539f; measured: KFM air-jumps 32
         // units up with airjump.height = 35).
         const yInternal = -this.wy * (this.world.gameWidth / this.world.screenWidth);
-        if (n > 0 && this.airJumps < n && yInternal > this.const('movement.airjump.height')) {
-          this.airJumps++;
+        if (this.airJumpsLeft > 0 && yInternal > this.const('movement.airjump.height')) {
+          this.airJumpsLeft--;
           this.enterLater(45);
         }
         return;
@@ -724,7 +723,11 @@ export class Player {
         if (st === 'c' && !down) this.enterLater(12);
     }
   }
-  airJumps = 0;
+  /**
+   * Air jumps left (p+0x278): airjump.num on the first tick of state 40,
+   * none after a hit or at round start (mugen.exe 0x43c972 / 0x43f6d4).
+   */
+  airJumpsLeft = 0;
 
   // -------------------------------------------------------------------------
   // Physics, run after states each tick.
@@ -777,6 +780,7 @@ export class Player {
     // Guard states keep the guard flag up (mugen.exe 0x43c980 / 0x43ca01).
     const no = this.stateNo;
     if (no === 120 || (no >= 130 && no <= 132) || no === 140 || (no >= 150 && no <= 155)) this.guardFlag = true;
+    if (no === 40 && this.time === 0) this.airJumpsLeft = this.const('movement.airjump.num');
     // HitDef placement lands after P2's next states (measured: one tick later).
     if (this.pendingPlacement) {
       this.pendingPlacement();
@@ -811,7 +815,6 @@ export class Player {
         // ChangeState (mugen.exe 0x43cd63 compares stateno with 105).
         if (this.pos.y >= 0 && this.vel.y > 0 && this.stateNo !== 105) {
           this.pos.y = 0;
-          this.airJumps = 0;
           // Landing enters state 52 and runs it in the same tick (measured:
           // MUGEN shows Time = 1 and vel y = 0 on the next tick).
           this.inStates = true;

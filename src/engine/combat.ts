@@ -340,6 +340,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.yvel = vy * conv;
     g.yaccel = hd.yaccel * conv;
     g.fall = willFall ? 1 : 0;
+    d.airJumpsLeft = 0;
     // The get-up count is reset by falling hits and trips (measured: a trip
     // 5070 -> 5071 -> 5110 lies down for the full liedown.time).
     if (g.fall || (!inAir && hd.groundType === 3)) g.recovertime = d.const('data.liedown.time');
