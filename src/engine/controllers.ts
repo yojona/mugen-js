@@ -3,6 +3,7 @@
 
 import { BOTTOM, compileExpr, compileExprList, R, toInt, type Fn, type TriggerEnv } from '../expr/compile';
 import type { ControllerDef } from './cns';
+import { compileHitDef } from './hitdef';
 import type { MoveType, Physics, Player, StateType } from './player';
 
 type P = Player;
@@ -175,6 +176,48 @@ const IMPLS: Record<string, Impl> = {
     }
   },
 
+  hitdef: (c, _prm, env) => {
+    const build = compileHitDef(c, env);
+    return (p) => {
+      p.hitDef = build(p);
+      p.hitDefActive = true;
+      p.hitTargets.clear();
+    };
+  },
+  hitvelset: (_c, prm) => (p) => {
+    if ((prm.int(p, 'x') ?? 1) !== 0) p.vel.x = Math.fround(p.ghv.xvel);
+    if ((prm.int(p, 'y') ?? 1) !== 0) p.vel.y = Math.fround(p.ghv.yvel);
+  },
+  hitfallvel: () => (p) => {
+    const xv = p.ghv['fall.xvel'];
+    if (!Number.isNaN(xv)) p.vel.x = Math.fround(xv);
+    p.vel.y = Math.fround(p.ghv['fall.yvel']);
+  },
+  hitfallset: (_c, prm) => (p) => {
+    const v = prm.int(p, 'value') ?? -1;
+    if (v !== -1) p.ghv.fall = v ? 1 : 0;
+    const x = prm.num(p, 'xvel');
+    const y = prm.num(p, 'yvel');
+    if (x !== undefined) p.ghv['fall.xvel'] = x;
+    if (y !== undefined) p.ghv['fall.yvel'] = y;
+  },
+  hitfalldamage: () => (p) => {
+    const dmg = p.ghv['fall.damage'];
+    if (!dmg) return;
+    p.life = Math.max(p.ghv['fall.kill'] ? 0 : Math.min(p.life, 1), p.life - dmg);
+    p.ghv['fall.damage'] = 0;
+    if (p.life <= 0) p.alive = false;
+  },
+  defencemulset: (_c, prm) => (p) => {
+    const v = prm.num(p, 'value');
+    if (v !== undefined) p.defenceMul = v;
+  },
+  nothitby: (c, prm) => hitByController(c, prm, true),
+  hitby: (c, prm) => hitByController(c, prm, false),
+  movehitreset: () => (p) => {
+    p.moveContact = p.moveHit = p.moveGuarded = 0;
+  },
+
   playsnd: (_c, prm) => {
     // value = [F]group, number   (F = common sound file)
     const raw = prm.raw('value') ?? '';
@@ -197,13 +240,24 @@ let playerEnvRef: TriggerEnv<P> | undefined;
 
 /** Controllers accepted but not simulated yet (no effect). */
 const PENDING = [
-  'hitdef', 'reversaldef', 'projectile', 'helper', 'explod', 'modifyexplod', 'removeexplod', 'explodbindtime', 'gamemakeanim', 'makedust',
-  'nothitby', 'hitby', 'hitoverride', 'hitvelset', 'hitfallvel', 'hitfallset', 'hitfalldamage', 'fallenvshake', 'defencemulset', 'attackmulset',
+  'reversaldef', 'projectile', 'helper', 'explod', 'modifyexplod', 'removeexplod', 'explodbindtime', 'gamemakeanim', 'makedust',
+  'hitoverride', 'fallenvshake', 'attackmulset',
   'width', 'playerpush', 'screenbound', 'assertspecial', 'pause', 'superpause', 'envshake', 'envcolor', 'forcefeedback', 'palfx', 'allpalfx', 'bgpalfx',
   'afterimage', 'afterimagetime', 'trans', 'angledraw', 'angleset', 'angleadd', 'anglemul', 'offset', 'remappal', 'stopsnd', 'sndpan',
   'targetbind', 'targetstate', 'targetvelset', 'targetveladd', 'targetfacing', 'targetlifeadd', 'targetpoweradd', 'targetdrop', 'bindtotarget', 'bindtoparent', 'bindtoroot',
-  'destroyself', 'parentvarset', 'parentvaradd', 'displaytoclipboard', 'appendtoclipboard', 'clearclipboard', 'movehitreset', 'hitadd', 'attackdist', 'victoryquote', 'zoom', 'gravity',
+  'destroyself', 'parentvarset', 'parentvaradd', 'displaytoclipboard', 'appendtoclipboard', 'clearclipboard', 'hitadd', 'attackdist', 'victoryquote', 'zoom', 'gravity',
 ];
+
+/** NotHitBy / HitBy: value = SCA, NA, SA (value2 uses the second slot). */
+function hitByController(c: ControllerDef, prm: Params, not: boolean): (p: P) => void {
+  const key = c.params.has('value2') ? 'value2' : 'value';
+  const attrs = (c.params.get(key) ?? '').toLowerCase().split(',').map((s) => s.trim());
+  const slot = key === 'value2' ? 1 : 0;
+  return (p) => {
+    const time = prm.int(p, 'time') ?? 1;
+    p.hitBy[slot] = { attrs, time, not };
+  };
+}
 
 /** Parse `var(5) = expr` style VarSet/VarAdd parameters. */
 function varController(c: ControllerDef, prm: Params, env: TriggerEnv<P>, mode: 'set' | 'add'): (p: P) => void {
@@ -255,7 +309,7 @@ export function compileController(c: ControllerDef, env: TriggerEnv<P>): Compile
   const impl = IMPLS[c.type];
   if (impl) {
     run = impl(c, prm, env);
-    if (c.type !== 'playsnd' && c.type !== 'statetypeset') prm.validate(STRING_PARAMS);
+    if (!['playsnd', 'statetypeset', 'hitdef', 'nothitby', 'hitby'].includes(c.type)) prm.validate(STRING_PARAMS);
   } else if (PENDING.includes(c.type)) {
     run = () => {};
   } else {
