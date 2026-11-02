@@ -559,8 +559,9 @@ export class Player {
       const walk = cmd.has('holdfwd') || cmd.has('holdback');
       if (walk && no !== 20 && !this.special.has('nowalk')) return this.enterLater(20);
       if (!walk && no === 20) return this.enterLater(0);
-    } else if (this.stateType === 'c' && (no === 10 || no === 11)) {
-      // Releasing down stands up, also mid stand-to-crouch (measured: 10 -> 12).
+    } else if (this.stateType === 'c' && !guarding) {
+      // Releasing down stands up from any crouching state with control
+      // (measured: 10 -> 12, and 400 -> 12 once its CtrlSet gives control).
       if (!cmd.has('holddown')) return this.enterLater(12);
     } else if (this.stateType === 'a' && no === 50) {
       // Air jump.
