@@ -56,7 +56,10 @@ export class FightHud {
     }
   }
 
-  static async load(vfs: Vfs, defPath = 'data/fight.def'): Promise<FightHud> {
+  /** Width of the HUD coordinate space (the motif's localcoord). */
+  localWidth = 320;
+
+  static async load(vfs: Vfs, defPath = 'data/fight.def', localWidth = 320): Promise<FightHud> {
     const text = await vfs.text(defPath);
     const doc = parseIni(text);
     const dir = dirname(defPath);
@@ -69,7 +72,9 @@ export class FightHud {
       const f = getValue(files, `font${i}`);
       if (f) fonts[i] = await loadFont(vfs, f, dir).catch(() => undefined);
     }
-    return new FightHud(doc, sff, snd, parseAir(text), fonts);
+    const hud = new FightHud(doc, sff, snd, parseAir(text), fonts);
+    hud.localWidth = localWidth;
+    return hud;
   }
 
   /** [Round] timings for the Match. */
@@ -189,13 +194,15 @@ export class FightHud {
       const sff = p.prog.data.sff;
       const s = sff.get(face.spr[0], face.spr[1]);
       if (s) {
+        // Character sprites are in the character's coordinate space.
+        const k = this.localWidth / (p.prog.data.def.localCoord[0] || 320);
         r.draw({
           sprite: s,
           palette: p.prog.data.paletteFor(s, p.palNo),
           x: x + face.offset[0],
           y: y + face.offset[1],
-          scaleX: face.facing * face.scale[0],
-          scaleY: face.scale[1],
+          scaleX: face.facing * face.scale[0] * k,
+          scaleY: face.scale[1] * k,
         });
       }
     }
@@ -253,8 +260,8 @@ export class FightHud {
     const key = a.kind === 'round' ? 'round.default' : a.kind === 'win' ? (a.winner ? 'win' : 'draw') : a.kind;
     const e = this.round.get(key);
     if (!e) return;
-    if (e.def.displayTime >= 0 && a.age > e.def.displayTime) return;
     if (a.age === 0) e.reset();
+    if (e.def.displayTime >= 0 ? a.age > e.def.displayTime : e.finished) return;
     let text = e.def.text;
     if (text && a.kind === 'round') text = text.replace('%i', String(a.round));
     if (text && a.kind === 'win' && a.winner) text = text.replace('%s', a.winner.prog.data.def.displayName);
