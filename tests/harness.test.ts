@@ -84,6 +84,16 @@ describe('MUGEN 1.1 reference (KFM probe)', () => {
     expect(r.reports).toEqual([]);
   }, 60_000);
 
+  it('matches a whole CPU vs CPU match (level 4): KO slowdown, round end, rounds 2 and 3', async () => {
+    // mugen.cfg match rules (ROUNDS empty in the harness): three rounds, with
+    // the round-end flow and the CPU's records carried across rounds.
+    const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kfm-match.mugen.log.gz'))).toString('latin1');
+    const ours = (await runProbe(9000, { char: 'probeai', seed: 937167434, ai: [4, 4] })).join('\n');
+    const r = compareLogs(ref, ours, 10);
+    expect(r.compared).toBeGreaterThan(15000);
+    expect(r.reports).toEqual([]);
+  }, 120_000);
+
   // CPU vs CPU at other levels (mugen.cfg Difficulty), whole first rounds.
   for (const [lvl, min] of [[2, 5200], [7, 5500]] as const) {
     it(`matches the original CPU vs CPU at level ${lvl}`, async () => {
