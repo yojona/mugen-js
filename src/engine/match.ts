@@ -218,7 +218,8 @@ export class Match {
           this.roundWinner = this.decideWinner();
           for (const p of this.players) if (p.life <= 0) p.alive = false;
           w.roundState = 3;
-          this.koTicks = 0;
+          // G+0x12760 restarts at 0 and still counts the KO tick.
+          this.koTicks = 1;
           this.slowRate = this.slowAcc = 500;
           this.enter('ko');
         }
@@ -257,6 +258,7 @@ export class Match {
         if (k >= c.overWaitTime && (settled || k >= 900)) {
           for (const p of this.players) p.ctrl = false;
           this.slowRate = this.slowAcc = 0;
+          w.roundState = 4;
           this.enter('over');
           // The round counter restarts at 0 and still counts this tick.
           this.phaseTime = 0;
@@ -276,8 +278,13 @@ export class Match {
         if (this.phaseTime >= c.overTime) {
           if (this.matchOver) this.enter('win');
           else {
+            // The reset frame runs no tick; 5900 runs on the next one
+            // (measured in mugen.exe: frame 3410 has no tick between the
+            // last RoundState 4 tick and 5900).
             this.round++;
             this.startRound();
+            this.phaseTime = -1;
+            return false;
           }
         }
         break;
