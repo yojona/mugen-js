@@ -627,6 +627,11 @@ export class Player {
     switch (this.physics) {
       case 's':
         this.vel.x = Math.fround(this.vel.x * this.const('movement.stand.friction'));
+        // Get-hit slides stop once friction takes the speed below 1 (measured
+        // with KFM's 200/210/240/400 hits: the slide ends at 0.905, 0.920,
+        // 0.853 and 0.543 while 1.004 and 1.065 still slide). Normal states
+        // stop earlier through common1's friction.threshold VelSets.
+        if (this.moveType === 'h' && Math.abs(this.vel.x) < 1) this.vel.x = 0;
         break;
       case 'c':
         this.vel.x = Math.fround(this.vel.x * this.const('movement.crouch.friction'));
