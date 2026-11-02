@@ -102,18 +102,19 @@ describe('kfm state machine', () => {
 
   it('attacks with x and a', () => {
     const { w, p1 } = match();
-    run(w, 1, IN_X);
+    // Buttons reach the command matcher one tick late when held (measured).
+    run(w, 2, IN_X);
     expect(p1.stateNo).toBe(200);
     expect(p1.moveType).toBe('a');
     run(w, 60, 0);
     expect(p1.stateNo).toBe(0);
-    run(w, 1, IN_A);
+    run(w, 2, IN_A);
     expect(p1.stateNo).toBe(230);
   });
 
   it('performs a quarter-circle special (QCF + x)', () => {
     const { w, p1 } = match();
-    for (const bits of [IN_D, IN_D, IN_D | IN_R, IN_D | IN_R, IN_R, IN_R | IN_X]) run(w, 1, bits);
+    for (const bits of [IN_D, IN_D, IN_D | IN_R, IN_D | IN_R, IN_R, IN_R | IN_X, IN_R | IN_X]) run(w, 1, bits);
     expect(p1.stateNo).toBe(1000);
   });
 
@@ -179,7 +180,7 @@ describe('kfm combat', () => {
 
   it('knocks down with the Kung Fu Palm and the opponent gets back up', () => {
     const { w, p1, p2 } = close();
-    for (const bits of [IN_D, IN_D | IN_R, IN_R, IN_R | IN_X]) run(w, 1, bits);
+    for (const bits of [IN_D, IN_D | IN_R, IN_R, IN_R | IN_X, IN_R | IN_X]) run(w, 1, bits);
     expect(p1.stateNo).toBe(1000);
     const states = new Set<number>();
     for (let i = 0; i < 240; i++) {
@@ -197,7 +198,7 @@ describe('kfm combat', () => {
     p1.pos.x = -16;
     p2.pos.x = 16;
     run(w, 2);
-    run(w, 1, IN_R | IN_Y);
+    run(w, 2, IN_R | IN_Y);
     expect([800, 810]).toContain(p1.stateNo); // the grab can connect on its first tick
     let borrowed = false;
     let minY = 0;
@@ -219,7 +220,7 @@ describe('kfm combat', () => {
     p1.power = 3000;
     // The final forward is held one tick so the stand-up state (12) is entered
     // before the button: built-in transitions apply on the next tick, as in MUGEN.
-    const seq = [IN_D, IN_D | IN_R, IN_R, 0, IN_D, IN_D | IN_R, IN_R, IN_R, IN_R | IN_X];
+    const seq = [IN_D, IN_D | IN_R, IN_R, 0, IN_D, IN_D | IN_R, IN_R, IN_R, IN_R | IN_X, IN_R | IN_X];
     for (const bits of seq) run(w, 1, bits);
     expect(p1.stateNo).toBe(3000);
     let paused = false;
