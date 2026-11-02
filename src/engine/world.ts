@@ -140,12 +140,9 @@ export class World {
     // Before the round starts (and after it ends) input is ignored and nobody has control.
     if (this.roundState === 2) this.fightTime++;
     const active = this.allPlayers().filter((p) => !this.frozen(p));
-    // MUGEN advances animations at the end of each player's update and checks
-    // the automatic turn right after; here both run at the start of the next
-    // tick, before input reads the new facing. A player that changed state
-    // also turns right after its states (measured: landing with control).
+    // MUGEN advances animations at the end of each player's update; here it
+    // runs at the start of the next tick.
     for (const p of active) p.advanceAnim();
-    for (const p of active) this.autoTurn(p);
     const dustX = new Map(this.allPlayers().map((p) => [p, this.internalX(p)] as const));
     // MUGEN's order (main tick 0x4130xx): facing sync and human key events,
     // then the CPU AI pass, then every player's input processing.
@@ -162,6 +159,16 @@ export class World {
       postResolvedMessages(this.players);
       for (const p of this.players) p.ai?.tick(this.aiRoundFight);
       for (const p of this.players) if (p.ai) p.ai.msgs.length = 0;
+    }
+    // Automatic turn, after the AI and before input processing (mugen.exe
+    // 0x4137dd): standing, walking, crouching, jump start, or at the end of
+    // the landing animation. A player that changed state also turns right
+    // after its states (measured: landing with control).
+    for (const p of this.players) {
+      if (this.frozen(p)) continue;
+      const no = p.stateNo;
+      const lastElem = p.anim.elem >= (p.anim.anim?.elements.length ?? 0) - 1;
+      if (no === 0 || no === 11 || no === 20 || no === 40 || (no === 52 && lastElem)) this.tickTurn(p);
     }
     this.aiRoundFight = this.roundState === 2;
     for (const p of this.players) {
@@ -327,6 +334,19 @@ export class World {
   }
 
   /** Players with control turn to face the opponent (state 0/11 "turn" animations). */
+  /** mugen.exe 0x43c390: turn to face the opponent once it is behind. */
+  private tickTurn(p: Player): void {
+    const e = this.enemyOf(p);
+    if (!e || (!p.ctrl && this.roundState <= 2) || p.special.has('noautoturn')) return;
+    if (!((p.wx - e.wx) * p.facing > 0)) return;
+    // Turning keeps the world velocity (vel x is facing-relative).
+    p.facing = -p.facing;
+    p.vel.x = -p.vel.x;
+    p.cmdInput?.syncFacing(p.facing < 0);
+    if (p.stateType === 's' && p.hasAnim(5)) p.changeAnim(5);
+    else if (p.stateType === 'c' && p.hasAnim(6)) p.changeAnim(6);
+  }
+
   private autoTurn(p: Player): void {
     const e = this.enemyOf(p);
     if (!e || !p.ctrl || p.moveType !== 'i' || p.hitPause > 0 || p.special.has('noautoturn')) return;

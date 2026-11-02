@@ -300,7 +300,8 @@ export class CommandInput {
   }
 
   /** mugen.exe 0x477c40: turning around swaps a held forward/back key. */
-  private syncFacing(left: boolean): void {
+  /** Facing change: held forward/back swap through synthetic key events. */
+  syncFacing(left: boolean): void {
     if (left === this.facingLeft) return;
     const wasLeft = this.facingLeft;
     this.facingLeft = left;
