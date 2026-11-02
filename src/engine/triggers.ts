@@ -132,7 +132,8 @@ const AXIS: Record<string, (p: P, axis: 'x' | 'y' | 'z') => number | undefined> 
 };
 
 /** Axis triggers whose result is an int (trigger.html). */
-const AXIS_INT = new Set(['p2dist', 'p2bodydist']);
+// MUGEN 1.1 returns floats for P2Dist / P2BodyDist (measured: 224.55).
+const AXIS_INT = new Set<string>();
 
 function call(node: CallNode, args: Fn<P>[]): Fn<P> | undefined {
   const name = node.name;
