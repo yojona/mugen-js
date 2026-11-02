@@ -17,6 +17,8 @@ import { charDefPath, loadMotif, loadRoster, type Roster } from '../motif/system
 import { Renderer } from '../render/renderer';
 import { loadStage, type Stage } from '../stage/stage';
 import { FightScreen } from './fight-screen';
+import { ContinueScreen } from './continue';
+import { loadFont } from '../motif/font';
 import { Keyboard } from './input';
 import { VersusScreen, VictoryScreen } from './interstitial';
 import type { AppContext, Screen } from './screen';
@@ -105,6 +107,9 @@ const fightFx: FightFx = {
 };
 const commonSnd: Snd | undefined = await vfs.read(ff('common.snd', 'common.snd'), fightDir, 'data').then(parseSnd).catch(() => undefined);
 
+// mugen.exe's system font for the continue screen (G+0x873c).
+const systemFont = await loadFont(vfs, 'font/f-6x9.def').catch(() => undefined);
+
 const programs = new Map<string, CharacterProgram>();
 async function program(c: RosterChar): Promise<CharacterProgram> {
   const key = c.defPath!;
@@ -186,7 +191,20 @@ async function runMode(mode: GameMode): Promise<void> {
         const opp: Pick = { char: oc, pal: session.opponentPalette((i) => !!oc.data?.palettes?.[i]) };
         await until(new VersusScreen(ctx, sel.p1, opp, n));
         const res = await until<{ winner: number | undefined }>(await loading(() => fight(mode, sel.p1, opp, undefined)));
-        if (res.winner !== 0) return;
+        if (res.winner !== 0) {
+          if (res.winner === undefined || (motif.value('Continue Screen', 'enabled') ?? '1') === '0') return;
+          // Continue? Yes: pick a character again and replay this match.
+          const sp = vfs.resolve(opp.char.entry.stage ?? '') ?? stages[0]!.path;
+          const again = await until<boolean>(
+            await loading(async () => new ContinueScreen(ctx, { prog: await program(sel.p1.char), pal: sel.p1.pal, stage: await stage(sp), fightFx, font: systemFont, seed: session.matchSeed() })),
+          );
+          if (!again) return;
+          const re = await until<SelectResult>(new SelectScreen(ctx, mode, rosterChars, stages));
+          if (re.cancelled) return;
+          sel.p1 = re.p1;
+          n--;
+          continue;
+        }
         const quotes = programs.get(sel.p1.char.defPath!)?.quotes ?? [];
         // Not after the last match (system.def [Victory Screen] notes).
         if (n < opponents.length && (motif.value('Victory Screen', 'enabled') ?? '1') !== '0') {
