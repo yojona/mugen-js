@@ -314,7 +314,10 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.guarded = 0;
     g.damage = dmg;
     // Knock-down hits use fall.animtype (MUGEN shows anim 5030 for KFM's palm).
-    const willFall = (inAir ? hd.airFall : hd.fall) || (wasFalling && !hd.forceNoFall);
+    // A killing hit always knocks down (measured: KFM's 1410 KO plays the
+    // fall animtype, anim 5030).
+    const kills = hd.kill && d.life - dmg <= 0;
+    const willFall = (inAir ? hd.airFall : hd.fall) || (wasFalling && !hd.forceNoFall) || kills;
     g.animtype = wasFalling || willFall ? hd.fallAnimType : inAir ? hd.airAnimType : hd.animType;
     g.groundtype = hd.groundType;
     g.airtype = hd.airType;
@@ -324,10 +327,19 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     // no hittime given, sets 20).
     g.hittime = inAir || vel[1] !== 0 || willFall ? hd.airHitTime : hd.groundHitTime;
     g.slidetime = hd.groundSlideTime;
-    g.xvel = vel[0] * xdir * conv;
-    g.yvel = vel[1] * conv;
+    let [vx, vy] = vel;
+    // A killing hit throws the defender (mugen.exe 0x43f29a): ground hits
+    // with no y velocity keep 0.66 of x; x gains 2.5 outwards, y loses 2 and
+    // is at most -6 (measured: KFM's 1410 KO sends P2 at -8.44, -6).
+    if (kills) {
+      if (vy === 0) vx = Math.fround(vx * 0.66);
+      if (vx !== 0) vx = Math.fround(vx + Math.sign(vx) * 2.5);
+      if (vy <= 0) vy = Math.min(Math.fround(vy - 2), -6);
+    }
+    g.xvel = vx * xdir * conv;
+    g.yvel = vy * conv;
     g.yaccel = hd.yaccel * conv;
-    g.fall = (inAir ? hd.airFall : hd.fall) || (wasFalling && !hd.forceNoFall) ? 1 : 0;
+    g.fall = willFall ? 1 : 0;
     // The get-up count is reset by falling hits and trips (measured: a trip
     // 5070 -> 5071 -> 5110 lies down for the full liedown.time).
     if (g.fall || (!inAir && hd.groundType === 3)) g.recovertime = d.const('data.liedown.time');
