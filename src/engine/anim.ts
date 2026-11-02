@@ -124,9 +124,9 @@ export class AnimPlayer {
   animTime(): number {
     const t = this.t;
     const e = this.time;
-    // Actions with a -1 element: MUGEN sums element times literally (the -1
-    // included), measured against MUGEN 1.1 with KFM's action 5160.
-    if (t.total < 0) return e - t.literal;
+    // Actions with a -1 element have a looptime of -1 in MUGEN, so AnimTime is
+    // elapsed + 1 (measured with KFM's actions 5160 and 150).
+    if (t.total < 0) return e + 1;
     if (e <= t.total) return e - t.total;
     const r = (e - t.total) % t.loopLen;
     return r === 0 ? 0 : t.loopStartTime + r - t.total;
