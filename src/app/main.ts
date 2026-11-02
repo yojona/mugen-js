@@ -20,6 +20,7 @@ import { VersusScreen, VictoryScreen } from './interstitial';
 import type { AppContext, Screen } from './screen';
 import { SelectScreen, type Pick, type RosterChar, type SelectResult } from './select';
 import { TitleScreen, type GameMode } from './title';
+import { loadStoryboard, StoryboardScreen } from './storyboard';
 
 const params = new URLSearchParams(location.search);
 const status = document.getElementById('status')!;
@@ -142,12 +143,23 @@ async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | und
   });
 }
 
+/** Play a storyboard file if it exists (errors are skipped). */
+async function storyboard(path: string | undefined, ...bases: string[]): Promise<void> {
+  if (!path) return;
+  const p = vfs.resolve(path, ...bases);
+  if (!p) return;
+  const sb = await loading(() => loadStoryboard(vfs, p)).catch(() => undefined);
+  if (sb) await until(new StoryboardScreen(ctx, sb));
+}
+
 /** Run one mode to completion, returning to the title. */
 async function runMode(mode: GameMode): Promise<void> {
   for (;;) {
     const sel = await until<SelectResult>(new SelectScreen(ctx, mode, rosterChars, stages));
     if (sel.cancelled) return;
     if (mode === 'arcade') {
+      const chosen = sel.p1.char;
+      await storyboard(chosen.data?.def.arcade.intro, chosen.data?.dir ?? '');
       const count = Math.max(1, Math.min(roster.arcadeMaxMatches[0] ?? 6, 6));
       for (let n = 1; n <= count; n++) {
         const opp = randomOpponent(sel.p1.char);
@@ -159,6 +171,7 @@ async function runMode(mode: GameMode): Promise<void> {
           await until(new VictoryScreen(ctx, sel.p1, quotes.length ? quotes[Math.floor(Math.random() * quotes.length)]! : (motif.value('Victory Screen', 'winquote.text') ?? 'Winner!').replace(/^"|"$/g, '')));
         }
       }
+      await storyboard(chosen.data?.def.arcade.ending, chosen.data?.dir ?? '');
       return;
     }
     const p2 = sel.p2 ?? randomOpponent();
@@ -185,6 +198,9 @@ async function loading<T>(f: () => Promise<T>): Promise<T> {
 
 async function mainLoop(): Promise<void> {
   let menuPos = 0;
+  // Motif logo and intro storyboards play once at start-up.
+  await storyboard(motif.logoStoryboard);
+  await storyboard(motif.introStoryboard);
   for (;;) {
     const mode = await until<GameMode>(new TitleScreen(ctx, menuPos));
     menuPos = ['arcade', 'versus', 'training'].indexOf(mode);
