@@ -174,7 +174,10 @@ export class World {
     for (const p of this.players) {
       // Every player's input is processed each tick, frozen or in hit pause.
       // MUGEN's pause counter (p+0xef0) lags the hit pause by a tick.
-      const hold = p.hitPause > 0 || p.hitPauseLastTick;
+      // The hold follows the previous tick's pause: it starts and ends a
+      // tick late (measured: an AI.Cheat command injected as the pause begins
+      // expires).
+      const hold = p.hitPauseLastTick;
       p.hitPauseLastTick = p.hitPause > 0;
       p.cmdInput!.update(this.gameTime, this.frozen(p), p.ai?.cmds, hold);
       p.commands = p.cmdInput!.active();
