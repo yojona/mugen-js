@@ -162,6 +162,9 @@ export class World {
     // runs at the start of the next tick.
     for (const p of active) p.advanceAnim();
     const dustX = new Map(this.allPlayers().map((p) => [p, this.internalX(p)] as const));
+    // MUGEN picks the pause owner before the tick (mugen.exe 0x40cc73): a
+    // pause that starts during this tick does not stop its floor dust.
+    const pausedAtStart = !!(this.pause || this.superPause);
     // MUGEN's order (main tick 0x4130xx): facing sync and human key events,
     // then the CPU AI pass, then every player's input processing.
     this.players.forEach((p, i) => {
@@ -239,7 +242,7 @@ export class World {
     this.clampToScreen();
     this.pushPlayers();
     this.clampToScreen();
-    this.spawnDust(dustX);
+    this.spawnDust(dustX, pausedAtStart);
     // AI move recorders, last player first (mugen.exe 0x413d81).
     // The recording clock stands still in hit pause, a tick late like the
     // pause flag p+0xef8 (measured: KFM's 640 records its last active tick
@@ -333,8 +336,8 @@ export class World {
    * moved this tick, every third game tick, if on the ground standing or
    * crouching while being hit, or landing (52). Each puff draws two numbers.
    */
-  private spawnDust(before: Map<Player, number>): void {
-    if (this.pause || this.superPause) return;
+  private spawnDust(before: Map<Player, number>, paused: boolean): void {
+    if (paused) return;
     // Every third tick of the round (MUGEN's G+0x12760; measured: dust only
     // on clocks divisible by 3 in two different captures).
     if (this.fightTime % 3 !== 0) return;
