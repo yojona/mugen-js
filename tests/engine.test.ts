@@ -1,21 +1,26 @@
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadCharacter } from '../src/engine/character';
-import { IN_A, IN_D, IN_L, IN_R, IN_U, IN_X } from '../src/engine/cmd';
+import { IN_A, IN_D, IN_L, IN_R, IN_U, IN_X, IN_Y } from '../src/engine/cmd';
 import { nodeSource } from '../src/engine/node-source';
 import { loadProgram, Player, type CharacterProgram } from '../src/engine/player';
 import { Vfs } from '../src/engine/vfs';
-import { World } from '../src/engine/world';
+import { World, type FightFx } from '../src/engine/world';
+import { parseAir } from '../src/formats/air';
+import { parseSff } from '../src/formats/sff';
 
 let prog: CharacterProgram;
+let fightFx: FightFx;
 
 beforeAll(async () => {
   const vfs = new Vfs(nodeSource(join(__dirname, '..', 'ref', 'mugen-1.1b1')));
   prog = await loadProgram(vfs, await loadCharacter(vfs, 'chars/kfm/kfm.def'));
+  fightFx = { anims: parseAir(await vfs.text('data/fightfx.air')), sff: await parseSff(await vfs.read('data/fightfx.sff')) };
 });
 
 function match(): { w: World; p1: Player; p2: Player } {
   const w = new World();
+  w.fightFx = fightFx;
   const p1 = new Player(prog, w, 0);
   const p2 = new Player(prog, w, 1);
   p1.pos.x = -70;
@@ -176,5 +181,48 @@ describe('kfm combat', () => {
     expect([...states].some((s) => s >= 5050 && s <= 5120)).toBe(true);
     expect(p2.stateNo).toBe(0);
     expect(p2.life).toBeLessThan(1000);
+  });
+
+  it('throws: P2 runs in P1-owned states, takes damage and returns to its own states', () => {
+    const { w, p1, p2 } = match();
+    p1.pos.x = -16;
+    p2.pos.x = 16;
+    run(w, 2);
+    run(w, 1, IN_R | IN_Y);
+    expect([800, 810]).toContain(p1.stateNo); // the grab can connect on its first tick
+    let borrowed = false;
+    let minY = 0;
+    for (let i = 0; i < 60; i++) {
+      run(w, 1);
+      if (p2.stateOwner === p1) borrowed = true;
+      minY = Math.min(minY, p2.pos.y);
+    }
+    expect(borrowed).toBe(true);
+    expect(minY).toBeLessThan(-80); // carried over KFM's head by TargetBind
+    expect(p2.life).toBeLessThan(1000);
+    run(w, 240);
+    expect(p2.stateOwner).toBeUndefined();
+    expect(p2.stateNo).toBe(0);
+  });
+
+  it('super move: SuperPause freezes play, costs power and leaves afterimages', () => {
+    const { w, p1, p2 } = close();
+    p1.power = 3000;
+    const seq = [IN_D, IN_D | IN_R, IN_R, 0, IN_D, IN_D | IN_R, IN_R, IN_R | IN_X];
+    for (const bits of seq) run(w, 1, bits);
+    expect(p1.stateNo).toBe(3000);
+    let paused = false;
+    let after = false;
+    let p2Hit = false;
+    for (let i = 0; i < 120; i++) {
+      run(w, 1);
+      if (w.superPause) paused = true;
+      if (p1.afterImage.history.length > 0) after = true;
+      if (p2.moveType === 'h') p2Hit = true;
+    }
+    expect(paused).toBe(true);
+    expect(after).toBe(true);
+    expect(p2Hit).toBe(true);
+    expect(p1.power).toBeLessThanOrEqual(2000 + 200);
   });
 });
