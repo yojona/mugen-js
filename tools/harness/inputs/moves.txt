@@ -1,0 +1,25 @@
+# More of KFM's moveset against probein (keyboard). Positions are whatever
+# the moves leave; the point is that both engines agree tick by tick.
+
+40-90     1  r      ; walk in until pushing P2
+100-102   1  r      ; hold forward...
+101       1  y      ; ...and y: Kung Fu Throw when close
+240-290   1  r      ; walk in again
+300-301   1  ur     ; forward jump
+312       1  x      ; air jab
+360-366   1  d      ; crouch...
+362       1  b      ; ...strong kick (sweep)
+360-366   2  dr     ; P2 crouch-guards (holding down-back)
+420       1  r      ; F, F, a: Kung Fu Knee
+422       1  r
+423       1  a
+480-481   1  r      ; ~F, D, DF, x: Kung Fu Upper
+482-483   1  d
+484-485   1  dr
+486       1  x
+560-561   2  ul     ; P2 jumps forward...
+570       2  a      ; ...with an air kick
+640-641   1  d      ; QCF + y: strong Kung Fu Palm
+642-643   1  dr
+644-645   1  r
+646       1  ry

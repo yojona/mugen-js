@@ -1,0 +1,9 @@
+# Player push against an airborne player (probein vs probein).
+
+40-90     1  r      ; P1 walks in until pushing P2
+100-170   1  r      ; P1 keeps walking into P2...
+110-111   2  u      ; ...while P2 jumps straight up
+200-260   2  l      ; P2 walks into P1...
+210-211   1  u      ; ...while P1 jumps straight up
+300-360   2  l      ; again, P2 walking into P1...
+310-311   1  ul     ; ...while P1 jumps backwards over nothing
