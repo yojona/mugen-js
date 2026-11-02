@@ -511,6 +511,13 @@ export class Player {
    * data.liedown.time (faster when buttons are pressed), then gets up via 5120.
    */
   private engineHitTransitions(): void {
+    // Guard end (140) has no exit in common1.cns: when its animation ends the
+    // engine returns to standing, crouching or falling, and the new state runs
+    // this same tick (measured: Time = 1 on the next tick).
+    if (this.stateNo === 140 && this.ctrl && this.anim.animTime() >= 0) {
+      this.changeState(this.stateType === 'c' ? 11 : this.stateType === 'a' ? 51 : 0);
+      return;
+    }
     if (this.stateNo !== 5110 || !this.alive) return;
     const g = this.ghv;
     const newly = this.input.raw(0) & ~this.input.raw(1) & ~0xf;
@@ -539,12 +546,9 @@ export class Player {
     // Guard: holding back with an attacker in range.
     const guardOk = !this.special.has(this.stateType === 'a' ? 'noairguard' : this.stateType === 'c' ? 'nocrouchguard' : 'nostandguard');
     if (guardOk && cmd.has('holdback') && this.inGuardDist() && this.moveType === 'i' && (no < 120 || no > 155)) {
+      // Starting to guard stops a backward walk at once (measured: vel x = 0).
+      this.vel.x = 0;
       return this.enterLater(120);
-    }
-    // Guard end (140) has no exit in common1.cns: when its animation ends the
-    // engine returns to standing, crouching or falling.
-    if (no === 140 && this.anim.animTime() >= 0) {
-      return this.enterLater(this.stateType === 'c' ? 11 : this.stateType === 'a' ? 51 : 0);
     }
     if (this.stateType === 's' && (no === 0 || no === 20)) {
       if (cmd.has('holdup')) return this.enterLater(40);

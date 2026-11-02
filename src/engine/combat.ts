@@ -261,7 +261,12 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     a.addPower(hd.getPower[1]);
     d.addPower(hd.givePower[1]);
     d.returnToOwnStates();
+    // Guarding a hit takes control away and keeps the previous prevstateno
+    // (measured: 130 -> 150 reports prevstateno 120).
+    const prev = d.prevStateNo;
+    d.ctrl = false;
     d.changeState(d.stateType === 'a' ? 154 : d.stateType === 'c' ? 152 : 150);
+    d.prevStateNo = prev;
     if (!proj) cornerPush(a, d, airborne ? hd.airGuardCornerPush : hd.guardCornerPush);
     world.spawnSpark(a, d, hd.guardSpark, sparkXY, src);
     world.playHitSound(a, hd.guardSound);
