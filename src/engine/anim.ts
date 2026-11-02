@@ -23,8 +23,10 @@ interface Timing {
   starts: number[];
   /** Total looptime, or -1 if some element lasts forever. */
   total: number;
-  /** Sum of finite element times (used for AnimTime on infinite actions). */
+  /** Sum of finite element times. */
   finite: number;
+  /** Literal sum of element times, counting -1 as -1 (MUGEN's AnimTime base). */
+  literal: number;
   loopStartTime: number;
   /** Length of the looping portion. */
   loopLen: number;
@@ -37,14 +39,16 @@ function timing(anim: Animation): Timing {
   if (t) return t;
   const starts: number[] = [];
   let acc = 0;
+  let literal = 0;
   let infinite = false;
   for (const e of anim.elements) {
     starts.push(acc);
+    literal += e.time;
     if (e.time < 0) infinite = true;
     else acc += e.time;
   }
   const loopStartTime = starts[anim.loopStart] ?? 0;
-  t = { starts, total: infinite ? -1 : acc, finite: acc, loopStartTime, loopLen: Math.max(1, acc - loopStartTime) };
+  t = { starts, total: infinite ? -1 : acc, finite: acc, literal, loopStartTime, loopLen: Math.max(1, acc - loopStartTime) };
   timingCache.set(anim, t);
   return t;
 }
@@ -120,7 +124,9 @@ export class AnimPlayer {
   animTime(): number {
     const t = this.t;
     const e = this.time;
-    if (t.total < 0) return e - t.finite;
+    // Actions with a -1 element: MUGEN sums element times literally (the -1
+    // included), measured against MUGEN 1.1 with KFM's action 5160.
+    if (t.total < 0) return e - t.literal;
     if (e <= t.total) return e - t.total;
     const r = (e - t.total) % t.loopLen;
     return r === 0 ? 0 : t.loopStartTime + r - t.total;
