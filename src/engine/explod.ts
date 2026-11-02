@@ -105,8 +105,10 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
     const k = p.scale;
     const off: [number, number] = [(prm.num(p, 'pos', 0) ?? 0) * k, (prm.num(p, 'pos', 1) ?? 0) * k];
     const rnd: [number, number] = [prm.int(p, 'random', 0) ?? 0, prm.int(p, 'random', 1) ?? 0];
-    if (rnd[0]) off[0] += p.world.random(rnd[0]) - Math.floor(rnd[0] / 2);
-    if (rnd[1]) off[1] += p.world.random(rnd[1]) - Math.floor(rnd[1] / 2);
+    // mugen.exe 0x410c02: every Explod draws two numbers, random param or not:
+    // seed % (r + 1) - ((r + 1) >> 1).
+    off[0] += (p.world.random(rnd[0] + 1) - ((rnd[0] + 1) >> 1)) * k;
+    off[1] += (p.world.random(rnd[1] + 1) - ((rnd[1] + 1) >> 1)) * k;
     let facing = (prm.int(p, 'facing') ?? 1) < 0 ? -1 : 1;
     const w = p.world;
     let space: Explod['space'] = (prm.raw('space') ?? 'stage').toLowerCase() === 'screen' ? 'screen' : 'stage';
