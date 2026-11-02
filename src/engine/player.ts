@@ -623,6 +623,8 @@ export class Player {
    * a projectile out, in range or not. Guarding a hit also sets it.
    */
   guardFlag = false;
+  /** Set by ChangeState for a player with control: check the auto-turn after states. */
+  turnAfterChange = false;
   private updateGuardFlag(): void {
     this.guardFlag = false;
     if (this.isHelper) return;

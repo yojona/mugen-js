@@ -81,6 +81,9 @@ const IMPLS: Record<string, Impl> = {
     if (v === undefined) return;
     const ctrl = prm.int(p, 'ctrl');
     const anim = prm.int(p, 'anim');
+    // A player that already had control may turn right after (mugen.exe
+    // 0x4490fd, which checks control before this controller's ctrl param).
+    if (p.ctrl && !p.isHelper && (p.stateType === 's' || p.stateType === 'c')) p.turnAfterChange = true;
     p.changeState(v, ctrl === undefined ? undefined : ctrl !== 0, anim);
   },
   selfstate: (_c, prm) => (p) => {

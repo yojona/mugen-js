@@ -190,8 +190,11 @@ export class World {
       p.changedStateThisTick = false;
       p.runStates();
       if (this.inputLocked && !p.isHelper) p.ctrl = false;
-      // Entering a state (e.g. 52 -> 0 with control) turns at once.
-      if (p.changedStateThisTick) this.autoTurn(p);
+      // A ChangeState taken with control (e.g. 52 -> 0) turns at once.
+      if (p.turnAfterChange) {
+        p.turnAfterChange = false;
+        this.tickTurn(p);
+      }
       p.physicsStep();
       // Screen bounds apply as part of the player's movement, before the
       // camera follows it.
@@ -348,19 +351,7 @@ export class World {
     else if (p.stateType === 'c' && p.hasAnim(6)) p.changeAnim(6);
   }
 
-  private autoTurn(p: Player): void {
-    const e = this.enemyOf(p);
-    if (!e || !p.ctrl || p.moveType !== 'i' || p.hitPause > 0 || p.special.has('noautoturn')) return;
-    if ((e.wx - p.wx) * p.facing >= 0) return;
-    // Turning keeps the world velocity (vel x is facing-relative).
-    const turn = (anim: number) => {
-      p.facing = -p.facing;
-      p.vel.x = -p.vel.x;
-      if (p.hasAnim(anim)) p.changeAnim(anim);
-    };
-    if (p.stateType === 's' && (p.stateNo === 0 || p.stateNo === 20)) turn(5);
-    else if (p.stateType === 'c' && p.stateNo === 11) turn(6);
-  }
+
 
   /** Player push: players whose bodies overlap vertically are pushed apart. */
   private pushPlayers(): void {
