@@ -202,6 +202,10 @@ const IMPLS: Record<string, Impl> = {
     const build = compileHitDef(c, env);
     return (p) => {
       p.hitDef = build(p);
+      // The attr's state part is the player's statetype when the HitDef runs
+      // (measured: KFM's 1060 "attr = A, SA" reads back as S, SA in mugen.exe,
+      // so its HitDefAttr = SC super cancel works).
+      if (p.stateType === 's' || p.stateType === 'c' || p.stateType === 'a') p.hitDef.attrState = p.stateType;
       p.hitDefActive = true;
       p.hitDefSet = true;
       p.hitTargets.clear();
