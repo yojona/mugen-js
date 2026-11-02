@@ -498,17 +498,35 @@ export function attackWouldHit(def: Player, att: Player, rec: AttackRecord | nul
   const sA = ra?.clsn[0];
   if (sA) listA = [[ftoi(sA[0].mean), ftoi(sA[1].mean), ftoi(sA[2].mean), ftoi(sA[3].mean)]];
   if (!listP || !listA) return false;
-  // 0x479b80: mirrored boxes for players facing left; inclusive overlap.
-  const fP = def.facing !== 1;
-  const fA = att.facing !== 1;
+  return boxListsOverlap(def.facing !== 1, att.facing !== 1, listP, listA, dx, dy);
+}
+
+/**
+ * 0x479b80: does any box of A, offset by (dx, dy), touch a box of P? Boxes
+ * of a player facing left are mirrored; edges count (inclusive compares).
+ */
+export function boxListsOverlap(flipP: boolean, flipA: boolean, listP: readonly Box4[], listA: readonly Box4[], dx: number, dy: number): boolean {
   for (const a of listP) {
-    const ax1 = fP ? -a[2] : a[0];
-    const ax2 = fP ? -a[0] : a[2];
+    const ax1 = flipP ? -a[2] : a[0];
+    const ax2 = flipP ? -a[0] : a[2];
     for (const b of listA) {
-      const bx1 = (fA ? -b[2] : b[0]) + dx;
-      const bx2 = (fA ? -b[0] : b[2]) + dx;
+      const bx1 = (flipA ? -b[2] : b[0]) + dx;
+      const bx2 = (flipA ? -b[0] : b[2]) + dx;
       if (bx2 >= ax1 && bx1 <= ax2 && b[3] + dy >= a[1] && b[1] + dy <= a[3]) return true;
     }
   }
   return false;
+}
+
+/**
+ * 0x43de40: player push needs the two current Clsn2 lists to touch, tested
+ * in whole internal units with the distance truncated (measured: an airborne
+ * player 0.52 internal units above the other's box still pushes).
+ */
+export function clsn2TouchInternal(p: Player, q: Player): boolean {
+  const lp = boxesOf(p, p.anim.current?.clsn2);
+  const lq = boxesOf(q, q.anim.current?.clsn2);
+  if (!lp || !lq) return false;
+  const k = internalScale(p);
+  return boxListsOverlap(p.facing !== 1, q.facing !== 1, lp, lq, ftoi((q.wx - p.wx) * k), ftoi((q.wy - p.wy) * k));
 }

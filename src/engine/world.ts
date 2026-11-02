@@ -3,8 +3,8 @@
 import { CommandInput } from './cmd';
 import type { AnimationMap } from '../formats/air';
 import type { Sff } from '../formats/sff';
-import { postResolvedMessages, Recorder } from './ai-learn';
-import { applyHits, detectHits, detectProjectileHits, clsn2Overlap } from './combat';
+import { clsn2TouchInternal, postResolvedMessages, Recorder } from './ai-learn';
+import { applyHits, detectHits, detectProjectileHits } from './combat';
 import { simpleExplod, updateExplod, type Explod } from './explod';
 import { updateProjectile, type Projectile } from './projectile';
 import { newPalFx, recordAfterImage, tickPalFx, type EnvShake, type PalFxState } from './fx';
@@ -351,20 +351,50 @@ export class World {
         if (a.side === b.side || !a.pushEnabled || !b.pushEnabled || a.bind || b.bind) continue;
         // Push needs touching Clsn2 boxes first (mugen.exe 0x43de40), then the
         // size-based check below.
-        if (!clsn2Overlap(a, b)) continue;
-        // Vertical overlap of the two bodies (height from [Size]).
-        if (a.wy - a.const('size.height') * a.scale >= b.wy || b.wy - b.const('size.height') * b.scale >= a.wy) continue;
-        const dir = b.wx >= a.wx ? 1 : -1;
-        const aw = a.bodyWidth(dir === a.facing ? 'front' : 'back', 'player') * a.scale;
-        const bw = b.bodyWidth(-dir === b.facing ? 'front' : 'back', 'player') * b.scale;
-        const dist = Math.abs(b.wx - a.wx);
-        const min = aw + bw;
-        if (dist >= min) continue;
-        const overlap = (min - dist) / 2;
-        a.setWorldPos(a.wx - overlap * dir);
-        b.setWorldPos(b.wx + overlap * dir);
+        if (!clsn2TouchInternal(a, b)) continue;
+        // A standing player is not pushed by one more than its [Size] height
+        // above it; crouching and airborne players skip this test
+        // (mugen.exe 0x43df60).
+        const above = (p: Player, q: Player) => p.stateType === 's' && p.wy - q.wy > p.const('size.height') * p.scale;
+        if (above(a, b) || above(b, a)) continue;
+        this.pushApart(a, b);
       }
     }
+  }
+
+  /**
+   * mugen.exe 0x43df60, in internal (GameWidth) units: widths are rounded to
+   * whole units; players closer than 10 (per 320 of GameWidth) are first
+   * set 5 either side of their midpoint, then the remaining overlap with the
+   * original distance is split between them (measured: a cross-up ends 2x5
+   * further apart than the widths alone).
+   */
+  private pushApart(a: Player, b: Player): void {
+    const f = Math.fround;
+    const k = this.gameWidth / this.screenWidth;
+    // Left and right player; on the same spot the one facing right is left.
+    let [l, r] = b.wx > a.wx ? [a, b] : [b, a];
+    if (a.wx === b.wx && a.facing !== b.facing && b.facing === 1) [l, r] = [b, a];
+    const width = (p: Player, side: 'front' | 'back') => Math.floor(p.bodyWidth(side, 'player') * p.scale * k + 0.5);
+    const wl = width(l, l.facing === 1 ? 'front' : 'back');
+    const wr = width(r, r.facing === -1 ? 'front' : 'back');
+    let lx = l.wx * k;
+    let rx = r.wx * k;
+    const d = f(rx - lx);
+    if (f((this.gameWidth * 10) / 320) > d) {
+      const mid = f((rx + lx) * 0.5);
+      const q = f((this.gameWidth * 5) / 320);
+      lx = mid - q;
+      rx = mid + q;
+    }
+    const total = f(wl + wr);
+    if (total > d) {
+      const h = f((total - d) * 0.5);
+      lx -= h;
+      rx += h;
+    }
+    if (lx !== l.wx * k) l.setWorldPos(lx / k);
+    if (rx !== r.wx * k) r.setWorldPos(rx / k);
   }
 
   private clampToScreen(): void {
