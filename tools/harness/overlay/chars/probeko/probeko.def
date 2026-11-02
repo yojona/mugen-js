@@ -1,0 +1,18 @@
+; Harness probe: scripted camera scenario (no input), see camscript.st.
+; The script lives in probe.st and is identical for MUGEN and mugen-web.
+[Info]
+name = "ProbeKO"
+displayname = "ProbeKO"
+mugenversion = 1.0
+author = "mugen-web harness"
+localcoord = 320,240
+
+[Files]
+cmd     = ../kfm/kfm.cmd
+cns     = ../kfm/kfm.cns
+st      = ../kfm/kfm.cns
+st0     = ../probe/probeko.st
+stcommon = common1.cns
+sprite  = ../kfm/kfm.sff
+anim    = ../kfm/kfm.air
+sound   = ../kfm/kfm.snd

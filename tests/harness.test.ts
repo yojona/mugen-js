@@ -84,6 +84,16 @@ describe('MUGEN 1.1 reference (KFM probe)', () => {
     expect(r.reports).toEqual([]);
   }, 60_000);
 
+  it('matches a KO by a Trip: no bounce, thrown higher by the kill', async () => {
+    // Scripted probeko scenario (overlay/chars/probe/koscript.st): P2 at 1
+    // life, KFM's crouching strong kick (440, ground.type = Trip).
+    const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kfm-ko-trip.mugen.log.gz'))).toString('latin1');
+    const ours = (await runProbe(700, { char: 'probeko', seed: 937167434 })).join('\n');
+    const r = compareLogs(ref, ours, 10);
+    expect(r.compared).toBeGreaterThan(190);
+    expect(r.reports).toEqual([]);
+  }, 60_000);
+
   it('matches a whole CPU vs CPU match (level 4): KO slowdown, round end, rounds 2 and 3', async () => {
     // mugen.cfg match rules (ROUNDS empty in the harness): three rounds, with
     // the round-end flow and the CPU's records carried across rounds.
