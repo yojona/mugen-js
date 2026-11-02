@@ -533,6 +533,11 @@ export class Player {
     if (guardOk && cmd.has('holdback') && this.inGuardDist() && this.moveType === 'i' && (no < 120 || no > 155)) {
       return this.enterLater(120);
     }
+    // Guard end (140) has no exit in common1.cns: when its animation ends the
+    // engine returns to standing, crouching or falling.
+    if (no === 140 && this.anim.animTime() >= 0) {
+      return this.enterLater(this.stateType === 'c' ? 11 : this.stateType === 'a' ? 51 : 0);
+    }
     if (this.stateType === 's' && (no === 0 || no === 20)) {
       if (cmd.has('holdup')) return this.enterLater(40);
       if (cmd.has('holddown')) return this.enterLater(10);

@@ -171,6 +171,9 @@ describe('kfm combat', () => {
     expect(guarded).toBe(true);
     expect(p1Guarded).toBe(true);
     expect(p2.life).toBe(1000);
+    // Releasing back ends the guard (140) and the engine returns P2 to standing.
+    run(w, 60);
+    expect(p2.stateNo).toBe(0);
   });
 
   it('knocks down with the Kung Fu Palm and the opponent gets back up', () => {
