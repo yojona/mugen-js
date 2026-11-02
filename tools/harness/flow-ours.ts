@@ -47,7 +47,7 @@ try {
         const [, frame, data] = text.split('|');
         writeFileSync(join(outDir, `f${frame.padStart(6, '0')}.png`), Buffer.from(data.replace(/^data:image\/png;base64,/, ''), 'base64'));
         log.push(`S|${frame}`);
-      } else if (/^(FLOW|DBG)\|/.test(text)) log.push(text);
+      } else if (/^(FLOW|DBG|SEED)\|/.test(text)) log.push(text);
     }
     if (m.method === 'Runtime.exceptionThrown') log.push(`ERR|${JSON.stringify(m.params.exceptionDetails.exception?.description ?? m.params.exceptionDetails.text)}`);
   });
