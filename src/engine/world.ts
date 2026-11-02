@@ -311,12 +311,14 @@ export class World {
   }
 
   /** TargetBind / BindToTarget position locks. */
-  /** End of tick: frozen players still follow their binds; bind times run out. */
+  /** End of tick: bound players follow their binds; bind times run out. */
   private applyBinds(): void {
     for (const p of this.allPlayers()) {
       const b = p.bind;
       if (!b) continue;
-      if (this.frozen(p)) this.placeBound(p);
+      // The bound player is put back after its own movement (measured: a
+      // thrown KFM entering 821 keeps the TargetBind position for that tick).
+      this.placeBound(p);
       // The bind (and GetHitVar(isbound)) lasts the whole tick.
       if (b.time === 0 || (b.time > 0 && --b.time === 0)) p.bind = undefined;
     }
