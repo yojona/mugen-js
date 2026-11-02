@@ -7,6 +7,7 @@
 
 import type { Clsn } from '../formats/air';
 import { attrMatches, type HitDefData } from './hitdef';
+import { endProjectile, projInfo, type Projectile } from './projectile';
 import type { Player } from './player';
 
 interface Box {
@@ -69,6 +70,8 @@ export interface PendingHit {
   defender: Player;
   hd: HitDefData;
   guarded: boolean;
+  /** Set when the hit comes from a projectile owned by `attacker`. */
+  proj?: Projectile;
 }
 
 export function detectHits(players: Player[]): PendingHit[] {
@@ -144,19 +147,91 @@ export function applyHits(hits: PendingHit[]): void {
   for (const h of hits) applyHit(h);
 }
 
-function applyHit({ attacker: a, defender: d, hd, guarded }: PendingHit): void {
+function projBoxes(pr: Projectile, which: 1 | 2): Box[] {
+  const el = pr.anim.current;
+  const boxes = which === 1 ? el?.clsn1 : el?.clsn2;
+  if (!boxes) return [];
+  return boxes.map((b) => {
+    const xa = pr.x + pr.facing * b.x1 * pr.scale[0];
+    const xb = pr.x + pr.facing * b.x2 * pr.scale[0];
+    return { x1: Math.min(xa, xb), x2: Math.max(xa, xb), y1: pr.y + b.y1 * pr.scale[1], y2: pr.y + b.y2 * pr.scale[1] };
+  });
+}
+
+/**
+ * Projectile collisions: opposing projectiles cancel by priority (equal: both
+ * cancel; otherwise the stronger loses one priority point), then projectiles
+ * hit players' Clsn2 boxes.
+ */
+export function detectProjectileHits(projs: Projectile[], players: Player[]): PendingHit[] {
+  const live = projs.filter((p) => p.phase === 'active' && p.hitPause === 0);
+  for (let i = 0; i < live.length; i++) {
+    for (let j = i + 1; j < live.length; j++) {
+      const a = live[i]!;
+      const b = live[j]!;
+      if (a.phase !== 'active' || b.phase !== 'active' || a.owner.side === b.owner.side) continue;
+      const ab = [...projBoxes(a, 1), ...projBoxes(a, 2)];
+      const bb = [...projBoxes(b, 1), ...projBoxes(b, 2)];
+      if (!overlap(ab, bb)) continue;
+      if (a.priority === b.priority) {
+        cancel(a);
+        cancel(b);
+      } else {
+        const [hi, lo] = a.priority > b.priority ? [a, b] : [b, a];
+        cancel(lo);
+        hi.priority--;
+      }
+    }
+  }
+  const hits: PendingHit[] = [];
+  for (const pr of live) {
+    if (pr.phase !== 'active' || pr.hitsLeft <= 0 || pr.missTimer > 0) continue;
+    const atk = projBoxes(pr, 1);
+    if (!atk.length) continue;
+    for (const d of players) {
+      if (d.side === pr.owner.side || pr.hitTargets.has(d) || (!d.alive && d.stateType === 'l')) continue;
+      if (!overlap(atk, worldBoxes(d, d.anim.current?.clsn2 ?? null))) continue;
+      if (!canHit(pr.owner, pr.hd, d)) continue;
+      const guarded = isGuarding(d) && stanceOk(pr.hd.guardFlag, d);
+      hits.push({ attacker: pr.owner, defender: d, hd: pr.hd, guarded, proj: pr });
+      break;
+    }
+  }
+  return hits;
+}
+
+function cancel(pr: Projectile): void {
+  projInfo(pr.owner, pr.projId).cancel = 0;
+  endProjectile(pr, pr.cancelAnim);
+}
+
+function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): void {
   const world = a.world;
-  a.hitTargets.add(d);
   a.targets.set(d, hd.id);
   // Explods flagged removeongethit disappear when their owner is hit.
   if (!guarded) world.explods = world.explods.filter((e) => !(e.owner === d && e.removeOnGetHit));
-  // A HitDef is valid for a single hit; triggering it again re-arms it.
-  a.hitDefActive = false;
-  a.moveContact = 1;
-  if (guarded) a.moveGuarded = 1;
-  else a.moveHit = 1;
-  a.hitPause = guarded ? hd.guardPause[0] : hd.pause[0];
-  const towardA = a.pos.x >= d.pos.x ? 1 : -1;
+  if (proj) {
+    // Projectiles pause themselves (p1 pausetime) and count their hits.
+    proj.hitTargets.add(d);
+    proj.hitPause = guarded ? hd.guardPause[0] : hd.pause[0];
+    proj.hitsLeft--;
+    proj.missTimer = proj.missTime;
+    const info = projInfo(a, proj.projId);
+    info.contact = 0;
+    if (guarded) info.guarded = 0;
+    else info.hit = 0;
+    if (proj.hitsLeft <= 0 && proj.removeOnHit) endProjectile(proj, proj.hitAnim);
+  } else {
+    a.hitTargets.add(d);
+    // A HitDef is valid for a single hit; triggering it again re-arms it.
+    a.hitDefActive = false;
+    a.moveContact = 1;
+    if (guarded) a.moveGuarded = 1;
+    else a.moveHit = 1;
+    a.hitPause = guarded ? hd.guardPause[0] : hd.pause[0];
+  }
+  const src = proj ? { x: proj.x, y: proj.y } : a.pos;
+  const towardA = src.x >= d.pos.x ? 1 : -1;
   const facesA = d.facing === towardA;
   const xdir = facesA ? 1 : -1; // converts "away from attacker" velocities into d's frame
   const airborne = d.stateType === 'a';
@@ -178,8 +253,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded }: PendingHit): void {
     d.addPower(hd.givePower[1]);
     d.returnToOwnStates();
     d.changeState(d.stateType === 'a' ? 154 : d.stateType === 'c' ? 152 : 150);
-    cornerPush(a, d, airborne ? hd.airGuardCornerPush : hd.guardCornerPush);
-    world.spawnSpark(a, d, hd.guardSpark, hd.sparkXY);
+    if (!proj) cornerPush(a, d, airborne ? hd.airGuardCornerPush : hd.guardCornerPush);
+    world.spawnSpark(a, d, hd.guardSpark, hd.sparkXY, src);
     world.playHitSound(a, hd.guardSound);
   } else {
     const dmg = scaleDamage(a, d, hd.damage);
@@ -225,11 +300,12 @@ function applyHit({ attacker: a, defender: d, hd, guarded }: PendingHit): void {
       d.alive = false;
       g.fall = 1;
     }
-    a.hitCount += hd.numHits;
+    if (!proj) a.hitCount += hd.numHits;
     a.addPower(hd.getPower[0]);
     d.addPower(hd.givePower[0]);
-    if (hd.p2Facing === 1) d.facing = a.facing;
-    else if (hd.p2Facing === -1) d.facing = -a.facing;
+    const aFacing = proj ? proj.facing : a.facing;
+    if (hd.p2Facing === 1) d.facing = aFacing;
+    else if (hd.p2Facing === -1) d.facing = -aFacing;
     d.ctrl = false;
     if (hd.p2StateNo >= 0) {
       if (hd.p2GetP1State) d.stateOwner = a;
@@ -241,13 +317,14 @@ function applyHit({ attacker: a, defender: d, hd, guarded }: PendingHit): void {
       else d.changeState(inAir || vel[1] !== 0 ? 5020 : d.stateType === 'c' ? 5010 : 5000);
     }
     d.moveType = 'h';
-    if (!inAir && vel[1] === 0) cornerPush(a, d, hd.groundCornerPush);
-    else if (inAir) cornerPush(a, d, hd.airCornerPush);
-    world.spawnSpark(a, d, hd.spark, hd.sparkXY);
+    if (!proj && !inAir && vel[1] === 0) cornerPush(a, d, hd.groundCornerPush);
+    else if (!proj && inAir) cornerPush(a, d, hd.airCornerPush);
+    world.spawnSpark(a, d, hd.spark, hd.sparkXY, src);
     world.playHitSound(a, hd.hitSound);
   }
-  a.sprPriority = hd.p1SprPriority;
   d.sprPriority = hd.p2SprPriority;
+  if (proj) return;
+  a.sprPriority = hd.p1SprPriority;
   if (hd.p1GetP2Facing) a.facing = hd.p1GetP2Facing > 0 ? d.facing : -d.facing;
   else if (hd.p1Facing === -1) a.facing = -a.facing;
   if (!guarded && hd.p1StateNo >= 0) a.changeState(hd.p1StateNo);
