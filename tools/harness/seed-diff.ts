@@ -9,7 +9,7 @@ let clock = 0;
 for (const line of readFileSync(refPath!, 'latin1').split('\n')) {
   const p = line.split('|');
   if (p[0] === 'S' && p[2] === '1') clock = Number(p[3]!.split(',')[58]);
-  if (p[0] === 'P' && clock > 0) mugen.set(clock, Number(p[2]!.split(',')[3]));
+  if (p[0] === 'P' && clock > 0) mugen.set(clock, Number(p[2]!.split(',')[Number(process.env.SEEDCOL ?? 3)]));
 }
 const ours = new Map<number, number>();
 const orig = World.prototype.tick;
@@ -18,7 +18,7 @@ World.prototype.tick = function (this: World, inp: number[]) {
   const c = this.players[0]!.vars[58]!;
   if (c > 0) ours.set(c, this.seed);
 };
-await runProbe(1000, { char: char!, inputs, seed: Number(seed), ai: [undefined, ai2 ? Number(ai2) : undefined] });
+await runProbe(1000, { char: char!, inputs, seed: Number(seed), ai: (ai2?.includes(',') ? ai2 : ',' + (ai2 ?? '4')).split(',').map((v) => (v ? Number(v) : undefined)) as [number | undefined, number | undefined] });
 for (const [c, s] of [...mugen].sort((a, b) => a[0] - b[0])) {
   if (ours.get(c) !== s) {
     console.log('first seed diff at clock', c, 'mugen', s, 'ours', ours.get(c), 'prev ok clock', c - 1);
