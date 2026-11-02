@@ -3,6 +3,7 @@
 import { BOTTOM, CompileError, compileNode, FLOAT, INT, R, relFn, toInt, type Fn, type TriggerEnv, type VarKind } from '../expr/compile';
 import type { CallNode, ClauseNode } from '../expr/parser';
 import { isFloatConst } from './cns';
+import { emptyGetHitVars, GETHITVAR_FLOATS, type GetHitVars } from './hitdef';
 import type { Player } from './player';
 
 type P = Player;
@@ -55,23 +56,23 @@ const NULLARY: Record<string, Fn<P>> = {
   tickspersecond: int(() => 60),
   numenemy: int((p) => (p.world.enemyOf(p) ? 1 : 0)),
   numpartner: int(() => 0),
-  numtarget: int(() => 0),
+  numtarget: int((p) => (p.hitTargets.size > 0 && p.hitCount > 0 ? p.hitTargets.size : 0)),
   numexplod: int(() => 0),
   numproj: int(() => 0),
   numprojid: int(() => 0),
   numhelper: int(() => 0),
-  hitcount: int(() => 0),
-  uniqhitcount: int(() => 0),
-  movecontact: int(() => 0),
-  movehit: int(() => 0),
-  moveguarded: int(() => 0),
+  hitcount: int((p) => p.hitCount),
+  uniqhitcount: int((p) => p.hitCount),
+  movecontact: int((p) => p.moveContact),
+  movehit: int((p) => p.moveHit),
+  moveguarded: int((p) => p.moveGuarded),
   movereversed: int(() => 0),
-  hitshakeover: int(() => 1),
-  hitover: int(() => 1),
-  hitfall: int(() => 0),
-  hitpausetime: int(() => 0),
-  canrecover: int(() => 0),
-  inguarddist: int(() => 0),
+  hitshakeover: int((p) => (p.ghv.hitshaketime <= 0 ? 1 : 0)),
+  hitover: int((p) => (p.ghv.hittime <= 0 ? 1 : 0)),
+  hitfall: int((p) => p.ghv.fall),
+  hitpausetime: int((p) => p.hitPause),
+  canrecover: int((p) => (p.ghv.fall && p.ghv['fall.recover'] && p.ghv['fall.recovertime'] <= 0 ? 1 : 0)),
+  inguarddist: int((p) => (p.inGuardDist() ? 1 : 0)),
   projcanceltime: int(() => -1),
   projcontacttime: int(() => -1),
   projguardedtime: int(() => -1),
@@ -107,7 +108,7 @@ const NULLARY: Record<string, Fn<P>> = {
 const AXIS: Record<string, (p: P, axis: 'x' | 'y' | 'z') => number | undefined> = {
   pos: (p, a) => (a === 'x' ? p.pos.x - p.world.camera.x : a === 'y' ? p.pos.y : 0),
   vel: (p, a) => (a === 'x' ? p.vel.x : a === 'y' ? p.vel.y : 0),
-  hitvel: () => 0,
+  hitvel: (p, a) => (a === 'x' ? p.ghv.xvel : a === 'y' ? p.ghv.yvel : 0),
   screenpos: (p, a) => (a === 'x' ? p.pos.x - (p.world.camera.x - p.world.screenWidth / 2) : a === 'y' ? p.pos.y - p.world.camera.y + p.world.groundY : 0),
   camerapos: (p, a) => (a === 'x' ? p.world.camera.x : a === 'y' ? p.world.camera.y : 0),
   p2dist: (p, a) => {
@@ -161,7 +162,16 @@ function call(node: CallNode, args: Fn<P>[]): Fn<P> | undefined {
         return (R.t = INT), Math.trunc(v) | 0;
       };
     }
-    if (name === 'gethitvar') return int(() => 0);
+    if (name === 'gethitvar') {
+      if (!(w in emptyGetHitVars())) throw new CompileError(`GetHitVar(${w}) desconocido`);
+      const key = w as keyof GetHitVars;
+      const isF = GETHITVAR_FLOATS.has(w);
+      return (p) => {
+        const v = p.ghv[key];
+        if (isF) return (R.t = FLOAT), Math.fround(Number.isNaN(v) ? 0 : v);
+        return (R.t = INT), Math.trunc(v) | 0;
+      };
+    }
     if (name === 'stagevar') return int(() => 0);
     return undefined;
   }
@@ -247,8 +257,18 @@ function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
       return boolOut((p) => p.prog.data.def.author.toLowerCase() === word.toLowerCase());
     case 'teammode':
       return boolOut(() => word === 'single');
-    case 'hitdefattr':
-      return boolOut(() => false);
+    case 'hitdefattr': {
+      // HitDefAttr = SCA, NA, SA: state letters, then attack attributes.
+      const states = node.words[0] ?? '';
+      const types = node.words.slice(1);
+      return (p) => {
+        R.t = INT;
+        const hd = p.hitDef;
+        if (!hd || p.moveType !== 'a') return eq ? 0 : 1;
+        const match = states.includes(hd.attrState) && (types.length === 0 || types.some((t) => t === hd.attrType || (t[0] === 'a' && t[1] === hd.attrType[1]) || (t[1] === 'a' && t[0] === hd.attrType[0])));
+        return match === eq ? 1 : 0;
+      };
+    }
     case 'stagevar':
       return boolOut(() => false);
     case 'timemod': {
