@@ -47,6 +47,8 @@ export class World {
   rightBound = 1000;
   screenLeft = 15;
   screenRight = 15;
+  /** Set by the match flow outside RoundState 2. */
+  inputLocked = false;
   shadow: { intensity: number; color: [number, number, number]; yscale: number; fadeRange: [number, number] } | undefined;
   private seed = 0x1234567;
   fightFx?: FightFx;
@@ -121,10 +123,12 @@ export class World {
 
   /** Feed this tick's raw inputs (one bitmask per player) and advance one tick. */
   tick(inputs: number[]): void {
-    this.players.forEach((p, i) => p.input.push(inputs[i] ?? 0));
+    // Before the round starts (and after it ends) input is ignored and nobody has control.
+    this.players.forEach((p, i) => p.input.push(this.inputLocked ? 0 : (inputs[i] ?? 0)));
     const active = this.allPlayers().filter((p) => !this.frozen(p));
     for (const p of active) p.advanceAnim();
     for (const p of active) p.runStates();
+    if (this.inputLocked) for (const p of this.players) p.ctrl = false;
     for (const p of active) p.physicsStep();
     applyHits(detectHits(active));
     if (!this.superPause && !this.pause) {
