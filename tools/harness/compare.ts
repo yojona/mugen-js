@@ -16,6 +16,10 @@ export interface Row {
 
 export function parseLog(text: string): Map<string, Row> {
   const rows = new Map<string, Row>();
+  // The clock restarts every round (5900 clears the variables): later rounds
+  // are keyed as round * 100000 + clock.
+  const last = new Map<string, number>();
+  const round = new Map<string, number>();
   for (const line of text.split(/\r?\n/)) {
     if (!line.startsWith('S|')) continue;
     const [, , side, vs, fs] = line.split('|');
@@ -23,7 +27,10 @@ export function parseLog(text: string): Map<string, Row> {
     const f = (fs ?? '').split(',').map(Number);
     const clock = v[58]!;
     if (clock <= 0) continue; // compare from the moment the script runs
-    const key = `${clock}|${side}`;
+    const s = side!;
+    if (clock < (last.get(s) ?? 0)) round.set(s, (round.get(s) ?? 0) + 1);
+    last.set(s, clock);
+    const key = `${(round.get(s) ?? 0) * 100000 + clock}|${side}`;
     if (!rows.has(key)) rows.set(key, { v, f });
   }
   return rows;

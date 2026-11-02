@@ -10,6 +10,8 @@ sys.path.insert(0, '/')
 import memread  # noqa: E402
 
 STEPS = int(os.environ.get('STEPS', '700'))
+# -rounds for MUGEN; empty = mugen.cfg's match rules (full matches).
+ROUNDS = os.environ.get('ROUNDS', '1')
 SEED = os.environ.get('SEED', '1')
 P1 = os.environ.get('P1', 'probe')
 P2 = os.environ.get('P2', 'probe')
@@ -85,7 +87,7 @@ def main():
     for n in (1, 2):
         if os.environ.get(f'P{n}AI'):
             ai += [f'-p{n}.ai', os.environ[f'P{n}AI']]
-    subprocess.Popen(['wine', 'mugen.exe', '-p1', P1, '-p2', P2, '-p2.color', '2', '-s', STAGE, '-rounds', '1', '-nosound', '-sessionseed', SEED, *ai],
+    subprocess.Popen(['wine', 'mugen.exe', '-p1', P1, '-p2', P2, '-p2.color', '2', '-s', STAGE, *(['-rounds', ROUNDS] if ROUNDS else []), '-nosound', '-sessionseed', SEED, *ai],
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     win = ''
     for _ in range(240):
