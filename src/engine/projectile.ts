@@ -38,6 +38,8 @@ export interface Projectile {
   hd: HitDefData;
   /** active: flying; ending: playing hit/remove/cancel anim; dead: to be deleted. */
   phase: 'active' | 'ending' | 'dead';
+  /** Created this tick: it first moves (and animates) next tick (measured). */
+  fresh: boolean;
   age: number;
   hitPause: number;
   superMoveTime: number;
@@ -126,6 +128,7 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
       heightBound: [(int(p, 'projheightbound', 0) ?? Math.trunc(-240 * local)) * k, (int(p, 'projheightbound', 1) ?? Math.trunc(1 * local)) * k],
       hd: hdBuild(p),
       phase: 'active',
+      fresh: true,
       age: 0,
       hitPause: 0,
       superMoveTime: int(p, 'supermovetime') ?? 0,
@@ -162,6 +165,10 @@ export function endProjectile(pr: Projectile, anim: number, vel?: [number, numbe
 /** Move, age and bound-check one projectile. */
 export function updateProjectile(pr: Projectile): void {
   if (pr.phase === 'dead') return;
+  if (pr.fresh) {
+    pr.fresh = false;
+    return;
+  }
   if (pr.hitPause > 0) {
     pr.hitPause--;
     return;
