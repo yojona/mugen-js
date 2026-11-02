@@ -452,6 +452,7 @@ export class MugenAI {
   }
 
   private pickAttack(): true {
+    if (DEBUG) DEBUG.push(`list:${this.attackList.map((r) => r.stateNo).join('/')}`);
     this.attack = this.attackList[this.rand(this.attackList.length)]!;
     this.attackWant = '';
     this.attackSent = false;
@@ -498,6 +499,7 @@ export class MugenAI {
         if (haveT && y & 7 && y & ~7) score -= 100;
       }
       if (!p.ctrl) score -= 100;
+      if (DEBUG) DEBUG.push(`r${r.stateNo}:tt${tt}:tot${r.total.mean}:sc${score}`);
       if (score > 0) this.attackList.push(r);
     }
     return this.attackList.length;
