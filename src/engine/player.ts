@@ -323,7 +323,9 @@ export class Player {
     // Lying down: the get-up countdown starts when 5110 is entered.
     // The get-up count starts with a falling hit and again on hitting the
     // ground (5100); lying down (5110) counts its entry tick (measured).
-    if (no === 5100) this.ghv.recovertime = this.const('data.liedown.time');
+    if (no === 5100) {
+      this.ghv.recovertime = this.const('data.liedown.time');
+    }
     if (no === 5110) this.ghv.recovertime -= 1;
     this.stateChanged = true;
     this.changedStateThisTick = true;
@@ -586,9 +588,14 @@ export class Player {
    */
   keyEventRecovery(): void {
     const g = this.ghv;
-    if (!this.cmdInput?.lastEvent || this.moveType !== 'h') return;
+    // Not on the first tick after the hit (measured: a CPU mashing through a
+    // trip gets up a tick later than counting that tick).
+    const fresh = this.recoverFresh;
+    this.recoverFresh = false;
+    if (fresh || !this.cmdInput?.lastEvent || this.moveType !== 'h') return;
     if (this.stateType === 'l') g.recovertime = Math.trunc(g.recovertime * 0.75);
-    else if (g.fall) g.recovertime = Math.trunc(g.recovertime * 0.9);
+    // p+0x110c is GetHitVar(fallcount).
+    else if (g.fallcount > 0) g.recovertime = Math.trunc(g.recovertime * 0.9);
   }
 
   private engineHitTransitions(): void {
@@ -625,6 +632,8 @@ export class Player {
    * a projectile out, in range or not. Guarding a hit also sets it.
    */
   guardFlag = false;
+  /** Hit this tick: the next input's key event does not shorten the get-up wait. */
+  recoverFresh = false;
   private updateGuardFlag(): void {
     this.guardFlag = false;
     if (this.isHelper) return;

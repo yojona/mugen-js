@@ -299,6 +299,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     const inAir = d.stateType === 'a' || !!override?.forceAir;
     // Juggle points: reset on a fresh hit, spent on air hits.
     if (d.moveType !== 'h' || d.stateType !== 'a') d.juggleLeft = d.const('data.airjuggle');
+    // A fresh combo starts the fall count again.
+    if (d.moveType !== 'h') g.fallcount = 0;
     else d.juggleLeft -= hd.airJuggle;
     const vel = inAir ? hd.airVel : hd.groundVel;
     g.guarded = 0;
@@ -316,7 +318,12 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.yvel = vel[1] * conv;
     g.yaccel = hd.yaccel * conv;
     g.fall = (inAir ? hd.airFall : hd.fall) || (wasFalling && !hd.forceNoFall) ? 1 : 0;
-    if (g.fall) g.recovertime = d.const('data.liedown.time');
+    // The get-up count is reset by falling hits and trips (measured: a trip
+    // 5070 -> 5071 -> 5110 lies down for the full liedown.time).
+    if (g.fall || (!inAir && hd.groundType === 3)) g.recovertime = d.const('data.liedown.time');
+    d.recoverFresh = true;
+    // GetHitVar(fallcount): knock-down hits taken in this combo.
+    if (g.fall) g.fallcount++;
     g['fall.damage'] = hd.fallDamage;
     g['fall.xvel'] = hd.fallXVel === undefined ? Number.NaN : hd.fallXVel * conv;
     g['fall.yvel'] = hd.fallYVel * conv;
