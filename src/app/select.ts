@@ -52,6 +52,11 @@ export class SelectScreen implements Screen {
   private rows: number;
   private cols: number;
   private cursors: Cursor[] = [];
+  /** Training and watch: P1's pad picks both sides, one after the other. */
+  private get oneDriver(): boolean {
+    return this.mode === 'training' || this.mode === 'watch';
+  }
+
   /** Which cursor P1's pad drives in training (it also picks the opponent). */
   private active = 0;
   private stageList: string[];
@@ -126,8 +131,8 @@ export class SelectScreen implements Screen {
     }
     const allChars = this.cursors.every((c) => c.done);
     if (!allChars) {
-      const list = this.mode === 'training' ? [this.cursors[this.active]!] : this.cursors;
-      list.forEach((c, i) => this.moveCursor(c, this.mode === 'training' ? this.active : i));
+      const list = this.oneDriver ? [this.cursors[this.active]!] : this.cursors;
+      list.forEach((c, i) => this.moveCursor(c, this.oneDriver ? this.active : i));
       return;
     }
     if (this.needStage && !this.stageDone) {
@@ -180,7 +185,7 @@ export class SelectScreen implements Screen {
       c.pick = { char: ch, pal };
       c.done = true;
       motifSound(this.ctx, this.v(`${pre}.cursor.done.snd`));
-      if (this.mode === 'training' && this.active === 0) this.active = 1;
+      if (this.oneDriver && this.active === 0) this.active = 1;
       return;
     }
   }
@@ -224,7 +229,7 @@ export class SelectScreen implements Screen {
     this.cursors.forEach((c, i) => {
       const pre = `p${i + 1}`;
       const blink = i === 1 && this.int('p2.cursor.blink', 0) !== 0 && this.cursors[0]!.row === c.row && this.cursors[0]!.col === c.col && Math.floor(this.time / 8) % 2 === 1;
-      const showCursor = this.mode !== 'training' || i === this.active || c.done;
+      const showCursor = !this.oneDriver || i === this.active || c.done;
       const cur = this.cursorEls.get(`${pre}.${c.done ? 'done' : 'active'}`) ?? this.cursorEls.get(`${pre}.active`);
       if (cur && showCursor && !blink) {
         const [x, y] = cellPos(c.row, c.col);
@@ -258,7 +263,7 @@ export class SelectScreen implements Screen {
     if (titleEl?.font) {
       const font = motif.fonts[titleEl.font[0]];
       const [tx, ty] = this.pair('title.offset');
-      const label = this.mode === 'arcade' ? 'Arcade' : this.mode === 'versus' ? 'Versus Mode' : 'Training Mode';
+      const label = this.mode === 'arcade' ? 'Arcade' : this.mode === 'versus' ? 'Versus Mode' : this.mode === 'watch' ? 'Watch Mode' : 'Training Mode';
       if (font) drawText(r, font, label, tx, ty, titleEl.font[1], titleEl.font[2], titleEl.scale, titleEl.fontColor);
     }
 

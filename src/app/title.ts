@@ -12,6 +12,7 @@ const ITEMS: { key: string; mode: GameMode }[] = [
   { key: 'arcade', mode: 'arcade' },
   { key: 'versus', mode: 'versus' },
   { key: 'training', mode: 'training' },
+  { key: 'watch', mode: 'watch' },
 ];
 
 export class TitleScreen implements Screen {

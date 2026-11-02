@@ -149,7 +149,7 @@ async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | und
     hud,
     fightFx,
     commonSnd,
-    human: mode === 'versus' ? [true, true] : [true, false],
+    human: mode === 'versus' ? [true, true] : mode === 'watch' ? [false, false] : [true, false],
     training: mode === 'training',
   });
 }
@@ -214,7 +214,7 @@ async function mainLoop(): Promise<void> {
   await storyboard(motif.introStoryboard);
   for (;;) {
     const mode = await until<GameMode>(new TitleScreen(ctx, menuPos));
-    menuPos = ['arcade', 'versus', 'training'].indexOf(mode);
+    menuPos = ['arcade', 'versus', 'training', 'watch'].indexOf(mode);
     await runMode(mode);
   }
 }
