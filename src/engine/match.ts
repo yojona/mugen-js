@@ -276,7 +276,12 @@ export class Match {
           if (this.matchOver) this.announce = { kind: 'win', winner: this.roundWinner, age: 0 };
         }
         if (this.phaseTime >= c.overTime) {
-          if (this.matchOver) this.enter('win');
+          // The match ends with the last round's over.time (measured: the
+          // victory screen follows 213 frames after RoundState 4).
+          if (this.matchOver) {
+            this.finished = true;
+            if (this.autoRematch) this.enter('win');
+          }
           else {
             // The reset frame runs no tick; 5900 runs on the next one
             // (measured in mugen.exe: frame 3410 has no tick between the

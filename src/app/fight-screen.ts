@@ -42,7 +42,8 @@ export class FightScreen implements Screen {
   readonly world = new World();
   readonly match: Match;
   private bg: StageRuntime;
-  private fade = new Fader(10, 10);
+  /** The next screen follows 3 frames after the match ends (measured). */
+  private fade = new Fader(10, 2);
   /** Training dummy settings, changed with keys 1-5. */
   private dummy: DummySettings = { stance: 0, guard: false, distance: 0, jumpDistance: 0, button: 0 };
   private idle = [0, 0];
