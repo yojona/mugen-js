@@ -81,6 +81,7 @@ export class FightScreen implements Screen {
     }
     if (this.fade.fadingOut) return;
     if (this.ctx.keys.escape) {
+      this.saveRecords();
       this.pendingResult = { winner: undefined };
       this.fade.fadeOut();
       return;
@@ -98,11 +99,17 @@ export class FightScreen implements Screen {
     w.sounds.length = 0;
     if (this.s.training) this.refillLife();
     if (m.finished && !this.fade.fadingOut) {
+      this.saveRecords();
       this.pendingResult = { winner: m.winner ? m.winner.side : -1 };
       this.fade.fadeOut();
     }
   }
   private pendingResult: FightResult | undefined;
+
+  /** The players leave: their AI move records stay with the characters. */
+  private saveRecords(): void {
+    for (const p of this.world.players) p.recorder?.saveToCharacter();
+  }
 
   /** Training mode: life refills once a combo is over. */
   private refillLife(): void {

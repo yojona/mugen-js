@@ -29,6 +29,8 @@ export interface CharacterProgram {
   compiled: Map<number, CompiledState>;
   /** [Quotes] victory1..victoryN from the constants file. */
   quotes: string[];
+  /** CPU AI move records kept for the session (mugen.exe chardata+0x64c). */
+  aiRecords?: { sc: import('./ai-learn').RecordTable; air: import('./ai-learn').RecordTable };
 }
 
 export interface CompiledState {

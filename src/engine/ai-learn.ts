@@ -252,7 +252,22 @@ export class Recorder {
   /** p+0x1cf8: a command-triggered state change awaits its type-1 message. */
   didCmdMove = false;
 
-  constructor(readonly p: Player) {}
+  /** 0x42ef50: a new player starts with its character's records. */
+  constructor(readonly p: Player) {
+    const saved = p.prog.aiRecords;
+    if (saved) {
+      mergeTables(this.tblSC, saved.sc);
+      mergeTables(this.tblAir, saved.air);
+    }
+  }
+
+  /** 0x43a880: when the player is destroyed its records go back to the character. */
+  saveToCharacter(): void {
+    const prog = this.p.prog;
+    prog.aiRecords ??= { sc: new Map(), air: new Map() };
+    mergeTables(prog.aiRecords.sc, this.tblSC);
+    mergeTables(prog.aiRecords.air, this.tblAir);
+  }
 
   table(st: string = this.p.stateType): RecordTable | null {
     return st === 's' || st === 'c' ? this.tblSC : st === 'a' ? this.tblAir : null;
