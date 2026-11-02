@@ -9,5 +9,6 @@ ENV WINEDEBUG=-all WINEPREFIX=/wine DISPLAY=:99
 RUN wineboot --init 2>/dev/null; wineserver -w || true
 COPY drive.sh /drive.sh
 COPY memread.py /memread.py
-RUN chmod +x /drive.sh /memread.py
-ENTRYPOINT ["/drive.sh"]
+COPY drive.py /drive.py
+RUN chmod +x /drive.sh /memread.py /drive.py
+ENTRYPOINT ["python3", "/drive.py"]

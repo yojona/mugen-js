@@ -1,0 +1,18 @@
+# Keyboard input for the probein character, keyed on the script clock var(58)
+# (ticks since RoundState 2; control arrives at clock 31).
+# <from>[-<to>]  <player 1|2>  <keys: u d l r = directions, a b c x y z s = buttons>
+# Directions are absolute: P1 starts on the left facing right, P2 on the right.
+
+40-79     1  r      ; walk forward with the keyboard (built-in walk state)
+100-101   1  u      ; neutral jump
+170-171   1  ul     ; jump back
+240-299   1  r      ; walk back in until pushing against P2
+320-339   1  d      ; crouch, then stand up when released
+370-400   2  r      ; P2 holds back (guard)
+380       1  x      ; jab into the guard
+450       1  y      ; strong punch, unguarded
+540-541   1  d      ; quarter circle forward + x (Kung Fu Palm)
+542-543   1  dr
+544-545   1  r
+546       1  rx
+640       2  x      ; P2 jab

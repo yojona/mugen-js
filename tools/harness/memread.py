@@ -47,6 +47,24 @@ def find(pid):
                 i = data.find(pat, i + 4)
     return found
 
+def read(pid, loc):
+    """[(side, vars, fvars)] for each located player with valid markers."""
+    rows = []
+    with open(f'/proc/{pid}/mem', 'rb', 0) as mem:
+        for side in sorted(loc):
+            for base, fbase in loc[side]:
+                mem.seek(base)
+                v = struct.unpack('<60i', mem.read(240))
+                if v[56] != MARK:
+                    continue
+                f = ()
+                if fbase:
+                    mem.seek(fbase)
+                    f = struct.unpack('<40f', mem.read(160))
+                rows.append((side, v, f))
+                break
+    return rows
+
 def main():
     pid, step = int(sys.argv[1]), sys.argv[2]
     cache = sys.argv[3] if len(sys.argv) > 3 else None
@@ -71,4 +89,5 @@ def main():
                 print(f"S|{step}|{side}|" + ",".join(map(str, v)) + "|" + ",".join(f"{x:.4f}" for x in f))
                 break
 
-main()
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,18 @@
+; Harness probe: Kung Fu Man 720p (Elecbyte's kfm720) with the state capture.
+; No script: used as the opponent to check kfm720's own states.
+[Info]
+name = "Probe720"
+displayname = "Probe720"
+mugenversion = 1.0
+author = "mugen-web harness"
+localcoord = 1280,720
+
+[Files]
+cmd     = ../kfm720/kfm720.cmd
+cns     = ../kfm720/kfm720.cns
+st      = ../probe/capture720.st
+st0     = ../kfm720/kfm720.cns
+stcommon = common1.cns
+sprite  = ../kfm720/kfm720.sff
+anim    = ../kfm720/kfm720.air
+sound   = ../kfm/kfm.snd
