@@ -257,7 +257,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.guarded = 1;
     g.damage = dmg;
     g.hitshaketime = hd.guardPause[1];
-    g.hittime = hd.guardHitTime;
+    // An air guard has no hit time: HitOver is 1 at once (measured: 154).
+    g.hittime = airborne ? 0 : hd.guardHitTime;
     g.slidetime = hd.guardSlideTime;
     g.ctrltime = airborne ? hd.airGuardCtrlTime : hd.guardCtrlTime;
     g.xvel = (airborne ? hd.airGuardVel[0] : hd.guardVel) * xdir * conv;
@@ -270,7 +271,14 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     // (measured: 130 -> 150 reports prevstateno 120).
     const prev = d.prevStateNo;
     d.ctrl = false;
+    const oldVel = { x: d.vel.x, y: d.vel.y };
     d.changeState(d.stateType === 'a' ? 154 : d.stateType === 'c' ? 152 : 150);
+    // As with hits, the guard statedef's velset shows once it runs (measured: 154).
+    if (d.vel.x !== oldVel.x || d.vel.y !== oldVel.y) {
+      d.pendingVel = { x: d.vel.x, y: d.vel.y };
+      d.vel.x = oldVel.x;
+      d.vel.y = oldVel.y;
+    }
     // Guarding a hit marks the defender as guarding (mugen.exe 0x43fad3).
     d.guardFlag = true;
     d.prevStateNo = prev;
