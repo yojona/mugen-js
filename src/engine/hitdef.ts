@@ -86,6 +86,33 @@ export interface HitDefData {
   numHits: number;
   getPower: [number, number];
   givePower: [number, number];
+  /** PalFX applied to P2 on hit. */
+  palFx: { time: number; mul: [number, number, number]; add: [number, number, number]; color: number; invertAll: boolean } | undefined;
+  envShake: { time: number; freq: number; ampl: number; phase: number } | undefined;
+  fallEnvShake: { time: number; freq: number; ampl: number; phase: number } | undefined;
+  /** Juggle points this hit costs on an airborne opponent (statedef juggle + air.juggle). */
+  airJuggle: number;
+  groundCornerPush: number;
+  airCornerPush: number;
+  downCornerPush: number;
+  guardCornerPush: number;
+  airGuardCornerPush: number;
+}
+
+/**
+ * Match a hit attribute against an attribute list such as ["sca", "na", "sa"]
+ * (state letters, then 2-letter type codes; "a" in first position = any class).
+ */
+export function attrMatches(list: string[], state: string, type: string): boolean {
+  const states = list[0] ?? '';
+  if (states !== '' && !states.includes(state)) return false;
+  const types = list.slice(1).filter(Boolean);
+  if (types.length === 0) return true;
+  return types.some((t) => (t[0] === 'a' || t[0] === type[0]) && (t[1] === type[1]));
+}
+
+export function parseAttrList(raw: string | undefined): string[] {
+  return (raw ?? '').toLowerCase().split(',').map((x) => x.trim());
 }
 
 /** Values exposed through GetHitVar() on the player that was hit. */
@@ -119,6 +146,10 @@ export interface GetHitVars {
   xoff: number;
   yoff: number;
   isbound: number;
+  'fall.envshake.time': number;
+  'fall.envshake.freq': number;
+  'fall.envshake.ampl': number;
+  'fall.envshake.phase': number;
 }
 
 export function emptyGetHitVars(): GetHitVars {
@@ -126,11 +157,12 @@ export function emptyGetHitVars(): GetHitVars {
     type: 0, animtype: 0, airtype: 0, groundtype: 0, damage: 0, hitcount: 0, fallcount: 0, hitshaketime: 0, hittime: 0, slidetime: 0, ctrltime: 0, recovertime: 0,
     xvel: 0, yvel: 0, yaccel: 0, chainid: 0, guarded: 0, fall: 0, 'fall.damage': 0, 'fall.xvel': 0, 'fall.yvel': 0, 'fall.recover': 1, 'fall.recovertime': 4, 'fall.kill': 1,
     xveladd: 0, yveladd: 0, xoff: 0, yoff: 0, isbound: 0,
+    'fall.envshake.time': 0, 'fall.envshake.freq': 60, 'fall.envshake.ampl': -4, 'fall.envshake.phase': 0,
   };
 }
 
 /** Floats among GetHitVar names (trigger.html). */
-export const GETHITVAR_FLOATS = new Set(['xvel', 'yvel', 'yaccel', 'fall.xvel', 'fall.yvel', 'xveladd', 'yveladd']);
+export const GETHITVAR_FLOATS = new Set(['xvel', 'yvel', 'yaccel', 'fall.xvel', 'fall.yvel', 'xveladd', 'yveladd', 'fall.envshake.freq', 'fall.envshake.phase']);
 
 // ---------------------------------------------------------------------------
 // Compilation of the HitDef controller
@@ -154,7 +186,7 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
   const get = (k: string) => {
     if (!lists.has(k)) {
       const src = c.params.get(k);
-      lists.set(k, src === undefined ? [] : compileExprList(src, env));
+      lists.set(k, src === undefined || src.trim() === '' ? [] : compileExprList(src, env));
     }
     return lists.get(k)!;
   };
@@ -171,7 +203,7 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
 
   // Pre-validate expression params now so errors show at load time.
   for (const k of c.params.keys()) {
-    if (['attr', 'hitflag', 'guardflag', 'animtype', 'air.animtype', 'fall.animtype', 'ground.type', 'air.type', 'priority', 'hitsound', 'guardsound', 'sparkno', 'guard.sparkno', 'persistent', 'ignorehitpause'].includes(k)) continue;
+    if (['attr', 'hitflag', 'guardflag', 'animtype', 'air.animtype', 'fall.animtype', 'ground.type', 'air.type', 'priority', 'hitsound', 'guardsound', 'sparkno', 'guard.sparkno', 'persistent', 'ignorehitpause', 'reversal.attr'].includes(k)) continue;
     get(k);
   }
 
@@ -225,7 +257,27 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
     const hs = ref('hitsound');
     const gs = ref('guardsound');
 
+    const local3 = (k: string, def: [number, number, number]): [number, number, number] => [n(k, 0) ?? def[0], n(k, 1) ?? def[1], n(k, 2) ?? def[2]];
+    const shake = (prefix: string) => {
+      const time = ni(`${prefix}.time`) ?? 0;
+      if (time <= 0) return undefined;
+      const freq = n(`${prefix}.freq`) ?? 60;
+      return { time, freq, ampl: ni(`${prefix}.ampl`) ?? Math.trunc(local(-4)), phase: n(`${prefix}.phase`) ?? (freq >= 90 ? 90 : 0) };
+    };
+    const palTime = ni('palfx.time') ?? 0;
+    const groundCornerPush = n('ground.cornerpush.veloff') ?? (attrState === 'a' ? 0 : 1.3 * guardVel);
+    const guardCornerPush = n('guard.cornerpush.veloff') ?? groundCornerPush;
+
     return {
+      palFx: palTime !== 0 ? { time: palTime, mul: local3('palfx.mul', [256, 256, 256]), add: local3('palfx.add', [0, 0, 0]), color: n('palfx.color') ?? 256, invertAll: (ni('palfx.invertall') ?? 0) !== 0 } : undefined,
+      envShake: shake('envshake'),
+      fallEnvShake: shake('fall.envshake'),
+      airJuggle: (ni('air.juggle') ?? 0) + p.juggleCost,
+      groundCornerPush,
+      airCornerPush: n('air.cornerpush.veloff') ?? groundCornerPush,
+      downCornerPush: n('down.cornerpush.veloff') ?? groundCornerPush,
+      guardCornerPush,
+      airGuardCornerPush: n('airguard.cornerpush.veloff') ?? guardCornerPush,
       attrState,
       attrType,
       hitFlag: (raw('hitflag') ?? 'MAF').toLowerCase(),
