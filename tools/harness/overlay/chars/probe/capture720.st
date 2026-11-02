@@ -169,6 +169,12 @@ trigger1 = 1
 fvar(35) = p2dist x
 ignorehitpause = 1
 
+[State -2, cap camerapos x]
+type = VarSet
+trigger1 = 1
+fvar(36) = camerapos x
+ignorehitpause = 1
+
 [State -2, cap roundstate]
 type = VarSet
 trigger1 = 1

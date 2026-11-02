@@ -7,7 +7,7 @@ const VARS: Record<number, string> = {
   47: 'statetype', 48: 'movetype', 49: 'life', 50: 'power', 51: 'facing', 52: 'hitpausetime', 53: 'movecontact',
   54: 'hitshake/hitover', 58: 'clock',
 };
-const FVARS: Record<number, string> = { 30: 'pos x', 31: 'pos y', 32: 'vel x', 33: 'vel y', 34: 'screenpos x', 35: 'p2dist x' };
+const FVARS: Record<number, string> = { 30: 'pos x', 31: 'pos y', 32: 'vel x', 33: 'vel y', 34: 'screenpos x', 35: 'p2dist x', 36: 'camerapos x' };
 
 export interface Row {
   v: number[];
