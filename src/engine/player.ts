@@ -786,9 +786,11 @@ export class Player {
       if (this.shakeFresh) this.shakeFresh = false;
       else g.hitshaketime--;
     }
-    else if (this.moveType === 'h') {
+    else {
+      // The hit time runs out even after control returns (measured: a guard
+      // hit's HitOver turns 1 three ticks into the jump that ended it).
       if (g.hittime > 0) g.hittime--;
-      if (g['fall.recovertime'] > 0) g['fall.recovertime']--;
+      if (this.moveType === 'h' && g['fall.recovertime'] > 0) g['fall.recovertime']--;
     }
     for (const info of this.projInfo.values()) {
       for (const k of ['hit', 'contact', 'guarded', 'cancel'] as const) if (info[k] >= 0) info[k]++;
