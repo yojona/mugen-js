@@ -28,7 +28,7 @@ function refListing(): Plugin {
 
 export default defineConfig({
   plugins: [refListing()],
-  build: { rollupOptions: { input: ['index.html', 'training.html'] } },
+  build: { rollupOptions: { input: ['index.html', 'viewer.html', 'training.html'] } },
   server: { port: 8120, fs: { allow: ['.'] } },
   test: { include: ['tests/**/*.test.ts'] },
 });
