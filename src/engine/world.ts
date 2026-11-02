@@ -316,7 +316,8 @@ export class World {
   /**
    * One horizontal camera step, as in mugen.exe (0x415ae0): the camera moves
    * 5% of the way to its target plus a minimum of 0.1 (per 320 pixels of
-   * screen), never past the target. When the player on that side moves
+   * screen), never past the target, snapping to it once the rest is smaller
+   * than the step. When the player on that side moves
    * outwards faster, the camera keeps up with that player's velocity.
    * MUGEN runs this after each player's physics and again at the end of the
    * tick, which gives the 0.95^3-per-tick easing measured with the harness.
@@ -331,8 +332,11 @@ export class World {
     const edge = d > 0 ? ps.reduce((a, b) => (b.wx > a.wx ? b : a)) : ps.reduce((a, b) => (b.wx < a.wx ? b : a));
     const v = edge.vel.x * edge.facing * edge.scale;
     if (d > 0 ? v > speed : v < speed) speed = v;
-    const x = this.camera.x + speed;
-    this.camera.x = d > 0 ? Math.min(x, target) : Math.max(x, target);
+    let x = this.camera.x + speed;
+    // Snap once what is left is smaller than the step just taken (0x4169b1).
+    if (d > 0 ? x > target : x < target) x = target;
+    if (Math.abs(target - x) < Math.abs(speed)) x = target;
+    this.camera.x = x;
   }
 
   /**
