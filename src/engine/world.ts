@@ -127,6 +127,13 @@ export class World {
   /** Feed this tick's raw inputs (one bitmask per player) and advance one tick. */
   tick(inputs: number[]): void {
     // Before the round starts (and after it ends) input is ignored and nobody has control.
+    const active = this.allPlayers().filter((p) => !this.frozen(p));
+    // MUGEN advances animations at the end of each player's update and checks
+    // the automatic turn right after; here both run at the start of the next
+    // tick, before input reads the new facing. A player that changed state
+    // also turns right after its states (measured: landing with control).
+    for (const p of active) p.advanceAnim();
+    for (const p of active) this.autoTurn(p);
     this.players.forEach((p, i) => {
       const raw = this.inputLocked ? 0 : (inputs[i] ?? 0);
       p.input.push(raw);
@@ -135,14 +142,15 @@ export class World {
       p.cmdInput.tick(raw, p.facing, this.gameTime, this.frozen(p));
       p.commands = p.cmdInput.active();
     });
-    const active = this.allPlayers().filter((p) => !this.frozen(p));
-    for (const p of active) p.advanceAnim();
     // Built-in transitions for everyone first, then each player runs its
     // states and moves before the next one (both measured against MUGEN 1.1).
     for (const p of active) p.startOfTick();
     for (const p of active) {
+      p.changedStateThisTick = false;
       p.runStates();
       if (this.inputLocked && !p.isHelper) p.ctrl = false;
+      // Entering a state (e.g. 52 -> 0 with control) turns at once.
+      if (p.changedStateThisTick) this.autoTurn(p);
       p.physicsStep();
       // Screen bounds apply as part of the player's movement, before the
       // camera follows it.
@@ -162,7 +170,6 @@ export class World {
     this.clampToScreen();
     this.updateCamera();
     for (const p of active) {
-      this.autoTurn(p);
       recordAfterImage(p.afterImage, p.drawFrame());
       tickPalFx(p.palFx);
       p.advance();
@@ -255,13 +262,14 @@ export class World {
     const e = this.enemyOf(p);
     if (!e || !p.ctrl || p.moveType !== 'i' || p.hitPause > 0 || p.special.has('noautoturn')) return;
     if ((e.wx - p.wx) * p.facing >= 0) return;
-    if (p.stateType === 's' && (p.stateNo === 0 || p.stateNo === 20)) {
+    // Turning keeps the world velocity (vel x is facing-relative).
+    const turn = (anim: number) => {
       p.facing = -p.facing;
-      if (p.hasAnim(5)) p.changeAnim(5);
-    } else if (p.stateType === 'c' && p.stateNo === 11) {
-      p.facing = -p.facing;
-      if (p.hasAnim(6)) p.changeAnim(6);
-    }
+      p.vel.x = -p.vel.x;
+      if (p.hasAnim(anim)) p.changeAnim(anim);
+    };
+    if (p.stateType === 's' && (p.stateNo === 0 || p.stateNo === 20)) turn(5);
+    else if (p.stateType === 'c' && p.stateNo === 11) turn(6);
   }
 
   /** Player push: players whose bodies overlap vertically are pushed apart. */

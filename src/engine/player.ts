@@ -206,6 +206,8 @@ export class Player {
   /** Persistence counters for controllers of the current state. */
   private persist = new Map<CompiledController, number>();
   private stateChanged = false;
+  /** Set by ChangeState; World clears it each tick (auto-turn on entering a state). */
+  changedStateThisTick = false;
 
   constructor(
     readonly prog: CharacterProgram,
@@ -304,10 +306,17 @@ export class Player {
     // Lying down: the get-up countdown starts when 5110 is entered.
     if (no === 5110) this.ghv.recovertime = this.const('data.liedown.time');
     this.stateChanged = true;
+    this.changedStateThisTick = true;
+    this.pendingStateType = undefined;
     this.applyStatedef(cs);
     if (ctrl !== undefined) this.ctrl = ctrl;
     if (anim !== undefined) this.changeAnim(anim);
   }
+  /**
+   * A hit changes state but keeps the old statetype until the new state first
+   * runs (measured: a trip into 5070, type A, still shows S next tick).
+   */
+  pendingStateType: StateType | undefined;
 
   /** Statedef *persist flags: what carries over from the previous state. */
   private resetPersist(cs: CompiledState): void {
