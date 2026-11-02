@@ -176,9 +176,9 @@ export class MugenAI {
     return false;
   }
 
-  /** p+0xee8: set when the engine starts a guard (state 120), cleared on state change. */
+  /** p+0xee8 (Player.guardFlag), as left by the previous tick. */
   private get guarding(): boolean {
-    return this.p.stateNo === 120;
+    return this.p.guardFlag;
   }
 
   /** p+0xf0c: 1 guarded, 2 hit, 0 none. */

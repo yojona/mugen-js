@@ -606,47 +606,90 @@ export class Player {
    * when it runs.
    */
   startOfTick(): void {
+    this.updateGuardFlag();
     if (this.hitPause > 0) return;
     this.engineTransitions();
   }
 
-  /** Hard-coded transitions MUGEN performs for players with control. */
-  private engineTransitions(): void {
-    if (!this.ctrl || this.isHelper) return;
+  /**
+   * p+0xee8, read by the CPU AI: recomputed every tick (mugen.exe 0x4351de):
+   * holding back (not up), able to guard, and an opponent attacking or with
+   * a projectile out, in range or not. Guarding a hit also sets it.
+   */
+  guardFlag = false;
+  private updateGuardFlag(): void {
+    this.guardFlag = false;
+    if (this.isHelper) return;
     const cmd = this.commands;
     const no = this.stateNo;
-    // Guard: holding back with an attacker in range.
-    const guardOk = !this.special.has(this.stateType === 'a' ? 'noairguard' : this.stateType === 'c' ? 'nocrouchguard' : 'nostandguard');
-    if (guardOk && cmd.has('holdback') && this.inGuardDist() && this.moveType === 'i' && (no < 120 || no > 155)) {
-      // Starting to guard stops a backward walk at once (measured: vel x = 0);
-      // in the air the jump keeps its momentum (measured).
-      if (this.stateType !== 'a') this.vel.x = 0;
-      return this.enterLater(120);
+    const st = this.stateType;
+    if (!cmd.has('holdback') || cmd.has('holdup')) return;
+    if (!((this.moveType === 'i' && this.ctrl) || no === 52 || no === 151 || no === 153 || no === 155)) return;
+    if (this.special.has(st === 'a' ? 'noairguard' : st === 'c' ? 'nocrouchguard' : 'nostandguard')) return;
+    for (const e of this.world.players) {
+      if (e.side === this.side) continue;
+      if (e.moveType === 'a' || this.world.projectiles.some((pr) => pr.owner === e)) this.guardFlag = true;
     }
-    const guarding = no >= 120 && no <= 155;
-    if (this.stateType === 's' && !guarding) {
-      // Any standing state with control, not just 0/20 (measured: holding
-      // forward in 12 with control walks on the next tick).
-      if (cmd.has('holdup')) return this.enterLater(40);
-      if (cmd.has('holddown')) {
-        // Crouching from a walk stops at once, like starting to guard (measured).
-        this.vel.x = 0;
-        return this.enterLater(10);
+  }
+
+  /** Hard-coded transitions MUGEN performs for players with control. */
+  private engineTransitions(): void {
+    if (this.isHelper) return;
+    // mugen.exe 0x435144: one action from the held directions.
+    const cmd = this.commands;
+    const no = this.stateNo;
+    const st = this.stateType;
+    const up = cmd.has('holdup');
+    const down = cmd.has('holddown');
+    const fwd = cmd.has('holdfwd');
+    const back = cmd.has('holdback');
+    let action: 'walk' | 'jump' | 'crouch' | 'airjump' | 'guard' | 'none' = 'none';
+    if (st === 's') {
+      if (fwd !== back) action = 'walk';
+      if (down) action = 'crouch';
+      if (up) action = 'jump';
+    } else if (st === 'a' && this.cmdInput?.upPressed) action = 'airjump';
+    // Guard: holding back (not up) with an attacker in range.
+    const guardOk = !this.special.has(st === 'a' ? 'noairguard' : st === 'c' ? 'nocrouchguard' : 'nostandguard');
+    if (back && !up && guardOk && ((this.moveType === 'i' && this.ctrl) || no === 52 || no === 151 || no === 153 || no === 155) && this.inGuardDist()) {
+      action = 'guard';
+    }
+    if (fwd && back) action = 'none';
+    if (!this.ctrl) {
+      if (action === 'none' && no === 20) this.enterLater(0);
+      return;
+    }
+    switch (action) {
+      case 'guard':
+        if (this.moveType !== 'i' || [120, 130, 131, 132, 140].includes(no)) return;
+        // Starting to guard stops the player, except in the air or running
+        // (measured: a backward walk stops at once, a jump keeps its speed).
+        if (st !== 'a' && no !== 100) this.vel.x = 0;
+        return this.enterLater(120);
+      case 'walk':
+        if (no !== 20 && !this.special.has('nowalk')) this.enterLater(20);
+        return;
+      case 'jump':
+        if (this.world.roundState !== 3) this.enterLater(40);
+        return;
+      case 'crouch':
+        // Crouching from a walk stops at once (measured).
+        if (no !== 100) this.vel.x = 0;
+        if (no !== 10 && no !== 11) this.enterLater(10);
+        return;
+      case 'airjump': {
+        const n = this.const('movement.airjump.num');
+        if (n > 0 && this.airJumps < n && -this.pos.y >= this.const('movement.airjump.height')) {
+          this.airJumps++;
+          this.enterLater(45);
+        }
+        return;
       }
-      const walk = cmd.has('holdfwd') || cmd.has('holdback');
-      if (walk && no !== 20 && !this.special.has('nowalk')) return this.enterLater(20);
-      if (!walk && no === 20) return this.enterLater(0);
-    } else if (this.stateType === 'c' && !guarding) {
-      // Releasing down stands up from any crouching state with control
-      // (measured: 10 -> 12, and 400 -> 12 once its CtrlSet gives control).
-      if (!cmd.has('holddown')) return this.enterLater(12);
-    } else if (this.stateType === 'a' && no === 50) {
-      // Air jump.
-      const n = this.const('movement.airjump.num');
-      if (cmd.has('holdup') && n > 0 && this.airJumps < n && -this.pos.y >= this.const('movement.airjump.height') && this.cmdInput?.upPressed) {
-        this.airJumps++;
-        return this.enterLater(45);
-      }
+      default:
+        if (no === 20) return this.enterLater(0);
+        // Releasing down stands up from any crouching state with control
+        // (measured: 10 -> 12, and 400 -> 12 once its CtrlSet gives control).
+        if (st === 'c' && !down) this.enterLater(12);
     }
   }
   airJumps = 0;
@@ -699,6 +742,9 @@ export class Player {
   }
 
   physicsStep(): void {
+    // Guard states keep the guard flag up (mugen.exe 0x43c980 / 0x43ca01).
+    const no = this.stateNo;
+    if (no === 120 || (no >= 130 && no <= 132) || no === 140 || (no >= 150 && no <= 155)) this.guardFlag = true;
     // HitDef placement lands after P2's next states (measured: one tick later).
     if (this.pendingPlacement) {
       this.pendingPlacement();

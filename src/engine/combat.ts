@@ -271,6 +271,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     const prev = d.prevStateNo;
     d.ctrl = false;
     d.changeState(d.stateType === 'a' ? 154 : d.stateType === 'c' ? 152 : 150);
+    // Guarding a hit marks the defender as guarding (mugen.exe 0x43fad3).
+    d.guardFlag = true;
     d.prevStateNo = prev;
     if (!proj) cornerPush(a, d, airborne ? hd.airGuardCornerPush : hd.guardCornerPush);
     world.spawnSpark(a, d, hd.guardSpark, sparkXY, src);
