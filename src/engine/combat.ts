@@ -337,6 +337,14 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     // Smash Kung Fu Upper).
     if (hd.p2Facing === 1) d.facing = -aFacing;
     else if (hd.p2Facing === -1) d.facing = aFacing;
+    // A light/medium/hard hit from behind swaps High and Low in the hit
+    // types (mugen.exe 0x43f3e1; measured: KFM's jump kick into a crossed-up
+    // P2 shows anim 5010).
+    if (g.animtype >= 0 && g.animtype <= 2 && d.facing !== (hd.p2Facing === -1 ? aFacing : -aFacing)) {
+      const swap = (t: number) => (t === 1 ? 2 : t === 2 ? 1 : t);
+      g.groundtype = swap(g.groundtype);
+      g.airtype = swap(g.airtype);
+    }
     d.ctrl = false;
     if (hd.p2StateNo >= 0) {
       if (hd.p2GetP1State) d.stateOwner = a;
