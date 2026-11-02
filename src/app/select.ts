@@ -45,6 +45,8 @@ interface Cursor {
   pad: Pad;
 }
 
+const DONE_WAIT = 5;
+
 export class SelectScreen implements Screen {
   result: SelectResult | undefined;
   private bg: MotifBackground;
@@ -150,6 +152,9 @@ export class SelectScreen implements Screen {
       }
       return;
     }
+    // The screen holds a few frames after the last pick before fading out
+    // (measured in mugen.exe: the done cursor shows 5 frames).
+    if (++this.doneWait <= DONE_WAIT) return;
     if (!this.fade.fadingOut) {
       let stage = this.needStage ? this.stageList[this.stageIndex] : undefined;
       if (stage === 'random') stage = this.stageList[1 + Math.floor(Math.random() * (this.stageList.length - 1))];
@@ -158,6 +163,7 @@ export class SelectScreen implements Screen {
     }
   }
   private pending: SelectResult | undefined;
+  private doneWait = 0;
 
   private moveCursor(c: Cursor, index: number): void {
     if (c.done) return;
