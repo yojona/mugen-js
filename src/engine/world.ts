@@ -417,15 +417,21 @@ export class World {
     this.clampPlayer(p);
   }
 
-  private clampPlayer(p: Player): void {
+  /** The x range the screen allows a player (screenleft/right plus edge widths). */
+  screenLimits(p: Player): [number, number] {
     const left = this.camera.x - this.screenWidth / 2;
     const right = this.camera.x + this.screenWidth / 2;
+    // Stage [Bound] screenleft/right plus any Width controller edge width.
+    const leftDist = this.screenLeft + p.bodyWidth(p.facing > 0 ? 'back' : 'front', 'edge') * p.scale;
+    const rightDist = this.screenRight + p.bodyWidth(p.facing > 0 ? 'front' : 'back', 'edge') * p.scale;
+    return [left + leftDist, right - rightDist];
+  }
+
+  private clampPlayer(p: Player): void {
     let x = Math.max(this.leftBound, Math.min(this.rightBound, p.wx));
     if (p.screenBound) {
-      // Stage [Bound] screenleft/right plus any Width controller edge width.
-      const leftDist = this.screenLeft + p.bodyWidth(p.facing > 0 ? 'back' : 'front', 'edge') * p.scale;
-      const rightDist = this.screenRight + p.bodyWidth(p.facing > 0 ? 'front' : 'back', 'edge') * p.scale;
-      x = Math.max(left + leftDist, Math.min(right - rightDist, x));
+      const [lo, hi] = this.screenLimits(p);
+      x = Math.max(lo, Math.min(hi, x));
     }
     if (x !== p.wx) p.setWorldPos(x);
   }
