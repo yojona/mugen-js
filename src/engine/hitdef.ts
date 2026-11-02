@@ -171,9 +171,11 @@ export const GETHITVAR_FLOATS = new Set(['xvel', 'yvel', 'yaccel', 'fall.xvel', 
 // ---------------------------------------------------------------------------
 // Compilation of the HitDef controller
 
+/** MUGEN reads these by their first letter (mugen.exe 0x450075): "Med" is medium. */
 function enumIndex(list: string[], v: string | undefined, def: number): number {
-  if (!v) return def;
-  const i = list.indexOf(v.trim().toLowerCase());
+  const c = v?.trim().toLowerCase()[0];
+  if (!c) return def;
+  const i = list.findIndex((x) => x[0] === c);
   return i < 0 ? def : i;
 }
 
