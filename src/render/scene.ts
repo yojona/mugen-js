@@ -27,7 +27,8 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
   const camLeft = w.camera.x - w.screenWidth / 2;
   const shakeY = envShakeOffset(w.envShake);
   const sx = (x: number) => x - camLeft;
-  const sy = (y: number) => w.groundY + y + shakeY;
+  // Stage-space y to screen: ground line, minus the camera's vertical follow.
+  const sy = (y: number) => w.groundY + y - w.camera.y + shakeY;
 
   opts.background?.();
   if (w.darkened) r.rect(0, 0, w.screenWidth, w.screenHeight, [0, 0, 0, 110]);
