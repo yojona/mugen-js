@@ -523,7 +523,7 @@ export class Player {
 
   /**
    * Engine rules for downed players: lying in state 5110 counts down
-   * data.liedown.time (faster when buttons are pressed), then gets up via 5120.
+   * data.liedown.time (shortened by key events), then gets up via 5120.
    */
   private engineHitTransitions(): void {
     // Guard end (140) has no exit in common1.cns: when its animation ends the
@@ -535,8 +535,10 @@ export class Player {
     }
     if (this.stateNo !== 5110 || !this.alive) return;
     const g = this.ghv;
-    const newly = this.input.raw(0) & ~this.input.raw(1) & ~0xf;
-    g.recovertime -= newly ? 2 : 1;
+    // Every key event the player's input consumes this tick shortens the
+    // wait to 75% (mugen.exe 0x43557f, truncated).
+    if (this.cmdInput?.lastEvent) g.recovertime = Math.trunc(g.recovertime * 0.75);
+    g.recovertime -= 1;
     if (g.recovertime <= 0 && this.time > 0) this.changeState(5120);
   }
 
