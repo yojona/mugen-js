@@ -45,7 +45,7 @@ interface Cursor {
   pad: Pad;
 }
 
-const DONE_WAIT = 5;
+const DONE_WAIT = 3;
 
 export class SelectScreen implements Screen {
   result: SelectResult | undefined;

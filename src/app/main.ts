@@ -296,6 +296,8 @@ function makeFlowHarness() {
     .map((c) => c.split(':').map(Number) as [number, number]);
   const shotEvery = parseInt(params.get('shotevery') ?? '0', 10);
   const keyDelay = parseInt(params.get('keydelay') ?? '0', 10);
+  // ?mashdelay: the same for the in-fight button presses (default keydelay).
+  const mashDelay = parseInt(params.get('mashdelay') ?? params.get('keydelay') ?? '0', 10);
   const [seedFrom, seedTo] = (params.get('seeds') ?? '-1:-1').split(':').map(Number) as [number, number];
   let lastName = '';
   let lastRs = '';
@@ -318,12 +320,12 @@ function makeFlowHarness() {
   return {
     before(s: Screen) {
       let bits = 0;
-      // ?keydelay: the mugen.exe driver's menu keys reach the game a frame
-      // late (menus run at 60 fps; in fights, at GameSpeed 20, they don't).
+      // ?keydelay / ?mashdelay: frames the mugen.exe driver's keys take to
+      // reach the game (menus run at 60 fps, fights at the GameSpeed).
       const kf = frame - keyDelay;
       for (const k of fkeys) if (kf >= k.from && kf < k.from + k.hold) bits |= k.bits;
       const fighting = !(s instanceof FightScreen) || s.world.roundState === 2;
-      if (mash && fighting && s.constructor.name === mash[0] && frame % parseInt(mash[2]!, 10) < parseInt(mash[3]!, 10)) bits |= parseKeys(mash[1]!);
+      if (mash && fighting && s.constructor.name === mash[0] && (((kf - mashDelay + keyDelay) % parseInt(mash[2]!, 10)) + parseInt(mash[2]!, 10)) % parseInt(mash[2]!, 10) < parseInt(mash[3]!, 10)) bits |= parseKeys(mash[1]!);
       if (bits) keys.pads[0]!.bits |= bits;
     },
     after(s: Screen) {
@@ -334,7 +336,7 @@ function makeFlowHarness() {
           if (p && p.life > max) p.life = max;
         }
       }
-      if (s instanceof FightScreen && seedFrom >= 0 && frame >= seedFrom && frame <= seedTo) console.log(`SEED|${frame}|${s.world.seed}`);
+      if (s instanceof FightScreen && seedFrom >= 0 && frame >= seedFrom && frame <= seedTo) console.log(`SEED|${frame}|${s.world.seed}|${s.world.players.map((p) => `${p.stateNo}/${p.time} y${p.pos.y.toFixed(2)} vy${p.vel.y.toFixed(3)}`).join(' ')}`);
       if (s instanceof FightScreen) {
         const key = `${s.world.roundState}`;
         if (key !== lastRs) console.log(`DBG|${frame}|rs ${s.world.roundState} seed ${s.world.seed} life ${s.world.players.map((p) => p.life).join(',')}`);
