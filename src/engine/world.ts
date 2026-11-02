@@ -21,6 +21,7 @@ interface PauseState {
   owner: Player;
   time: number;
   moveTime: number;
+  fresh?: boolean;
   darken: boolean;
   unhittable: boolean;
 }
@@ -116,7 +117,7 @@ export class World {
 
   /** Pause / SuperPause controllers. */
   startPause(owner: Player, time: number, moveTime: number, isSuper: boolean, opts: { darken?: boolean; unhittable?: boolean; p2defmul?: number } = {}): void {
-    const st: PauseState = { owner, time, moveTime, darken: opts.darken ?? false, unhittable: opts.unhittable ?? false };
+    const st: PauseState = { owner, time, moveTime, fresh: true, darken: opts.darken ?? false, unhittable: opts.unhittable ?? false };
     if (isSuper) this.superPause = time > 0 ? st : undefined;
     else if (this.superPause) this.queuedPause = st;
     else this.pause = time > 0 ? st : undefined;
@@ -155,7 +156,9 @@ export class World {
     });
     // The AI pass sees the RoundState of the previous tick (measured: it does
     // not act on the first tick of RoundState 2).
-    if (!this.pause && !this.superPause) {
+    // The AI runs through Pause/SuperPause too (mugen.exe 0x41357b only
+    // checks the pause menu; measured: AI state time keeps counting).
+    {
       postResolvedMessages(this.players);
       for (const p of this.players) p.ai?.tick(this.aiRoundFight);
       for (const p of this.players) if (p.ai) p.ai.msgs.length = 0;
@@ -244,6 +247,10 @@ export class World {
 
   private tickPauses(): void {
     const sp = this.superPause;
+    if (sp?.fresh) {
+      sp.fresh = false;
+      return;
+    }
     if (sp) {
       if (sp.moveTime > 0) sp.moveTime--;
       if (--sp.time <= 0) {
