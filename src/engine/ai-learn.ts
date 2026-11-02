@@ -63,6 +63,57 @@ const zero = (): Stat => ({ mean: 0, dev: 0 });
 const tp = (): TimePos => ({ time: zero(), dx: zero(), dy: zero() });
 const tpInit = (t: number, dx: number, dy: number): TimePos => ({ time: stat(t), dx: stat(dx), dy: stat(dy) });
 
+/**
+ * A character's learned AI file (<def name>.ai, read at load by mugen.exe
+ * 0x42ef90): "ElecbyteAIB", version 0x100 and a date in a 0x40-byte header,
+ * then for the standing/crouching and the air table a count and that many
+ * raw AttackRecords (0x4b4 bytes each), then the idle Clsn2 unions.
+ */
+export function parseAiFile(buf: Uint8Array): { sc: RecordTable; air: RecordTable } | undefined {
+  const v = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  if (buf.byteLength < 0x40 || new TextDecoder().decode(buf.subarray(0, 11)) !== 'ElecbyteAIB' || v.getInt32(0xc, true) !== 0x100) return undefined;
+  const ST = ['', 's', 'c', 'a', 'l'];
+  const MT = ['i', 'a', 'h'];
+  const stat = (o: number): Stat => ({ mean: v.getFloat32(o, true), dev: v.getFloat32(o + 12, true) });
+  const tpAt = (o: number): TimePos => ({ time: stat(o), dx: stat(o + 0x10), dy: stat(o + 0x20) });
+  const box = (o: number): BoxStat => (v.getFloat32(o, true) === -3.4028234663852886e38 ? null : [stat(o), stat(o + 0x10), stat(o + 0x20), stat(o + 0x30)]);
+  const tables = [new Map(), new Map()] as [RecordTable, RecordTable];
+  let o = 0x40;
+  for (const t of tables) {
+    if (o + 4 > buf.byteLength) return undefined;
+    const n = v.getInt32(o, true);
+    o += 4;
+    for (let k = 0; k < n; k++, o += 0x4b4) {
+      if (o + 0x4b4 > buf.byteLength) return undefined;
+      const r = newRecord();
+      const count = Math.min(32, v.getInt32(o + 0x200, true));
+      for (let e = 0; e < count; e++) {
+        const b = o + e * 16;
+        r.entries.push({ stateNo: v.getInt32(b, true), stateType: ST[v.getInt32(b + 4, true)] ?? '', moveType: MT[v.getInt32(b + 8, true)] ?? 'i', ctrl: v.getInt32(b + 12, true) !== 0 });
+      }
+      r.stateNo = v.getInt32(o + 0x204, true);
+      r.stateType = ST[v.getInt32(o + 0x208, true)] ?? '';
+      for (let c = 0; c < 10; c++) {
+        const x = v.getInt32(o + 0x20c + c * 4, true);
+        if (x === -1) break;
+        r.cmd.push(x);
+      }
+      r.total = stat(o + 0x234);
+      r.dx = stat(o + 0x244);
+      r.dy = stat(o + 0x254);
+      r.hit = [tpAt(o + 0x264), tpAt(o + 0x294), tpAt(o + 0x2c4)];
+      r.clsn = [box(o + 0x2f4), box(o + 0x334)];
+      r.guardFlag = v.getInt32(o + 0x378, true);
+      r.attr = v.getInt32(o + 0x37c, true);
+      r.revAttr = v.getInt32(o + 0x380, true);
+      r.recov = [tpAt(o + 0x394), tpAt(o + 0x3c4), tpAt(o + 0x3f4)];
+      r.end = [tpAt(o + 0x424), tpAt(o + 0x454), tpAt(o + 0x484)];
+      if (!t.has(r.stateNo)) t.set(r.stateNo, r);
+    }
+  }
+  return { sc: tables[0], air: tables[1] };
+}
+
 function newRecord(): AttackRecord {
   return {
     entries: [],

@@ -4,6 +4,7 @@ import { compileExprList, R, truthy, type Fn } from '../expr/compile';
 import type { Animation } from '../formats/air';
 import { parseIni } from '../formats/text';
 import { AnimPlayer } from './anim';
+import { parseAiFile } from './ai-learn';
 import type { CharacterData } from './character';
 import { CommandInput, InputHistory, parseCmd, type CommandSet } from './cmd';
 import { parseConstants, parseStates, type Constants, type ControllerDef, type StateDef, type StateMap } from './cns';
@@ -63,7 +64,10 @@ export async function loadProgram(vfs: Vfs, data: CharacterData): Promise<Charac
     const q = doc.sections.find((s) => s.name.toLowerCase() === 'quotes');
     for (const e of q?.entries ?? []) if (/^victory\d+$/.test(e.key)) quotes.push(e.value.replace(/^"|"$/g, ''));
   }
-  return { data, consts: parseConstants(constDocs), states, cmd, compiled: new Map(), quotes };
+  // Learned AI shipped with the character (<def name>.ai), like mugen.exe.
+  const aiPath = data.defPath.replace(/\.def$/i, '.ai');
+  const aiRecords = vfs.resolve(aiPath) ? parseAiFile(await vfs.read(aiPath)) : undefined;
+  return { data, consts: parseConstants(constDocs), states, cmd, compiled: new Map(), quotes, aiRecords };
 }
 
 export interface Vec {
