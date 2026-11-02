@@ -38,7 +38,7 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
     r.draw({ sprite: s, palette, x, y, scaleX, scaleY, angle, blend, palfx });
   };
 
-  for (const p of w.players) {
+  for (const p of w.allPlayers()) {
     // Afterimages sit just behind their player.
     for (const ai of afterImageDraws(p.afterImage)) {
       const f = ai.frame;
@@ -50,6 +50,21 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
     }
     if (p.special.has('invisible')) continue;
     list.push({ priority: p.sprPriority, order: order++, draw: () => drawPlayer(p) });
+  }
+
+  for (const pr of w.projectiles) {
+    if (pr.phase === 'dead') continue;
+    list.push({
+      priority: pr.sprPriority,
+      order: order++,
+      draw: () => {
+        const v = pr.anim.view();
+        if (!v || v.element.group < 0) return;
+        const o = pr.owner;
+        const s = o.prog.data.sff.get(v.element.group, v.element.number);
+        sprite(s, s ? o.prog.data.paletteFor(s, o.palRemap ?? o.palNo) : undefined, sx(pr.x + pr.facing * v.x * pr.scale[0]), sy(pr.y + v.y * pr.scale[1]), pr.facing * (v.element.flipH ? -1 : 1) * v.scaleX * pr.scale[0], (v.element.flipV ? -1 : 1) * v.scaleY * pr.scale[1], pr.facing * v.angle, v.blend, palFxUniforms(o.palFx));
+      },
+    });
   }
 
   for (const e of w.explods) {
