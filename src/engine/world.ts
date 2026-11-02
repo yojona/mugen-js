@@ -115,6 +115,19 @@ export class World {
     return (towardRight ? right - p.wx : p.wx - left) / p.scale;
   }
 
+  /** FrontEdgeBodyDist / BackEdgeBodyDist, in the player's units. */
+  edgeBodyDist(p: Player, front: boolean): number {
+    // Measured from the camera's target, not from where the camera is
+    // (0x4343d0 reads G+0x11f10), less 1 internal unit in the air and 2
+    // lying down (measured: KFM's 1027 at 20.146 and 9.596 units).
+    const cam = this.camTarget ?? this.camera.x;
+    const extra = ((p.stateType === 'a' ? 1 : p.stateType === 'l' ? 2 : 0) * p.prog.data.def.localCoord[0]) / this.gameWidth;
+    const left = cam - this.screenWidth / 2 + this.screenLeft + p.bodyWidth(p.facing > 0 ? 'back' : 'front', 'edge') * p.scale;
+    const right = cam + this.screenWidth / 2 - this.screenRight - p.bodyWidth(p.facing > 0 ? 'front' : 'back', 'edge') * p.scale;
+    const towardRight = (p.facing > 0) === front;
+    return (towardRight ? right - p.wx : p.wx - left) / p.scale - extra;
+  }
+
   /** Pause / SuperPause controllers. */
   startPause(owner: Player, time: number, moveTime: number, isSuper: boolean, opts: { darken?: boolean; unhittable?: boolean; p2defmul?: number } = {}): void {
     const st: PauseState = { owner, time, moveTime, fresh: true, darken: opts.darken ?? false, unhittable: opts.unhittable ?? false };

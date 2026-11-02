@@ -99,8 +99,10 @@ const NULLARY: Record<string, Fn<P>> = {
   backedge: flt((p) => (p.facing > 0 ? p.world.camera.x - p.world.screenWidth / 2 : p.world.camera.x + p.world.screenWidth / 2) / p.scale),
   frontedgedist: int((p) => Math.trunc(p.world.edgeDist(p, true))),
   backedgedist: int((p) => Math.trunc(p.world.edgeDist(p, false))),
-  frontedgebodydist: int((p) => Math.trunc(p.world.edgeDist(p, true) - p.const('size.ground.front'))),
-  backedgebodydist: int((p) => Math.trunc(p.world.edgeDist(p, false) - p.const('size.ground.back'))),
+  // mugen.exe 0x4343d0: measured to the player's screen limit (stage
+  // screenleft/right plus Width edge), minus 1 in the air and 2 lying down.
+  frontedgebodydist: int((p) => Math.trunc(p.world.edgeBodyDist(p, true))),
+  backedgebodydist: int((p) => Math.trunc(p.world.edgeBodyDist(p, false))),
   camerazoom: flt(() => 1),
 };
 
