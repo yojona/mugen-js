@@ -575,8 +575,9 @@ export class Player {
     // Guard: holding back with an attacker in range.
     const guardOk = !this.special.has(this.stateType === 'a' ? 'noairguard' : this.stateType === 'c' ? 'nocrouchguard' : 'nostandguard');
     if (guardOk && cmd.has('holdback') && this.inGuardDist() && this.moveType === 'i' && (no < 120 || no > 155)) {
-      // Starting to guard stops a backward walk at once (measured: vel x = 0).
-      this.vel.x = 0;
+      // Starting to guard stops a backward walk at once (measured: vel x = 0);
+      // in the air the jump keeps its momentum (measured).
+      if (this.stateType !== 'a') this.vel.x = 0;
       return this.enterLater(120);
     }
     const guarding = no >= 120 && no <= 155;
