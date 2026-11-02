@@ -67,7 +67,23 @@ let nextId = 56; // MUGEN's first player ID
 
 export class Player {
   readonly id = nextId++;
-  readonly input = new InputHistory();
+  /** Helpers with keyctrl share their root's input history. */
+  input = new InputHistory();
+
+  // Helper hierarchy
+  isHelper = false;
+  helperId = 0;
+  parent: Player | undefined;
+  /** Root player (self for root players). */
+  root: Player = this;
+  keyCtrl = true;
+  /** Ticks this player may still move during a SuperPause / Pause. */
+  superMoveTime = 0;
+  pauseMoveTime = 0;
+  /** Set by DestroySelf; the world removes the helper at end of tick. */
+  destroyed = false;
+  /** Projectile bookkeeping per ProjID (ticks since last hit/contact/guard/cancel). */
+  projInfo = new Map<number, { hit: number; contact: number; guarded: number; cancel: number }>();
   commands = new Set<string>();
 
   pos: Vec = { x: 0, y: 0 };
@@ -169,8 +185,9 @@ export class Player {
   }
 
   get name(): string {
-    return this.prog.data.def.name;
+    return this.helperName ?? this.prog.data.def.name;
   }
+  helperName: string | undefined;
 
   const(name: string): number {
     return this.prog.consts.get(name) ?? 0;
@@ -368,6 +385,8 @@ export class Player {
   private inStates = false;
 
   runStates(): void {
+    // The pending Time = 0 pass happens now; time advances normally after it.
+    this.freshState = false;
     this.inStates = true;
     try {
       this.runStatesInner();
@@ -394,11 +413,14 @@ export class Player {
     this.commands = activeCommands(this.prog.cmd, this.input, this.facing);
     if (this.hitPause > 0) {
       // Frozen by hit pause: only ignorehitpause controllers run.
-      for (const special of [-3, -2, -1, this.stateNo]) this.runState(special);
+      const sp = this.isHelper ? (this.keyCtrl ? [-1] : []) : [-3, -2, -1];
+      for (const special of [...sp, this.stateNo]) this.runState(special);
       return;
     }
     this.engineHitTransitions();
-    for (const special of [-3, -2, -1]) {
+    // Helpers skip -3/-2, and -1 unless they read input (cns.html).
+    const specials = this.isHelper ? (this.keyCtrl ? [-1] : []) : [-3, -2, -1];
+    for (const special of specials) {
       if (this.runState(special)) {
         this.runCurrent();
         return;
@@ -431,7 +453,7 @@ export class Player {
 
   /** Hard-coded transitions MUGEN performs for players with control. */
   private engineTransitions(): void {
-    if (!this.ctrl) return;
+    if (!this.ctrl || this.isHelper) return;
     const cmd = this.commands;
     const no = this.stateNo;
     // Guard: holding back with an attacker in range.
@@ -546,6 +568,9 @@ export class Player {
     else if (this.moveType === 'h') {
       if (g.hittime > 0) g.hittime--;
       if (g['fall.recovertime'] > 0) g['fall.recovertime']--;
+    }
+    for (const info of this.projInfo.values()) {
+      for (const k of ['hit', 'contact', 'guarded', 'cancel'] as const) if (info[k] >= 0) info[k]++;
     }
     if (this.moveContact) this.moveContact++;
     if (this.moveHit) this.moveHit++;
