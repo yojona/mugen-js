@@ -70,7 +70,9 @@ describe('match flow', () => {
     step();
     expect(m.announce?.kind).toBe('ko');
     expect(w.roundState).toBe(3);
-    step(400);
+    // Nobody settles here (P1 never got control, P2 falls in place), so the
+    // round ends on the 900-tick limit (mugen.exe 0x414d9f).
+    for (let i = 0; i < 2000 && m.round === 1; i++) step();
     expect(m.round).toBe(2);
     expect(m.wins).toEqual([1, 0]);
     expect(p2.life).toBe(1000);
@@ -82,8 +84,9 @@ describe('match flow', () => {
     for (let r = 0; r < 2; r++) {
       untilFight();
       p2.life = 0;
-      step(300);
+      for (let i = 0; i < 2000 && m.round === r + 1 && !m.matchOver; i++) step();
     }
+    step(400);
     expect(m.wins[0]).toBe(2);
     expect(m.matchOver).toBe(true);
     expect(m.announce?.kind).toBe('win');

@@ -92,8 +92,10 @@ export class Match {
   private phaseTime = 0;
   private phase: 'wait' | 'intro' | 'announce' | 'fight' | 'ko' | 'over' | 'win' = 'wait';
   private roundWinner: Player | null = null;
-  /** Slow-motion tick parity during the KO slowdown. */
-  private slowTick = 0;
+  /** KO slowdown: frame-skip accumulator, its rate and the ticks run since the KO. */
+  private slowAcc = 0;
+  private slowRate = 0;
+  private koTicks = 0;
 
   constructor(
     readonly world: World,
@@ -215,22 +217,51 @@ export class Match {
           this.roundWinner = this.decideWinner();
           for (const p of this.players) if (p.life <= 0) p.alive = false;
           w.roundState = 3;
+          this.koTicks = 0;
+          this.slowRate = this.slowAcc = 500;
           this.enter('ko');
         }
         break;
       }
-      case 'ko':
+      case 'ko': {
         w.roundState = 3;
-        // KO slowdown: the world runs at half speed for slow.time ticks.
-        if (this.phaseTime <= c.slowTime) {
-          this.slowTick ^= 1;
-          if (this.slowTick) return false;
+        // KO slowdown (mugen.exe 0x40cc31 / 0x4149cd / 0x414b09): a speed
+        // accumulator checked every frame before the tick: when positive it
+        // loses 100, otherwise it gains the rate; the tick runs only if it
+        // ends up <= 0. The rate is 500 (1/6 speed) from the KO, then by
+        // ticks run since: 200 at 5, 100 at slow.time/2, 50 at 7/10, 25 at
+        // 9/10, none at slow.time (measured against gametime in mugen.exe).
+        if (this.slowRate > 0) {
+          if (this.slowAcc > 0) this.slowAcc -= 100;
+          else this.slowAcc += this.slowRate;
+          if (this.slowAcc > 0) return false;
         }
-        if (this.phaseTime >= c.slowTime + c.overWaitTime) {
+        const k = this.koTicks++;
+        const st = c.slowTime;
+        const setRate = (r: number) => {
+          this.slowRate = r;
+          this.slowAcc = r;
+        };
+        if (k === 5 && k < Math.trunc((st * 5) / 10)) setRate(200);
+        if (k === Math.trunc((st * 5) / 10)) setRate(100);
+        if (k === Math.trunc((st * 7) / 10)) setRate(50);
+        if (k === Math.trunc((st * 9) / 10)) setRate(25);
+        if (k >= st) setRate(0);
+        // Round end (0x414d20): after over.waittime ticks run, once every
+        // player has settled (ctrl, standing and idle, or lying in 5150 with
+        // time > 0), or after 900 ticks regardless.
+        const settled = this.players.every(
+          (p) => (p.ctrl && p.stateType === 's' && p.moveType === 'i') || (p.stateNo === 5150 && p.time > 0),
+        );
+        if (k >= c.overWaitTime && (settled || k >= 900)) {
           for (const p of this.players) p.ctrl = false;
+          this.slowRate = this.slowAcc = 0;
           this.enter('over');
+          // The round counter restarts at 0 and still counts this tick.
+          this.phaseTime = 0;
         }
         break;
+      }
       case 'over':
         w.roundState = 4;
         // Winners go to their win pose once everyone has settled.
