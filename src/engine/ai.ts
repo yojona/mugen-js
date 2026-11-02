@@ -45,6 +45,20 @@ export function setAiDebug(v: string[] | null): void {
   DEBUG = v;
 }
 
+/** Training menu settings for the dummy (mugen.exe p+0x1d00..0x1d10). */
+export interface DummySettings {
+  /** 0 stand, 1 crouch, 2 jump, 3 jump repeatedly. */
+  stance: number;
+  /** Guard attacks. */
+  guard: boolean;
+  /** Keep this far (per 320 of GameWidth), 0 = off. */
+  distance: number;
+  /** Keep at least this far, 0 = off. */
+  jumpDistance: number;
+  /** 0 none, 1..7 = a b c x y z s, pressed every 5 ticks. */
+  button: number;
+}
+
 const STATETYPE: Record<string, number> = { s: 1, c: 2, a: 3, l: 4 };
 
 export class MugenAI {
@@ -209,7 +223,115 @@ export class MugenAI {
       return;
     }
     this.inGuardDist = this.anyAttackInRange();
+    if (this.dummy) return this.trainingDummy(opp, this.dummy);
     this.think(opp);
+  }
+
+  /** Training mode dummy settings (MUGEN's training menu); null = normal AI. */
+  dummy: DummySettings | null = null;
+  private dummyTimer = 0;
+
+  /** Internal units for a distance given per 320 of GameWidth (0x421720). */
+  private scale320(x: number): number {
+    return Math.fround((this.p.world.gameWidth * x) / 320);
+  }
+
+  /** 0x4325b0: the training dummy (no RNG). */
+  private trainingDummy(opp: Player, d: DummySettings): void {
+    const p = this.p;
+    const k = this.k;
+    if (this.dummyTimer) {
+      this.dummyTimer--;
+      return;
+    }
+    const releaseBack = () => {
+      if (!this.inGuardDist && this.held(K_B)) this.push(K_B | REL);
+    };
+    if (this.inGuardDist && p.moveType === 'i' && p.ctrl) {
+      if (d.guard) {
+        if (this.guarding) return releaseBack();
+        if (this.held(K_U)) this.push(K_U | REL);
+        if (this.held(K_F)) this.push(K_F | REL);
+        const gf = guardFlagBits(opp);
+        if (gf & 8 && !(gf & 4) && !this.held(K_D)) this.push(K_D);
+        if (!(gf & 8) && gf & 4 && this.held(K_D)) this.push(K_D | REL);
+        if (!this.held(K_B)) this.push(K_B);
+        return;
+      }
+      if (this.held(K_B)) this.push(K_B | REL);
+    }
+    if (this.guarding) return releaseBack();
+    const ddx = (p.wx - opp.wx) * k;
+    const adx = Math.fround(Math.abs(ftoi(ddx)));
+    const pvx = p.vel.x * p.facing * p.scale * k;
+    const ovx = opp.vel.x * opp.facing * opp.scale * k;
+    if (d.distance) {
+      const want = this.scale320(d.distance);
+      if (!(want >= adx)) {
+        // Too far: walk in.
+        if (d.stance === 1 && (this.held(K_U) || this.held(K_D) || this.held(K_B))) this.dummyTimer = 5;
+        if (this.held(K_U)) this.push(K_U | REL);
+        if (this.held(K_D)) this.push(K_D | REL);
+        if (this.held(K_B)) this.push(K_B | REL);
+        if (this.dummyTimer === 0 && !this.held(K_F)) this.push(K_F);
+        return;
+      }
+      const diff = want - adx;
+      if (Math.fround(-20 * opp.facing) * ovx <= diff || !(pvx * ddx > 0)) {
+        if (this.held(K_F)) return this.push(K_F | REL);
+      } else return;
+    }
+    if (d.jumpDistance && !this.atScreenEdge()) {
+      const want = this.scale320(d.jumpDistance);
+      if (!(want <= adx)) {
+        // Too close: back off.
+        if (d.stance === 1 && (this.held(K_U) || this.held(K_D) || this.held(K_F))) this.dummyTimer = 5;
+        if (this.held(K_U)) this.push(K_U | REL);
+        if (this.held(K_D)) this.push(K_D | REL);
+        if (this.held(K_F)) this.push(K_F | REL);
+        if (this.dummyTimer === 0 && !this.held(K_B)) this.push(K_B);
+        return;
+      }
+      if (Math.fround(20 * opp.facing) * ovx <= adx - want || !(pvx * ddx >= 0)) {
+        if (this.held(K_B)) return this.push(K_B | REL);
+      } else return;
+    }
+    const rel = (key: number) => {
+      if (this.held(key)) this.push(key | REL);
+    };
+    switch (d.stance) {
+      case 0: // stand
+        rel(K_U), rel(K_D), rel(K_B), rel(K_F);
+        break;
+      case 1: // crouch
+        rel(K_U);
+        if (!this.held(K_D)) this.push(K_D);
+        rel(K_B), rel(K_F);
+        break;
+      case 2: // jump
+        rel(K_D), rel(K_B), rel(K_F);
+        if (p.wy === 0) {
+          if (!this.held(K_U)) this.push(K_U);
+        } else rel(K_U);
+        break;
+      case 3: // jump repeatedly (hold up while falling)
+        rel(K_D), rel(K_B), rel(K_F);
+        if (p.wy === 0 || p.vel.y > 0) {
+          if (!this.held(K_U)) this.push(K_U);
+        } else rel(K_U);
+        break;
+    }
+    if (!d.button) return;
+    const key = d.button + 4;
+    this.dummyTimer = 5;
+    this.push(this.held(key) ? key | REL : key);
+  }
+
+  /** 0x4342f0: within 5 internal units of either screen limit. */
+  private atScreenEdge(): boolean {
+    const p = this.p;
+    const [lo, hi] = p.world.screenLimits(p);
+    return Math.abs(p.wx - lo) * this.k < 5 || Math.abs(p.wx - hi) * this.k < 5;
   }
 
   /** 0x430800. */
