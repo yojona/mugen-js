@@ -129,14 +129,14 @@ const IMPLS: Record<string, Impl> = {
   posset: (_c, prm) => (p) => {
     const x = prm.num(p, 'x');
     const y = prm.num(p, 'y');
-    if (x !== undefined) p.pos.x = Math.fround(p.world.camera.x / p.scale + x);
+    if (x !== undefined) p.pos.x = p.world.camera.x / p.scale + Math.fround(x);
     if (y !== undefined) p.pos.y = Math.fround(y);
   },
   posadd: (_c, prm) => (p) => {
     const x = prm.num(p, 'x');
     const y = prm.num(p, 'y');
-    if (x !== undefined) p.pos.x = Math.fround(p.pos.x + x * p.facing);
-    if (y !== undefined) p.pos.y = Math.fround(p.pos.y + y);
+    if (x !== undefined) p.pos.x = p.pos.x + Math.fround(x) * p.facing;
+    if (y !== undefined) p.pos.y = p.pos.y + Math.fround(y);
   },
   posfreeze: (_c, prm) => (p) => {
     p.posFreeze = (prm.int(p, 'value') ?? 1) !== 0;

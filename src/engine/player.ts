@@ -788,7 +788,7 @@ export class Player {
     }
     if (this.hitPause > 0 || this.ghv.hitshaketime > 0) return;
     if (this.cornerPushVel) {
-      this.pos.x = Math.fround(this.pos.x + this.cornerPushVel * this.facing);
+      this.pos.x = this.pos.x + this.cornerPushVel * this.facing;
       this.cornerPushVel *= 0.7;
       if (Math.abs(this.cornerPushVel) < 0.5) this.cornerPushVel = 0;
     }
