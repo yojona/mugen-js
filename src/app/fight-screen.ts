@@ -134,6 +134,12 @@ export class FightScreen implements Screen {
  * guards when attacked. MUGEN's own AI (AILevel) is not reproduced yet.
  */
 export class SimpleAI {
+  // Own generator, so the placeholder AI does not consume MUGEN's sequence.
+  private seed = 12345;
+  private rnd(n: number): number {
+    this.seed = (this.seed * 16807) % 2147483647;
+    return this.seed % n;
+  }
   private plan = 0;
   private hold = 0;
   constructor(private p: Player) {}
@@ -145,21 +151,21 @@ export class SimpleAI {
     const towards = e.pos.x > p.pos.x ? IN_R : IN_L;
     const away = towards === IN_R ? IN_L : IN_R;
     const dist = Math.abs(e.pos.x - p.pos.x);
-    if (e.moveType === 'a' && dist < 90 && p.world.random(100) < 70) return away;
+    if (e.moveType === 'a' && dist < 90 && this.rnd(100) < 70) return away;
     if (this.hold > 0) {
       this.hold--;
       return this.plan;
     }
-    const roll = p.world.random(100);
+    const roll = this.rnd(100);
     const buttons = [IN_X, IN_Y, IN_Z, IN_A, IN_B, IN_C];
     if (dist > 60) {
       this.plan = roll < 8 ? towards | IN_U : towards;
-      this.hold = 8 + p.world.random(12);
+      this.hold = 8 + this.rnd(12);
     } else if (roll < 35) {
-      this.plan = buttons[p.world.random(buttons.length)]!;
+      this.plan = buttons[this.rnd(buttons.length)]!;
       this.hold = 1;
     } else if (roll < 45) {
-      this.plan = IN_D | buttons[p.world.random(buttons.length)]!;
+      this.plan = IN_D | buttons[this.rnd(buttons.length)]!;
       this.hold = 2;
     } else if (roll < 55) {
       this.plan = away;

@@ -53,7 +53,7 @@ export class World {
   /** Set by the match flow outside RoundState 2. */
   inputLocked = false;
   shadow: { intensity: number; color: [number, number, number]; yscale: number; fadeRange: [number, number] } | undefined;
-  private seed = 0x1234567;
+  seed = 1;
   fightFx?: FightFx;
   explods: Explod[] = [];
   helpers: Player[] = [];
@@ -81,9 +81,14 @@ export class World {
   }
 
   /** Deterministic RNG in [0, n). MUGEN's generator still has to be matched. */
+  /**
+   * MUGEN's generator (mugen.exe 0x42e7e0): Park-Miller "minimal standard",
+   * seed = seed * 16807 mod (2^31 - 1), value = seed % n. 16807 * seed stays
+   * below 2^46, so doubles are exact.
+   */
   random(n: number): number {
-    this.seed = (Math.imul(this.seed, 1103515245) + 12345) >>> 0;
-    return ((this.seed >>> 16) & 0x7fff) % n;
+    this.seed = (this.seed * 16807) % 2147483647;
+    return n > 0 ? this.seed % n : 0;
   }
 
   enemyOf(p: Player): Player | undefined {
