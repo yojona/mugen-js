@@ -51,7 +51,8 @@ const NULLARY: Record<string, Fn<P>> = {
   win: int(() => 0),
   lose: int(() => 0),
   drawgame: int(() => 0),
-  ailevel: int(() => 0),
+  // CPU players report their AI level, humans 0 (mugen.exe 0x456dc8).
+  ailevel: int((p) => p.root.ai?.level ?? 0),
   ticksperSecond: int(() => 60),
   tickspersecond: int(() => 60),
   numenemy: int((p) => (p.world.enemyOf(p) ? 1 : 0)),
