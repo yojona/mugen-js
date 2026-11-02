@@ -103,4 +103,17 @@ describe('kfm state machine', () => {
     for (const bits of [IN_D, IN_D, IN_D | IN_R, IN_D | IN_R, IN_R, IN_R | IN_X]) run(w, 1, bits);
     expect(p1.stateNo).toBe(1000);
   });
+
+  it('shows each element for its exact time and never draws a wrapped frame', () => {
+    const { w, p1 } = match();
+    run(w, 5);
+    const seen: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      w.tick([IN_D, 0]);
+      const e = p1.anim.current!;
+      seen.push(`${p1.animNo}:${e.group},${e.number}`);
+    }
+    // Action 10 = 11,0 x2 then 11,1 x2, then crouch (action 11) with no stand frame between.
+    expect(seen).toEqual(['10:11,0', '10:11,0', '10:11,1', '10:11,1', '11:11,2', '11:11,2']);
+  });
 });
