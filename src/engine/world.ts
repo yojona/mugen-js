@@ -36,6 +36,8 @@ export class World {
   /** mugen.cfg GameWidth: MUGEN's internal x units are this / screenWidth per stage unit. */
   gameWidth = 640;
   private aiRoundFight = false;
+  /** Ticks since RoundState 2 began (the current tick included). */
+  fightTime = 0;
   screenHeight = 240;
   /** Screen y of the ground line (stage zoffset). */
   groundY = 200;
@@ -135,6 +137,7 @@ export class World {
   /** Feed this tick's raw inputs (one bitmask per player) and advance one tick. */
   tick(inputs: number[]): void {
     // Before the round starts (and after it ends) input is ignored and nobody has control.
+    if (this.roundState === 2) this.fightTime++;
     const active = this.allPlayers().filter((p) => !this.frozen(p));
     // MUGEN advances animations at the end of each player's update and checks
     // the automatic turn right after; here both run at the start of the next
@@ -277,7 +280,9 @@ export class World {
    */
   private spawnDust(before: Map<Player, number>): void {
     if (this.pause || this.superPause) return;
-    if (this.gameTime % 3 !== 0) return;
+    // Every third tick of the round (MUGEN's G+0x12760; measured: dust only
+    // on clocks divisible by 3 in two different captures).
+    if (this.fightTime % 3 !== 0) return;
     const ps = this.allPlayers();
     for (let i = ps.length - 1; i >= 0; i--) {
       const p = ps[i]!;
