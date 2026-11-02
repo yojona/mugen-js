@@ -61,7 +61,10 @@ export interface CommandSet {
   commands: Command[];
   /** Lowercased names, for validating `command = "x"` triggers. */
   names: Set<string>;
+  /** MUGEN's command count: the numbering counter (indices run below it). */
   slots: number;
+  /** Size of the command buffer (same as slots). */
+  size: number;
 }
 
 export function parseCmd(text: string): CommandSet {
@@ -71,6 +74,7 @@ export function parseCmd(text: string): CommandSet {
   const defBuffer = parseInt(getValue(defaults, 'command.buffer.time') ?? '1', 10) || 1;
   const commands: Command[] = [];
   const slotOf = new Map<string, number>();
+  let counter = 1;
   for (const sec of doc.sections) {
     if (sec.name.toLowerCase() !== 'command') continue;
     const name = unquote(getValue(sec, 'name') ?? '').toLowerCase();
@@ -78,7 +82,13 @@ export function parseCmd(text: string): CommandSet {
     if (!name || !src) continue;
     const elements = parseElements(src);
     if (!elements) continue;
-    if (!slotOf.has(name)) slotOf.set(name, slotOf.size);
+    // mugen.exe 0x439920: names are numbered from 1 in order of first
+    // appearance (duplicates share it); "recovery" uses 0 but still takes a
+    // number. The AI's random command index runs below the final counter.
+    if (!slotOf.has(name)) {
+      slotOf.set(name, name === 'recovery' ? 0 : counter);
+      counter++;
+    }
     commands.push({
       name,
       elements,
@@ -87,7 +97,7 @@ export function parseCmd(text: string): CommandSet {
       slot: slotOf.get(name)!,
     });
   }
-  return { commands, names: new Set(slotOf.keys()), slots: slotOf.size };
+  return { commands, names: new Set(slotOf.keys()), slots: counter, size: counter };
 }
 
 /** mugen.exe 0x439f20. Returns undefined if the command does not parse. */
@@ -210,14 +220,25 @@ export class CommandInput {
   private qRead = 0;
   /** Held keys as bits, snapshot at the start of the tick (0x650). */
   private heldBits = 0;
+
+  /**
+   * This tick's consumed key event is an Up press (air jump; measured: a CPU
+   * release-and-press of U in one tick air-jumps when the press is consumed).
+   */
+  upPressed = false;
   private buffer: Uint8Array;
   private last: Float64Array;
 
   constructor(private set: CommandSet) {
-    this.buffer = new Uint8Array(Math.max(1, set.slots));
-    this.last = new Float64Array(Math.max(1, set.slots)).fill(-Infinity);
+    this.buffer = new Uint8Array(Math.max(1, set.size));
+    this.last = new Float64Array(Math.max(1, set.size)).fill(-Infinity);
   }
 
+  /**
+   * MUGEN's command count. The AI injects a random index below it; an index
+   * with no name (the number "recovery" skipped) does nothing (measured with
+   * KFM: 34 names numbered 0..34).
+   */
   get commandCount(): number {
     return this.set.slots;
   }
@@ -242,6 +263,11 @@ export class CommandInput {
     const out = new Set<string>();
     for (const c of this.set.commands) if (this.buffer[c.slot]! > 0) out.add(c.name);
     return out;
+  }
+
+  /** Debug: [read, write, ring x30, held 1..11] in MUGEN's layout. */
+  debugState(): number[] {
+    return [this.ringR, this.ringW, ...this.ring, ...Array.from(this.held.slice(1, 12))];
   }
 
   /** held[k] as MUGEN reads it (k = 13 is the ring's read index). */
@@ -312,19 +338,23 @@ export class CommandInput {
    * mugen.exe 0x434db0 (input part). `aiCmds` (command indices pushed by the
    * CPU this tick) are set after matching, active for this tick only (0x42f750).
    */
-  update(time: number, frozen: boolean, aiCmds?: readonly number[]): void {
+  update(time: number, frozen: boolean, aiCmds?: readonly number[], holdBuffers = false): void {
     const ev = this.popKey();
     this.lastEvent = ev;
     let held = 0;
     for (let i = 1; i < 12; i++) if (this.held[i]) held |= KEY_BITS[i]!;
     this.heldBits = held;
     const floor = frozen ? 2 : 0;
-    for (let i = 0; i < this.buffer.length; i++) {
+    // In hit pause the buffers do not count down (mugen.exe 0x434fbc), so a
+    // command entered during the pause fires when it ends (measured).
+    if (!holdBuffers) for (let i = 0; i < this.buffer.length; i++) {
       if (this.buffer[i]! > 0) {
         this.buffer[i]!--;
         if (this.buffer[i]! < floor) this.buffer[i] = floor;
       }
     }
+    // A consumed Up press event, even with Up already counted as held.
+    this.upPressed = (ev & 0xf) === 1 && !(ev & EV_RELEASE);
     this.produce(ev, time);
     this.process(time);
     if (aiCmds) for (const i of aiCmds) if (i >= 0 && i < this.buffer.length) this.buffer[i] = 1;

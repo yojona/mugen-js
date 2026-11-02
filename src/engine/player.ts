@@ -47,7 +47,7 @@ export async function loadProgram(vfs: Vfs, data: CharacterData): Promise<Charac
   // state entries, then stcommon. The first definition of any state wins,
   // special states included (measured: a second [Statedef -2] is ignored).
   // The cns file only provides constants.
-  let cmd: CommandSet = { commands: [], names: new Set(), slots: 0 };
+  let cmd: CommandSet = { commands: [], names: new Set(), slots: 0, size: 0 };
   if (f.cns) constDocs.push(parseIni(await vfs.text(f.cns, dir)));
   for (const st of f.st) parseStates(await vfs.text(st, dir), st, states);
   if (f.cmd) {
@@ -79,6 +79,8 @@ export class Player {
   cornerPushVel = 0;
   /** HitDef snap/mindist/maxdist, applied when this player next updates. */
   pendingPlacement: (() => void) | undefined;
+  /** Hit pause seen by the previous tick's input processing. */
+  hitPauseLastTick = false;
   /** CPU control (MUGEN's AI); undefined for human players. */
   ai?: import('./ai').MugenAI;
   /** MUGEN's command pipeline (root players; World.tick feeds it every tick). */
@@ -614,7 +616,7 @@ export class Player {
     } else if (this.stateType === 'a' && no === 50) {
       // Air jump.
       const n = this.const('movement.airjump.num');
-      if (cmd.has('holdup') && n > 0 && this.airJumps < n && -this.pos.y >= this.const('movement.airjump.height') && this.input.raw(1) !== this.input.raw(0)) {
+      if (cmd.has('holdup') && n > 0 && this.airJumps < n && -this.pos.y >= this.const('movement.airjump.height') && this.cmdInput?.upPressed) {
         this.airJumps++;
         return this.enterLater(45);
       }

@@ -160,7 +160,10 @@ export class World {
     this.aiRoundFight = this.roundState === 2;
     for (const p of this.players) {
       // Every player's input is processed each tick, frozen or in hit pause.
-      p.cmdInput!.update(this.gameTime, this.frozen(p), p.ai?.cmds);
+      // MUGEN's pause counter (p+0xef0) lags the hit pause by a tick.
+      const hold = p.hitPause > 0 || p.hitPauseLastTick;
+      p.hitPauseLastTick = p.hitPause > 0;
+      p.cmdInput!.update(this.gameTime, this.frozen(p), p.ai?.cmds, hold);
       p.commands = p.cmdInput!.active();
     }
     // Built-in transitions for everyone first, then each player runs its
