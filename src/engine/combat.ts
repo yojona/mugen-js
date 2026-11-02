@@ -256,6 +256,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     d.shakeFresh = true;
     g.guarded = 1;
     g.damage = dmg;
+    // A guarded hit never falls (measured: the CPU skips its air-recovery
+    // roll in 151 after an earlier knock-down).
+    g.fall = 0;
     g.hitshaketime = hd.guardPause[1];
     // An air guard has no hit time: HitOver is 1 at once (measured: 154).
     g.hittime = airborne ? 0 : hd.guardHitTime;
