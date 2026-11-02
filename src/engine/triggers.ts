@@ -164,6 +164,8 @@ function call(node: CallNode, args: Fn<P>[]): Fn<P> | undefined {
     }
     if (name === 'gethitvar') {
       if (!(w in emptyGetHitVars())) throw new CompileError(`GetHitVar(${w}) desconocido`);
+      // IsBound: currently held by an attacker's TargetBind.
+      if (w === 'isbound') return int((p) => (p.bind?.byTarget ? 1 : 0));
       const key = w as keyof GetHitVars;
       const isF = GETHITVAR_FLOATS.has(w);
       return (p) => {

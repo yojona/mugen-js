@@ -3,7 +3,9 @@
 
 import { BOTTOM, compileExpr, compileExprList, R, toInt, type Fn, type TriggerEnv } from '../expr/compile';
 import type { ControllerDef } from './cns';
-import { compileHitDef } from './hitdef';
+import { compileHitDef, parseAttrList } from './hitdef';
+import { compileExplod, compileExplodBindTime, compileGameMakeAnim, compileMakeDust, compileModifyExplod, compileRemoveExplod, simpleExplod, transBlend } from './explod';
+import { newAfterImage, type PalFxState } from './fx';
 import type { MoveType, Physics, Player, StateType } from './player';
 
 type P = Player;
@@ -79,7 +81,14 @@ const IMPLS: Record<string, Impl> = {
     const anim = prm.int(p, 'anim');
     p.changeState(v, ctrl === undefined ? undefined : ctrl !== 0, anim);
   },
-  selfstate: (c, prm, env) => IMPLS.changestate!(c, prm, env),
+  selfstate: (_c, prm) => (p) => {
+    const v = prm.int(p, 'value');
+    if (v === undefined) return;
+    p.returnToOwnStates();
+    const ctrl = prm.int(p, 'ctrl');
+    const anim = prm.int(p, 'anim');
+    p.changeState(v, ctrl === undefined ? undefined : ctrl !== 0, anim);
+  },
 
   changeanim: (_c, prm) => (p) => {
     const v = prm.int(p, 'value');
@@ -87,7 +96,12 @@ const IMPLS: Record<string, Impl> = {
     const elem = prm.int(p, 'elem');
     p.changeAnim(v, elem === undefined ? 0 : elem - 1);
   },
-  changeanim2: (c, prm, env) => IMPLS.changeanim!(c, prm, env),
+  changeanim2: (_c, prm) => (p) => {
+    const v = prm.int(p, 'value');
+    if (v === undefined) return;
+    const elem = prm.int(p, 'elem');
+    p.changeAnim(v, elem === undefined ? 0 : elem - 1, true);
+  },
 
   velset: (_c, prm) => (p) => {
     const x = prm.num(p, 'x');
@@ -236,15 +250,269 @@ const IMPLS: Record<string, Impl> = {
   },
 };
 
+
+// ---------------------------------------------------------------------------
+// Effects, pauses, targets and misc controllers.
+
+const v3 = (prm: Params, p: P, k: string, def: [number, number, number]): [number, number, number] => [prm.num(p, k, 0) ?? def[0], prm.num(p, k, 1) ?? def[1], prm.num(p, k, 2) ?? def[2]];
+
+function palFxFrom(prm: Params, p: P): PalFxState {
+  return {
+    time: prm.int(p, 'time') ?? 0,
+    elapsed: 0,
+    add: v3(prm, p, 'add', [0, 0, 0]),
+    mul: v3(prm, p, 'mul', [256, 256, 256]),
+    sinAdd: v3(prm, p, 'sinadd', [0, 0, 0]),
+    sinPeriod: prm.int(p, 'sinadd', 3) ?? 0,
+    invertAll: (prm.int(p, 'invertall') ?? 0) !== 0,
+    color: prm.num(p, 'color') ?? 256,
+  };
+}
+
+function eachTarget(p: P, prm: Params, f: (t: P) => void): void {
+  const id = prm.int(p, 'id') ?? -1;
+  for (const [t, tid] of p.targets) if (id === -1 || tid === id) f(t);
+}
+
+const EXTRA: Record<string, Impl> = {
+  explod: (c, _prm, env) => compileExplod(c, env),
+  modifyexplod: (c, _prm, env) => compileModifyExplod(c, env),
+  removeexplod: (c, _prm, env) => compileRemoveExplod(c, env),
+  explodbindtime: (c, _prm, env) => compileExplodBindTime(c, env),
+  gamemakeanim: (c, _prm, env) => compileGameMakeAnim(c, env),
+  makedust: (c, _prm, env) => compileMakeDust(c, env),
+
+  palfx: (_c, prm) => (p) => {
+    p.palFx = palFxFrom(prm, p);
+  },
+  allpalfx: (_c, prm) => (p) => {
+    for (const q of p.world.players) q.palFx = palFxFrom(prm, p);
+    p.world.bgPalFx = palFxFrom(prm, p);
+  },
+  bgpalfx: (_c, prm) => (p) => {
+    p.world.bgPalFx = palFxFrom(prm, p);
+  },
+  afterimage: (_c, prm) => (p) => {
+    const a = newAfterImage();
+    a.time = prm.int(p, 'time') ?? 1;
+    a.length = prm.int(p, 'length') ?? 20;
+    a.timeGap = prm.int(p, 'timegap') ?? 1;
+    a.frameGap = prm.int(p, 'framegap') ?? 4;
+    const tr = prm.raw('trans');
+    a.blend = tr ? transBlend(tr) : { kind: 'none' };
+    a.palColor = prm.num(p, 'palcolor') ?? 256;
+    a.palInvertAll = (prm.int(p, 'palinvertall') ?? 0) !== 0;
+    a.palBright = v3(prm, p, 'palbright', a.palBright);
+    a.palContrast = v3(prm, p, 'palcontrast', a.palContrast);
+    a.palPostBright = v3(prm, p, 'palpostbright', a.palPostBright);
+    a.palAdd = v3(prm, p, 'paladd', a.palAdd);
+    a.palMul = v3(prm, p, 'palmul', a.palMul);
+    p.afterImage = a;
+  },
+  afterimagetime: (_c, prm) => (p) => {
+    const t = prm.int(p, 'time') ?? prm.int(p, 'value') ?? 1;
+    p.afterImage.time = t;
+  },
+  envshake: (_c, prm) => (p) => {
+    const freq = prm.num(p, 'freq') ?? 60;
+    p.world.envShake = {
+      time: prm.int(p, 'time') ?? 0,
+      freq,
+      ampl: prm.int(p, 'ampl') ?? Math.trunc((-4 * p.prog.data.def.localCoord[0]) / 320),
+      phase: prm.num(p, 'phase') ?? (freq >= 90 ? 90 : 0),
+    };
+  },
+  fallenvshake: () => (p) => {
+    const g = p.ghv;
+    if (g['fall.envshake.time'] <= 0) return;
+    p.world.envShake = { time: g['fall.envshake.time'], freq: g['fall.envshake.freq'], ampl: g['fall.envshake.ampl'], phase: g['fall.envshake.phase'] };
+    g['fall.envshake.time'] = 0;
+  },
+  pause: (_c, prm) => (p) => {
+    p.world.startPause(p, prm.int(p, 'time') ?? 0, prm.int(p, 'movetime') ?? 0, false);
+  },
+  superpause: (c, prm) => {
+    const animRaw = prm.raw('anim') ?? '30';
+    const ownAnim = /^s/i.test(animRaw);
+    const sndRaw = prm.raw('sound');
+    const ownSnd = !!sndRaw && /^s/i.test(sndRaw);
+    return (p) => {
+      const w = p.world;
+      const pa = prm.int(p, 'poweradd');
+      if (pa) p.addPower(pa);
+      w.startPause(p, prm.int(p, 'time') ?? 30, prm.int(p, 'movetime') ?? 0, true, {
+        darken: (prm.int(p, 'darken') ?? 1) !== 0,
+        unhittable: (prm.int(p, 'unhittable') ?? 1) !== 0,
+        p2defmul: prm.num(p, 'p2defmul') ?? 1.5,
+      });
+      const animNo = prm.int(p, 'anim') ?? parseInt(animRaw.replace(/^s/i, ''), 10);
+      if (animNo !== -1 && !Number.isNaN(animNo)) {
+        const a = ownAnim ? p.prog.data.anims.get(animNo) : w.fightFx?.anims.get(animNo);
+        if (a) {
+          const e = simpleExplod(p, a, !ownAnim, p.pos.x + (prm.num(p, 'pos', 0) ?? 0) * p.facing, p.pos.y + (prm.num(p, 'pos', 1) ?? 0), 5);
+          e.superMoveTime = -1;
+          w.explods.push(e);
+        }
+      }
+      if (sndRaw) {
+        const g = prm.int(p, 'sound', 0);
+        const n = prm.int(p, 'sound', 1);
+        if (g !== undefined && n !== undefined) w.sounds.push({ owner: ownSnd ? p : null, group: g, number: n });
+      }
+      void c;
+    };
+  },
+  trans: (_c, prm) => (p) => {
+    const t = prm.raw('trans');
+    if (!t) return;
+    let b = transBlend(t);
+    if (b.kind === 'add' && prm.has('alpha')) b = { kind: 'add', src: prm.int(p, 'alpha', 0) ?? 256, dst: prm.int(p, 'alpha', 1) ?? 256 };
+    p.trans = b;
+  },
+  angledraw: (_c, prm) => (p) => {
+    p.angleDraw = true;
+    const v = prm.num(p, 'value');
+    if (v !== undefined) p.angle = v;
+    if (prm.has('scale')) p.drawScale = [prm.num(p, 'scale', 0) ?? 1, prm.num(p, 'scale', 1) ?? 1];
+  },
+  angleset: (_c, prm) => (p) => {
+    p.angle = prm.num(p, 'value') ?? p.angle;
+  },
+  angleadd: (_c, prm) => (p) => {
+    p.angle += prm.num(p, 'value') ?? 0;
+  },
+  anglemul: (_c, prm) => (p) => {
+    p.angle *= prm.num(p, 'value') ?? 1;
+  },
+  offset: (_c, prm) => (p) => {
+    p.drawOffset = [prm.num(p, 'x') ?? 0, prm.num(p, 'y') ?? 0];
+  },
+  assertspecial: (c) => (p) => {
+    for (const k of ['flag', 'flag2', 'flag3']) {
+      const f = c.params.get(k)?.trim().toLowerCase();
+      if (f) p.special.add(f);
+    }
+  },
+  width: (_c, prm) => (p) => {
+    if (prm.has('value')) {
+      const v: [number, number] = [prm.num(p, 'value', 0) ?? 0, prm.num(p, 'value', 1) ?? 0];
+      p.width = { edge: v, player: v };
+    }
+    if (prm.has('edge')) p.width.edge = [prm.num(p, 'edge', 0) ?? 0, prm.num(p, 'edge', 1) ?? 0];
+    if (prm.has('player')) p.width.player = [prm.num(p, 'player', 0) ?? 0, prm.num(p, 'player', 1) ?? 0];
+  },
+  screenbound: (_c, prm) => (p) => {
+    p.screenBound = (prm.int(p, 'value') ?? 0) !== 0;
+    p.moveCamera = [(prm.int(p, 'movecamera', 0) ?? 0) !== 0, (prm.int(p, 'movecamera', 1) ?? 0) !== 0];
+  },
+  playerpush: (_c, prm) => (p) => {
+    p.pushEnabled = (prm.int(p, 'value') ?? 1) !== 0;
+  },
+  remappal: (_c, prm) => (p) => {
+    // Only remaps of the character's main palette group (1,n) are supported.
+    const dg = prm.int(p, 'dest', 0);
+    const dn = prm.int(p, 'dest', 1);
+    if (dg === 1 && dn !== undefined) p.palRemap = dn;
+    else if (dg === -1) p.palRemap = undefined;
+  },
+
+  // Targets
+  targetbind: (_c, prm) => (p) => {
+    const time = prm.int(p, 'time') ?? 1;
+    const off: [number, number] = [prm.num(p, 'pos', 0) ?? 0, prm.num(p, 'pos', 1) ?? 0];
+    eachTarget(p, prm, (t) => {
+      t.bind = { to: p, offset: [off[0] * p.facing, off[1]], time, byTarget: true };
+    });
+  },
+  bindtotarget: (_c, prm) => (p) => {
+    const time = prm.int(p, 'time') ?? 1;
+    const off: [number, number] = [prm.num(p, 'pos', 0) ?? 0, prm.num(p, 'pos', 1) ?? 0];
+    let done = false;
+    eachTarget(p, prm, (t) => {
+      if (done) return;
+      done = true;
+      p.bind = { to: t, offset: [off[0] * t.facing, off[1]], time };
+    });
+  },
+  targetstate: (_c, prm) => (p) => {
+    const v = prm.int(p, 'value');
+    if (v === undefined) return;
+    eachTarget(p, prm, (t) => {
+      t.stateOwner = p;
+      t.changeState(v);
+    });
+  },
+  targetfacing: (_c, prm) => (p) => {
+    const v = prm.int(p, 'value') ?? 1;
+    eachTarget(p, prm, (t) => {
+      t.facing = v >= 0 ? p.facing : -p.facing;
+    });
+  },
+  targetlifeadd: (_c, prm) => (p) => {
+    const v = prm.int(p, 'value') ?? 0;
+    const kill = (prm.int(p, 'kill') ?? 1) !== 0;
+    const abs = (prm.int(p, 'absolute') ?? 0) !== 0;
+    eachTarget(p, prm, (t) => {
+      const amt = abs ? v : Math.trunc(v * (p.const('data.attack') / 100) * (100 / Math.max(1, t.const('data.defence'))) * t.defenceMul);
+      t.life = Math.min(t.const('data.life'), Math.max(kill ? 0 : Math.min(t.life, 1), t.life + amt));
+      if (t.life <= 0) t.alive = false;
+    });
+  },
+  targetpoweradd: (_c, prm) => (p) => {
+    const v = prm.int(p, 'value') ?? 0;
+    eachTarget(p, prm, (t) => t.addPower(v));
+  },
+  targetvelset: (_c, prm) => (p) => {
+    eachTarget(p, prm, (t) => {
+      const x = prm.num(p, 'x');
+      const y = prm.num(p, 'y');
+      if (x !== undefined) t.vel.x = x;
+      if (y !== undefined) t.vel.y = y;
+    });
+  },
+  targetveladd: (_c, prm) => (p) => {
+    eachTarget(p, prm, (t) => {
+      t.vel.x += prm.num(p, 'x') ?? 0;
+      t.vel.y += prm.num(p, 'y') ?? 0;
+    });
+  },
+  targetdrop: (_c, prm) => (p) => {
+    const keep = prm.int(p, 'excludeid') ?? -1;
+    const keepOne = (prm.int(p, 'keepone') ?? 1) !== 0;
+    let kept = false;
+    for (const [t, id] of p.targets) {
+      if (keep !== -1 && id === keep && (!keepOne || !kept)) {
+        kept = true;
+        continue;
+      }
+      p.targets.delete(t);
+    }
+  },
+
+  reversaldef: (c, _prm, env) => {
+    const build = compileHitDef(c, env);
+    const attrs = parseAttrList(c.params.get('reversal.attr'));
+    return (p) => {
+      p.reversal = { attrs, hd: build(p) };
+    };
+  },
+  hitoverride: (c, prm) => {
+    const attrs = parseAttrList(c.params.get('attr'));
+    return (p) => {
+      const slot = Math.max(0, Math.min(7, prm.int(p, 'slot') ?? 0));
+      p.hitOverrides[slot] = { attrs, stateNo: prm.int(p, 'stateno') ?? -1, time: prm.int(p, 'time') ?? 1, forceAir: (prm.int(p, 'forceair') ?? 0) !== 0 };
+    };
+  },
+};
+Object.assign(IMPLS, EXTRA);
+
 let playerEnvRef: TriggerEnv<P> | undefined;
 
 /** Controllers accepted but not simulated yet (no effect). */
 const PENDING = [
-  'reversaldef', 'projectile', 'helper', 'explod', 'modifyexplod', 'removeexplod', 'explodbindtime', 'gamemakeanim', 'makedust',
-  'hitoverride', 'fallenvshake', 'attackmulset',
-  'width', 'playerpush', 'screenbound', 'assertspecial', 'pause', 'superpause', 'envshake', 'envcolor', 'forcefeedback', 'palfx', 'allpalfx', 'bgpalfx',
-  'afterimage', 'afterimagetime', 'trans', 'angledraw', 'angleset', 'angleadd', 'anglemul', 'offset', 'remappal', 'stopsnd', 'sndpan',
-  'targetbind', 'targetstate', 'targetvelset', 'targetveladd', 'targetfacing', 'targetlifeadd', 'targetpoweradd', 'targetdrop', 'bindtotarget', 'bindtoparent', 'bindtoroot',
+  'projectile', 'helper', 'attackmulset',
+  'envcolor', 'forcefeedback', 'stopsnd', 'sndpan',
+  'bindtoparent', 'bindtoroot',
   'destroyself', 'parentvarset', 'parentvaradd', 'displaytoclipboard', 'appendtoclipboard', 'clearclipboard', 'hitadd', 'attackdist', 'victoryquote', 'zoom', 'gravity',
 ];
 
@@ -309,7 +577,7 @@ export function compileController(c: ControllerDef, env: TriggerEnv<P>): Compile
   const impl = IMPLS[c.type];
   if (impl) {
     run = impl(c, prm, env);
-    if (!['playsnd', 'statetypeset', 'hitdef', 'nothitby', 'hitby'].includes(c.type)) prm.validate(STRING_PARAMS);
+    if (!['playsnd', 'statetypeset', 'hitdef', 'reversaldef', 'nothitby', 'hitby', 'hitoverride', 'explod', 'modifyexplod', 'superpause', 'trans', 'assertspecial', 'afterimage', 'remappal'].includes(c.type)) prm.validate(STRING_PARAMS);
   } else if (PENDING.includes(c.type)) {
     run = () => {};
   } else {
