@@ -6,6 +6,7 @@ import { loadCharacter } from '../engine/character';
 import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../engine/cmd';
 import { loadProgram, type CharacterProgram } from '../engine/player';
 import { httpSource, Vfs } from '../engine/vfs';
+import { SessionRng } from '../engine/session-rng';
 import type { FightFx } from '../engine/world';
 import { parseAir } from '../formats/air';
 import { parseSff } from '../formats/sff';
@@ -127,6 +128,8 @@ setStatus('');
 // Flow
 
 let screen: Screen = new TitleScreen(ctx);
+// MUGEN's session RNG: -sessionseed, else seeded from the clock.
+const session = new SessionRng(parseInt(params.get('sessionseed') ?? '', 10) || (Date.now() % 2147483646) + 1);
 let busy = false;
 
 function randomOpponent(exclude?: RosterChar): Pick {
@@ -141,7 +144,9 @@ async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | und
   const progs: [CharacterProgram, CharacterProgram] = [await program(p1.char), await program(p2.char)];
   // Same character and palette on both sides: P2 takes the next palette.
   if (p1.char === p2.char && p1.pal === p2.pal) p2 = { ...p2, pal: (p2.pal % 6) + 1 };
+  const matchSeed = session.matchSeed();
   return new FightScreen(ctx, {
+    seed: matchSeed,
     p1,
     p2,
     progs,
@@ -171,14 +176,18 @@ async function runMode(mode: GameMode): Promise<void> {
     if (mode === 'arcade') {
       const chosen = sel.p1.char;
       await storyboard(chosen.data?.def.arcade.intro, chosen.data?.dir ?? '');
-      const count = Math.max(1, Math.min(roster.arcadeMaxMatches[0] ?? 6, 6));
-      for (let n = 1; n <= count; n++) {
-        const opp = randomOpponent(sel.p1.char);
+      // 0x40a370: shuffled roster by order, the player's character included.
+      const pool = rosterChars.filter((c) => c.data).map((c) => ({ c, order: c.entry.order }));
+      const opponents = session.arcadeOrder(pool, roster.arcadeMaxMatches).map((x) => x.c);
+      for (let n = 1; n <= opponents.length; n++) {
+        const oc = opponents[n - 1]!;
+        const opp: Pick = { char: oc, pal: session.opponentPalette((i) => !!oc.data?.palettes?.[i]) };
         await until(new VersusScreen(ctx, sel.p1, opp, n));
         const res = await until<{ winner: number | undefined }>(await loading(() => fight(mode, sel.p1, opp, undefined)));
         if (res.winner !== 0) return;
         const quotes = programs.get(sel.p1.char.defPath!)?.quotes ?? [];
-        if ((motif.value('Victory Screen', 'enabled') ?? '1') !== '0') {
+        // Not after the last match (system.def [Victory Screen] notes).
+        if (n < opponents.length && (motif.value('Victory Screen', 'enabled') ?? '1') !== '0') {
           await until(new VictoryScreen(ctx, sel.p1, quotes.length ? quotes[Math.floor(Math.random() * quotes.length)]! : (motif.value('Victory Screen', 'winquote.text') ?? 'Winner!').replace(/^"|"$/g, '')));
         }
       }

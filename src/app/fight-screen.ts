@@ -28,6 +28,8 @@ export interface FightSetup {
   /** Which sides are human-controlled. */
   human: [boolean, boolean];
   training: boolean;
+  /** Match RNG seed (mugen.exe 0x425540, from the session RNG). */
+  seed?: number;
 }
 
 export interface FightResult {
@@ -55,6 +57,7 @@ export class FightScreen implements Screen {
     w.screenHeight = s.stage.info.localCoord[1];
     w.screenWidth = Math.round(w.screenHeight * (mw / mh));
     w.fightFx = s.fightFx;
+    if (s.seed !== undefined) w.seed = s.seed;
     const p1 = new Player(s.progs[0], w, 0);
     const p2 = new Player(s.progs[1], w, 1);
     p1.palNo = s.p1.pal;
