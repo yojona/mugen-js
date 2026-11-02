@@ -9,6 +9,8 @@ import { activeCommands, InputHistory, parseCmd, type CommandSet } from './cmd';
 import { parseConstants, parseStates, type Constants, type ControllerDef, type StateDef, type StateMap } from './cns';
 import { compileController, type CompiledController } from './controllers';
 import { emptyGetHitVars, type GetHitVars, type HitDefData } from './hitdef';
+import { newAfterImage, newPalFx, type AfterImageState, type PalFxState } from './fx';
+import type { Blend } from '../formats/air';
 import { playerEnv } from './triggers';
 import type { Vfs } from './vfs';
 import type { World } from './world';
@@ -111,8 +113,41 @@ export class Player {
   defenceMul = 1;
   /** NotHitBy / HitBy slots: allowed or blocked attributes for a time. */
   hitBy: { attrs: string[]; time: number; not: boolean }[] = [];
+  /** HitOverride slots (0..7). */
+  hitOverrides: ({ attrs: string[]; stateNo: number; time: number; forceAir: boolean } | undefined)[] = [];
+  /** Juggle points left while airborne in a hit state. */
+  juggleLeft = 0;
+  /** Juggle cost of the current attack state (statedef `juggle`). */
+  juggleCost = 0;
   posFreeze = false;
   alive = true;
+
+  // Targets (players hit by this player's attacks), with the HitDef id.
+  targets = new Map<Player, number>();
+  /** TargetBind / BindTo*: position lock applied after physics. */
+  bind: { to: Player; offset: [number, number]; time: number; byTarget?: boolean } | undefined;
+  reversal: { attrs: string[]; hd: HitDefData } | undefined;
+
+  /** When in another player's states (p2stateno / TargetState). */
+  stateOwner: Player | undefined;
+
+  // Per-tick flags (reset every tick before state processing)
+  special = new Set<string>();
+  trans: Blend | undefined;
+  angleDraw = false;
+  angle = 0;
+  drawScale: [number, number] = [1, 1];
+  drawOffset: [number, number] = [0, 0];
+  width: { edge?: [number, number]; player?: [number, number] } = {};
+  screenBound = true;
+  moveCamera: [boolean, boolean] = [true, true];
+  pushEnabled = true;
+
+  // Visual effects
+  palFx: PalFxState = newPalFx();
+  afterImage: AfterImageState = newAfterImage();
+  /** RemapPal: palette slot to draw with instead of palNo. */
+  palRemap: number | undefined;
 
   /** Events for the audio/visual layers (PlaySnd etc.), drained by the host. */
   events: { kind: 'sound'; group: number; number: number; common: boolean; channel: number }[] = [];
@@ -148,10 +183,16 @@ export class Player {
   // -------------------------------------------------------------------------
   // States
 
+  /** Program whose states are running (own, or the attacker's for custom states). */
+  get stateProg(): CharacterProgram {
+    return this.stateOwner?.prog ?? this.prog;
+  }
+
   compiledState(no: number): CompiledState | undefined {
-    let cs = this.prog.compiled.get(no);
+    const prog = this.stateProg;
+    let cs = prog.compiled.get(no);
     if (cs) return cs;
-    const def = this.prog.states.get(no);
+    const def = prog.states.get(no);
     if (!def) return undefined;
     const env = playerEnv;
     const params = new Map<string, Fn<Player>[]>();
@@ -172,7 +213,7 @@ export class Player {
       }
     }
     cs = { def, controllers, params };
-    this.prog.compiled.set(no, cs);
+    prog.compiled.set(no, cs);
     return cs;
   }
 
@@ -180,8 +221,10 @@ export class Player {
     return this.prog.data.anims.has(no);
   }
 
-  changeAnim(no: number, elem = 0): void {
-    const a: Animation | undefined = this.prog.data.anims.get(no);
+  /** Change action; `fromOwner` uses the state owner's AIR (ChangeAnim2, custom-state statedef anim). */
+  changeAnim(no: number, elem = 0, fromOwner = false): void {
+    const src = fromOwner && this.stateOwner ? this.stateOwner.prog : this.prog;
+    const a: Animation | undefined = src.data.anims.get(no);
     if (!a) {
       this.warn(`Animación ${no} no existe`);
       return;
@@ -212,6 +255,7 @@ export class Player {
     }
     if (!flag('movehitpersist')) this.moveContact = this.moveHit = this.moveGuarded = 0;
     if (!flag('hitcountpersist')) this.hitCount = 0;
+    this.reversal = undefined;
     this.stateChanged = true;
     this.applyStatedef(cs);
     if (ctrl !== undefined) this.ctrl = ctrl;
@@ -249,8 +293,20 @@ export class Player {
       const e = this.world.enemyOf(this);
       if (e && (e.pos.x - this.pos.x) * this.facing < 0) this.facing = -this.facing;
     }
+    const juggle = num('juggle');
+    if (juggle !== undefined) this.juggleCost = juggle;
     const anim = num('anim');
-    if (anim !== undefined) this.changeAnim(anim);
+    if (anim !== undefined) this.changeAnim(anim, 0, true);
+  }
+
+  /** SelfState / being hit normally: return to own states. */
+  returnToOwnStates(): void {
+    this.stateOwner = undefined;
+  }
+
+  /** Drop targets that are no longer being hit. */
+  pruneTargets(): void {
+    for (const [t] of this.targets) if (t.moveType !== 'h' || t.world !== this.world) this.targets.delete(t);
   }
 
   addPower(v: number): void {
@@ -320,7 +376,21 @@ export class Player {
     }
   }
 
+  /** Reset effects that last a single tick unless re-asserted. */
+  private resetTickFlags(): void {
+    this.special.clear();
+    this.trans = undefined;
+    this.angleDraw = false;
+    this.drawScale = [1, 1];
+    this.drawOffset = [0, 0];
+    this.width = {};
+    this.screenBound = true;
+    this.moveCamera = [true, true];
+    this.pushEnabled = true;
+  }
+
   private runStatesInner(): void {
+    this.resetTickFlags();
     this.commands = activeCommands(this.prog.cmd, this.input, this.facing);
     if (this.hitPause > 0) {
       // Frozen by hit pause: only ignorehitpause controllers run.
@@ -365,14 +435,15 @@ export class Player {
     const cmd = this.commands;
     const no = this.stateNo;
     // Guard: holding back with an attacker in range.
-    if (cmd.has('holdback') && this.inGuardDist() && this.moveType === 'i' && (no < 120 || no > 155)) {
+    const guardOk = !this.special.has(this.stateType === 'a' ? 'noairguard' : this.stateType === 'c' ? 'nocrouchguard' : 'nostandguard');
+    if (guardOk && cmd.has('holdback') && this.inGuardDist() && this.moveType === 'i' && (no < 120 || no > 155)) {
       return this.changeState(120);
     }
     if (this.stateType === 's' && (no === 0 || no === 20)) {
       if (cmd.has('holdup')) return this.changeState(40);
       if (cmd.has('holddown')) return this.changeState(10);
       const walk = cmd.has('holdfwd') || cmd.has('holdback');
-      if (walk && no === 0) return this.changeState(20);
+      if (walk && no === 0 && !this.special.has('nowalk')) return this.changeState(20);
       if (!walk && no === 20) return this.changeState(0);
     } else if (this.stateType === 'c' && no === 11) {
       if (!cmd.has('holddown')) return this.changeState(12);
@@ -389,6 +460,31 @@ export class Player {
 
   // -------------------------------------------------------------------------
   // Physics, run after states each tick.
+
+  /** Body half-width toward the front or back, for edges or player push. */
+  bodyWidth(side: 'front' | 'back', kind: 'edge' | 'player'): number {
+    const o = kind === 'edge' ? this.width.edge : this.width.player;
+    if (o) return side === 'front' ? o[0] : o[1];
+    const air = this.stateType === 'a';
+    return this.const(`size.${air ? 'air' : 'ground'}.${side}`);
+  }
+
+  /** Current drawn frame (for AfterImage history). */
+  drawFrame(): import('./fx').AfterImageFrame | undefined {
+    const v = this.anim.view();
+    if (!v || v.element.group < 0) return undefined;
+    const sprite = this.prog.data.sff.get(v.element.group, v.element.number);
+    if (!sprite) return undefined;
+    return {
+      sprite,
+      palette: this.prog.data.paletteFor(sprite, this.palRemap ?? this.palNo),
+      x: this.pos.x + this.facing * v.x,
+      y: this.pos.y + v.y,
+      scaleX: this.facing * (v.element.flipH ? -1 : 1) * v.scaleX,
+      scaleY: (v.element.flipV ? -1 : 1) * v.scaleY,
+      angle: this.facing * v.angle,
+    };
+  }
 
   /** InGuardDist: an opponent is attacking within its guard distance. */
   inGuardDist(): boolean {
@@ -440,6 +536,7 @@ export class Player {
   /** End of tick: advance state time. */
   advance(): void {
     for (const s of this.hitBy) if (s.time > 0) s.time--;
+    for (const o of this.hitOverrides) if (o && o.time > 0) o.time--;
     if (this.hitPause > 0) {
       this.hitPause--;
       return;
