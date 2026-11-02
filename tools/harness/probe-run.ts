@@ -8,6 +8,7 @@ import { nodeSource } from '../../src/engine/node-source';
 import { loadProgram, Player } from '../../src/engine/player';
 import { Vfs, type FileSource } from '../../src/engine/vfs';
 import { World } from '../../src/engine/world';
+import { MugenAI } from '../../src/engine/ai';
 import { parseAir } from '../../src/formats/air';
 import { parseSff } from '../../src/formats/sff';
 import { FightHud } from '../../src/motif/fight';
@@ -38,6 +39,8 @@ export interface ProbeOptions {
    * on how many numbers MUGEN drew while loading; read from the capture).
    */
   seed?: number;
+  /** CPU AI level per side (MUGEN's -p1.ai / -p2.ai); undefined = human. */
+  ai?: [number | undefined, number | undefined];
 }
 
 export async function runProbe(ticks: number, opts: ProbeOptions = {}): Promise<string[]> {
@@ -56,6 +59,10 @@ export async function runProbe(ticks: number, opts: ProbeOptions = {}): Promise<
   const p2 = new Player(prog2, w, 1);
   p2.palNo = 2;
   w.players.push(p1, p2);
+  [p1, p2].forEach((p, i) => {
+    const lvl = opts.ai?.[i];
+    if (lvl !== undefined) p.ai = new MugenAI(p, lvl);
+  });
   const m = new Match(w, hud.roundConfig(), [
     { x: stage.info.p1.x, y: stage.info.p1.y, facing: stage.info.p1.facing },
     { x: stage.info.p2.x, y: stage.info.p2.y, facing: stage.info.p2.facing },
@@ -66,11 +73,13 @@ export async function runProbe(ticks: number, opts: ProbeOptions = {}): Promise<
     // Same rule as drive.py: keys for the next tick of the script clock.
     const clock = p1.vars[58]!;
     const keys = script && clock > 0 ? script.at(clock + 1) : [0, 0];
+    const go = m.tick();
+    // Seed right as RoundState 2 begins, before that tick's draws.
     if (opts.seed !== undefined && !seeded && w.roundState === 2) {
       w.seed = opts.seed;
       seeded = true;
     }
-    if (m.tick()) w.tick(keys);
+    if (go) w.tick(keys);
     w.players.forEach((p) => {
       const v = Array.from(p.vars).join(',');
       const f = Array.from(p.fvars, (x) => x.toFixed(4)).join(',');

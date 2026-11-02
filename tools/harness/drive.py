@@ -44,6 +44,36 @@ def wanted(spans, clock):
 def xdo(*args):
     subprocess.run(['xdotool', *args], check=False)
 
+
+def peek(pid, step):
+    """PEEKALL=addr:fmt;... read every step: P|step|v1,v2,..."""
+    vals = []
+    with open(f'/proc/{pid}/mem', 'rb', 0) as mem:
+        def rd(a, n):
+            mem.seek(a)
+            return mem.read(n)
+        def ev(e):
+            e = e.strip()
+            if e.startswith('['):
+                depth = 0
+                for j, ch in enumerate(e):
+                    depth += ch == '['
+                    depth -= ch == ']'
+                    if depth == 0:
+                        break
+                base = struct.unpack('<I', rd(ev(e[1:j]), 4))[0]
+                rest = e[j + 1:]
+                return base + (int(rest.lstrip('+'), 16) if rest else 0)
+            return int(e, 16)
+        for item in os.environ['PEEKALL'].split(';'):
+            addr, fmt = item.rsplit(':', 1)
+            try:
+                raw = rd(ev(addr), 8)
+                vals.append(str(struct.unpack('<d' if fmt == 'd' else '<i', raw[:8 if fmt == 'd' else 4])[0]))
+            except OSError:
+                vals.append('ERR')
+    return vals
+
 def main():
     os.chdir('/mugen')
     for f in ('mugen.log', '/out/mugen-states.log'):
@@ -51,7 +81,11 @@ def main():
             os.remove(f)
     subprocess.Popen(['Xvfb', ':99', '-screen', '0', '1280x720x24'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(1)
-    subprocess.Popen(['wine', 'mugen.exe', '-p1', P1, '-p2', P2, '-p2.color', '2', '-s', STAGE, '-rounds', '1', '-nosound', '-sessionseed', SEED],
+    ai = []
+    for n in (1, 2):
+        if os.environ.get(f'P{n}AI'):
+            ai += [f'-p{n}.ai', os.environ[f'P{n}AI']]
+    subprocess.Popen(['wine', 'mugen.exe', '-p1', P1, '-p2', P2, '-p2.color', '2', '-s', STAGE, '-rounds', '1', '-nosound', '-sessionseed', SEED, *ai],
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     win = ''
     for _ in range(240):
@@ -139,6 +173,8 @@ def main():
                             val = struct.unpack('<d' if fmt == 'd' else '<i', raw[:8 if fmt == 'd' else 4])[0]
                             out.write(f"PEEK|{addr}|{val}\n")
             dump(step, memread.read(pid, loc))
+            if os.environ.get('PEEKALL'):
+                out.write(f"P|{step}|" + ",".join(peek(pid, step)) + "\n")
             xdo('key', 'Scroll_Lock')
             time.sleep(float(os.environ.get('STEP_DELAY', '0.03')))
     else:

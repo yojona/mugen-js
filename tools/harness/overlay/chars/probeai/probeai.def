@@ -1,0 +1,18 @@
+; Harness probe: Kung Fu Man's data with no script.
+; Driven only by keyboard input from tools/harness/inputs/*.txt.
+[Info]
+name = "ProbeAI"
+displayname = "ProbeAI"
+mugenversion = 1.0
+author = "mugen-web harness"
+localcoord = 320,240
+
+[Files]
+cmd     = ../kfm/kfm.cmd
+cns     = ../kfm/kfm.cns
+st      = ../kfm/kfm.cns
+st0     = ../probe/probeai.st
+stcommon = common1.cns
+sprite  = ../kfm/kfm.sff
+anim    = ../kfm/kfm.air
+sound   = ../kfm/kfm.snd
