@@ -65,6 +65,16 @@ describe('MUGEN 1.1 reference (KFM probe)', () => {
     expect(r.reports).toEqual([]);
   }, 60_000);
 
+  it('matches the original CPU AI learning, watching and guarding a human', async () => {
+    // P1 attacks by keyboard (inputs/aivs.txt) against P2 at AI level 4: the
+    // CPU records P1's moves, watches them, guards (AI state 3) and returns.
+    const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kfm-aivs.mugen.log.gz'))).toString('latin1');
+    const ours = (await runProbe(1000, { char: 'probeai', inputs: 'aivs', seed: 937167434, ai: [undefined, 4] })).join('\n');
+    const r = compareLogs(ref, ours, 10);
+    expect(r.compared).toBeGreaterThan(1600);
+    expect(r.reports).toEqual([]);
+  }, 60_000);
+
   // Keyboard scenarios (tools/harness/inputs/*.txt), captured with MUGEN
   // running slowly while the harness types the keys.
   for (const [name, ticks, min] of [
