@@ -53,7 +53,8 @@ export class ContinueScreen implements Screen {
     p1.palNo = s.pal;
     w.players.push(p1);
     const info = s.stage.info;
-    p1.setWorldPos(info.p1.x, info.p1.y);
+    // At the camera's centre (0x40ecfc: x = G+0x11f00), facing as at round start.
+    p1.setWorldPos(w.camera.x, 0);
     p1.facing = info.p1.facing;
     p1.changeState(5500);
     this.bg = new StageRuntime(s.stage);

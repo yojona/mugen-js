@@ -193,10 +193,12 @@ async function runMode(mode: GameMode): Promise<void> {
         const res = await until<{ winner: number | undefined }>(await loading(() => fight(mode, sel.p1, opp, undefined)));
         if (res.winner !== 0) {
           if (res.winner === undefined || (motif.value('Continue Screen', 'enabled') ?? '1') === '0') return;
-          // Continue? Yes: pick a character again and replay this match.
+          // Continue? Yes: pick a character again and replay this match. The
+          // player shows in its first default palette (measured: KFM picked
+          // with a, palette 4, continues in palette 1).
           const sp = vfs.resolve(opp.char.entry.stage ?? '') ?? stages[0]!.path;
           const again = await until<boolean>(
-            await loading(async () => new ContinueScreen(ctx, { prog: await program(sel.p1.char), pal: sel.p1.pal, stage: await stage(sp), fightFx, font: systemFont, seed: session.matchSeed() })),
+            await loading(async () => new ContinueScreen(ctx, { prog: await program(sel.p1.char), pal: sel.p1.char.data?.def.palDefaults[0] ?? 1, stage: await stage(sp), fightFx, font: systemFont, seed: session.matchSeed() })),
           );
           if (!again) return;
           const re = await until<SelectResult>(new SelectScreen(ctx, mode, rosterChars, stages));
