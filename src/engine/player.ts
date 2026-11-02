@@ -295,6 +295,8 @@ export class Player {
     this.stateNo = no;
     this.time = 0;
     this.persist.clear();
+    // Supersedes a built-in transition still waiting to apply its statedef.
+    this.pendingEntry = false;
     // Entered from outside controller processing (landing, being hit): the new
     // state's controllers first run next tick, still at Time = 0.
     if (!this.inStates) this.freshState = true;
