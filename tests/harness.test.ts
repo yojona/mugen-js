@@ -35,4 +35,19 @@ describe('MUGEN 1.1 reference (KFM probe)', () => {
     expect(r.compared).toBeGreaterThan(600);
     expect(r.reports).toEqual([]);
   }, 60_000);
+
+  // Keyboard scenarios (tools/harness/inputs/*.txt), captured with MUGEN
+  // running slowly while the harness types the keys.
+  for (const [name, ticks, min] of [
+    ['slide', 700, 700],
+    ['slide2', 700, 600],
+  ] as const) {
+    it(`matches the original with keyboard input: ${name}.txt`, async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', `kfm-${name}.mugen.log.gz`))).toString('latin1');
+      const ours = (await runProbe(ticks, { char: 'probein', inputs: name })).join('\n');
+      const r = compareLogs(ref, ours, 10);
+      expect(r.compared).toBeGreaterThan(min);
+      expect(r.reports).toEqual([]);
+    }, 60_000);
+  }
 });
