@@ -624,7 +624,8 @@ export class Player {
    */
   startOfTick(): void {
     this.updateGuardFlag();
-    if (this.hitPause > 0) return;
+    // Built-in transitions run in hit pause too (mugen.exe 0x434db0 has no
+    // pause check; measured: a crouch attack's CPU stands up mid-pause).
     this.engineTransitions();
   }
 
