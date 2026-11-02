@@ -30,6 +30,14 @@ export interface RoundConfig {
   framesPerCount: number;
 }
 
+/**
+ * Ticks between our intro-end detection and the round announcement. Measured
+ * with tools/harness against MUGEN 1.1: RoundState 2 starts 70 ticks after the
+ * intro's last state change with data/fight.def (60 display + 10); our
+ * detection already lags by 2 ticks.
+ */
+export const ROUND_LEAD = 8;
+
 export const DEFAULT_ROUND: RoundConfig = {
   matchWins: 2,
   maxDrawGames: 1,
@@ -150,7 +158,11 @@ export class Match {
     w.inputLocked = this.phase !== 'fight' && this.phase !== 'ko';
     switch (this.phase) {
       case 'wait':
-        if (this.phaseTime >= c.startWaitTime) this.enter('intro');
+        if (this.phaseTime >= c.startWaitTime) {
+          // RoundState 1 is visible from this very tick (KFM's intro waits for it).
+          w.roundState = 1;
+          this.enter('intro');
+        }
         break;
       case 'intro':
         w.roundState = 1;
@@ -161,22 +173,29 @@ export class Match {
         }
         break;
       case 'announce': {
+        // Measured against MUGEN 1.1 (tools/harness): RoundState 2 begins when
+        // "Fight" appears, ROUND_LEAD ticks after the intro ends plus the
+        // round display time; control is given ctrl.time ticks later.
         const t = this.phaseTime;
-        if (t === c.roundTime) this.announce = { kind: 'round', round: this.round, age: 0 };
-        if (t === c.roundTime + c.roundSndTime) this.sounds.push([0, Math.min(this.round, 9)]);
-        const fightAt = c.roundTime + c.roundDisplayTime + c.fightTime;
-        if (t === fightAt) this.announce = { kind: 'fight', age: 0 };
-        if (t === fightAt + c.fightSndTime) this.sounds.push([1, 0]);
-        if (t >= fightAt + c.ctrlTime) {
+        const roundAt = ROUND_LEAD + c.roundTime;
+        if (t === roundAt) this.announce = { kind: 'round', round: this.round, age: 0 };
+        if (t === roundAt + c.roundSndTime) this.sounds.push([0, Math.min(this.round, 9)]);
+        const fightAt = roundAt + c.roundDisplayTime + c.fightTime;
+        if (t >= fightAt) {
+          this.announce = { kind: 'fight', age: 0 };
           w.inputLocked = false;
-          for (const p of this.players) p.ctrl = true;
           w.roundState = 2;
-          this.enter('fight');
+          // This tick is tick 0 of the fight: control comes exactly ctrl.time later.
+          this.phase = 'fight';
+          this.phaseTime = 0;
+          return true;
         }
         break;
       }
       case 'fight': {
         w.roundState = 2;
+        if (this.phaseTime === c.ctrlTime) for (const p of this.players) p.ctrl = true;
+        if (this.phaseTime === c.fightSndTime) this.sounds.push([1, 0]);
         if (this.clock > 0) this.clock--;
         const dead = this.players.filter((p) => p.life <= 0);
         if (dead.length || this.clock === 0) {
