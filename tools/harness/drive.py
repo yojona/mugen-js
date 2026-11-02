@@ -48,7 +48,7 @@ def xdo(*args):
 
 
 def peek(pid, step):
-    """PEEKALL=addr:fmt;... read every step: P|step|v1,v2,..."""
+    """PEEKALL=addr:fmt;... (fmt i, f or d) read every step: P|step|v1,v2,..."""
     vals = []
     with open(f'/proc/{pid}/mem', 'rb', 0) as mem:
         def rd(a, n):
@@ -71,7 +71,8 @@ def peek(pid, step):
             addr, fmt = item.rsplit(':', 1)
             try:
                 raw = rd(ev(addr), 8)
-                vals.append(str(struct.unpack('<d' if fmt == 'd' else '<i', raw[:8 if fmt == 'd' else 4])[0]))
+                code = {'d': '<d', 'f': '<f'}.get(fmt, '<i')
+                vals.append(str(struct.unpack(code, raw[:struct.calcsize(code)])[0]))
             except OSError:
                 vals.append('ERR')
     return vals
