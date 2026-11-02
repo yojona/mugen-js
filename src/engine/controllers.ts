@@ -197,6 +197,7 @@ const IMPLS: Record<string, Impl> = {
     return (p) => {
       p.hitDef = build(p);
       p.hitDefActive = true;
+      p.hitDefSet = true;
       p.hitTargets.clear();
     };
   },

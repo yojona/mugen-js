@@ -5,10 +5,11 @@
 //
 // States: 0 idle, 1 move-to-waypoint (only when the opponent holds Start, so
 // effectively unused), 2 attack, 3 guard, 4 pressure (random guarding,
-// movement, buttons and commands). The learning layer that feeds states 2/3
-// (per-move attack records) is not implemented yet: without it the AI never
-// "watches" an opponent's move, as when no record exists for that move.
+// movement, buttons and commands). States 2 and 3 run on the learning layer
+// (ai-learn.ts): the AI watches opponent moves it has records for, guards
+// them and counters with its own recorded moves.
 
+import { attackWouldHit, cloneRecord, type AiMessage, type AttackRecord } from './ai-learn';
 import type { Player } from './player';
 
 const K_U = 1;
@@ -54,8 +55,20 @@ export class MugenAI {
   watching = false;
   /** Command indices injected this tick (-1 terminated in MUGEN; max 9). */
   cmds: number[] = [];
+  /** Messages received this tick (max 10), cleared after the AI pass. */
+  msgs: AiMessage[] = [];
   private delayed = new DelayRing();
   private inGuardDist = false;
+  // Watching an opponent's move (p+0x16b8..0x1b78).
+  private watched: Player | undefined;
+  private watchRec: AttackRecord | null = null;
+  private watchTime = 0;
+  private needCrouchGuard = false;
+  // Chosen attack (p+0x169c..0x16a4).
+  private attack: AttackRecord | null = null;
+  private attackWant = '';
+  private attackSent = false;
+  private attackList: AttackRecord[] = [];
 
   constructor(
     readonly p: Player,
@@ -88,6 +101,31 @@ export class MugenAI {
   /** 0x433d10: release held directions except `keep`. */
   private releaseDirsExcept(keep: number): void {
     for (let k = 1; k <= 4; k++) if (k !== keep && this.held(k)) this.push(k | REL);
+  }
+
+  /** 0x42f5c0: round reset (the recorder keeps its tables). */
+  resetRound(): void {
+    this.state = this.prevState = this.stateTime = this.cooldown = 0;
+    this.watching = false;
+    this.cmds = [];
+    this.msgs = [];
+    this.delayed = new DelayRing();
+    this.inGuardDist = false;
+    this.watched = undefined;
+    this.watchRec = null;
+    this.watchTime = 0;
+    this.needCrouchGuard = false;
+    this.attack = null;
+    this.attackWant = '';
+    this.attackSent = false;
+    this.attackList = [];
+  }
+
+  /** 0x430710 / 0x430780: first message of `type` from `from`; `take` marks it used. */
+  private msg(type: number, from: Player, take: boolean): AiMessage | undefined {
+    const m = this.msgs.find((x) => x.type === type && x.sender === from);
+    if (m && take) m.type = 2;
+    return m;
   }
 
   private toState(s: number): true {
@@ -197,16 +235,23 @@ export class MugenAI {
     }
     this.stateTime++;
     if (this.cooldown > 0) this.cooldown--;
+    const w = this.watched;
+    if (this.watching && w && !this.p.world.pause && !this.p.world.superPause) this.watchTime++;
   }
 
-  /** 0x430900 (without the watch/learning parts). */
+  /** 0x430900: returns true when the state changed. */
   private updateState(opp: Player): boolean {
     const p = this.p;
+    const level = this.level;
+    const w = this.watched;
     const adx = this.adx(opp);
     const st = this.state;
     // Stop watching once the opponent's move is over.
-    if (opp.moveType === 'i' || opp.moveType === 'h') this.watching = false;
-    if (st === 0 && this.level !== 9) {
+    if (this.msg(1, opp, false) || opp.moveType === 'i' || opp.moveType === 'h') {
+      this.watching = false;
+      this.watchTime = 0;
+    }
+    if (st === 0 && level !== 9) {
       let c = this.rand(60);
       if (this.stateTime > 150) c = Math.trunc(c / 2);
       if (adx < 100) c = Math.trunc(c / 2);
@@ -217,8 +262,121 @@ export class MugenAI {
       }
       if (c === 0) return this.toState(4);
     }
-    if (this.state === 3 && !this.watching) return this.toState(0);
-    return false;
+    // The opponent started a command move: watch it if there is a record.
+    const m0 = this.msg(0, opp, true);
+    if (m0) {
+      const r = this.rand(12);
+      const cur = opp.recorder?.curAttack;
+      if (DEBUG) DEBUG.push(`m0:${m0.stateNo} cur:${cur?.stateNo} tbl:${[...(opp.recorder?.tblSC.keys() ?? [])]}`);
+      if (r < level + 3 && m0.hasTable && cur) {
+        this.watchRec = cloneRecord(cur);
+        this.watching = true;
+        this.watchTime = 0;
+        this.watched = opp;
+      }
+    }
+    // Guard when the watched move's recorded hitbox would reach us.
+    const s2 = this.state;
+    const rec = this.watchRec;
+    if ((s2 === 0 || s2 === 1 || s2 === 4) && this.watching && rec && this.cooldown === 0 && p.ctrl) {
+      const t = this.watchTime;
+      const mt = rec.hit[0].time.mean;
+      if (mt > t || mt === 0) {
+        const hit = attackWouldHit(p, opp, rec);
+        if (DEBUG) DEBUG.push(`would:${hit}`);
+        if (hit) {
+          this.cooldown = 5;
+          if (level >= 1 && level <= 3) this.cooldown += this.rand(4 - level);
+          if (this.rand(20) <= level + 11) return this.toState(3);
+        }
+      }
+    }
+    if (this.state !== 3) return false;
+    if (!this.watching || !rec || !w) return this.toState(0);
+    const t = this.watchTime;
+    let kind = w.recorder?.contact ?? 0;
+    if (kind === 0) {
+      if (ftoi(rec.hit[0].time.mean) === 0) {
+        kind = 1;
+        if (ftoi(rec.hit[1].time.mean) === 0) kind = 2;
+      }
+    } else if (kind === 1 && ftoi(rec.hit[1].time.mean) === 0) kind = 2;
+    if (this.msg(0, opp, false)) return this.toState(0);
+    // Counter before the move resolves.
+    if (t > 0 && t < ftoi(rec.total.mean)) {
+      const c0 = (t >= 3 ? 2 : 5) + (t >> 2);
+      let chance = ftoi(c0 - 6 / (rec.total.mean - t));
+      if (level === 9) chance = 0;
+      if (this.rand(100) < chance && this.buildAttackList() > 0) return this.pickAttack();
+    }
+    if (this.stateTime === 0) {
+      const gf = rec.guardFlag;
+      if (gf !== -1) this.needCrouchGuard = (gf & 0xc) === 0xc ? p.stateType === 'c' : ((gf >> 3) & 1) === 1;
+    }
+    const due = rec.hit[kind]!.time.mean <= t;
+    const m1 = this.msg(1, opp, true);
+    if (!m1 && !due) return false;
+    if (!p.ctrl) return false;
+    let chance = 5 * level;
+    if (adx > 200) chance = Math.trunc(chance / 2);
+    if (adx > 150) chance = Math.trunc(chance / 2);
+    if (adx < 100) chance += 10;
+    if (adx < 75) chance += 10;
+    if (adx < 50) chance += 10;
+    if ((this.rand(100) < chance || level === 9) && this.buildAttackList() > 0) return this.pickAttack();
+    return this.toState(0);
+  }
+
+  private pickAttack(): true {
+    this.attack = this.attackList[this.rand(this.attackList.length)]!;
+    this.attackWant = '';
+    this.attackSent = false;
+    return this.toState(2);
+  }
+
+  /** 0x431970: own recorded moves that would beat the watched one. */
+  private buildAttackList(): number {
+    const p = this.p;
+    const w = this.watched;
+    const rec = this.watchRec;
+    this.attackList = [];
+    if (!this.watching || !rec) return 0;
+    const tbl = p.recorder?.table();
+    if (!tbl || !w) return 0;
+    const t = this.watchTime;
+    const kind = w.recorder?.contact ?? 0;
+    let tt: number;
+    let haveT: boolean;
+    if (!(rec.total.mean <= t)) {
+      tt = ftoi(rec.total.mean - t);
+      haveT = true;
+    } else {
+      const e = rec.recov[kind]!.time.mean;
+      if (e === 0) return 0;
+      tt = ftoi(e - t);
+      haveT = false;
+    }
+    for (const r of tbl.values()) {
+      if (this.attackList.length >= 49) break;
+      let score = tt > r.total.mean ? 100 : 0;
+      if (!attackWouldHit(w, p, r)) score -= 100;
+      const ra = r.revAttr;
+      if (ra !== 0) {
+        if (haveT) {
+          if (ftoi(r.hit[0].time.mean) < tt) score -= 100;
+          const x = rec.attr & ra;
+          if ((x & 7) === 0 || (x & ~7) === 0) score -= 100;
+        } else score -= 100;
+      }
+      const cf = rec.revAttr;
+      if (cf !== 0) {
+        const y = r.attr & cf;
+        if (haveT && y & 7 && y & ~7) score -= 100;
+      }
+      if (!p.ctrl) score -= 100;
+      if (score > 0) this.attackList.push(r);
+    }
+    return this.attackList.length;
   }
 
   /** 0x431200. */
@@ -227,9 +385,43 @@ export class MugenAI {
     if (this.stateTime >= 1 && (this.prevState === 3 || this.prevState === 2) && !this.inGuardDist) this.releaseDirsExcept(0);
   }
 
-  /** 0x4314f0 (needs attack records; none yet). */
+  /** 0x4314f0: take the move's starting stance, then fire its command. */
   private stateAttack(): boolean {
-    return this.toState(0);
+    const p = this.p;
+    const atk = this.attack;
+    if (!atk) return this.toState(0);
+    if (this.stateTime === 0) {
+      this.attackWant = '';
+      for (const e of atk.entries) {
+        if (e.stateType === p.stateType) {
+          this.attackWant = e.stateType;
+          break;
+        }
+        if (!this.attackWant) this.attackWant = e.stateType;
+      }
+    }
+    if (!this.attackSent) {
+      const want = this.attackWant;
+      if (want && p.stateType !== want) {
+        if (want === 'c') {
+          if (this.held(K_U)) this.push(K_U | REL);
+          if (!this.held(K_D)) this.push(K_D);
+        } else if (want === 's') {
+          if (this.held(K_U)) this.push(K_U | REL);
+          if (this.held(K_D)) this.push(K_D | REL);
+        } else if (want === 'a') {
+          if (this.held(K_D)) this.push(K_D | REL);
+          if (!this.held(K_U)) this.push(K_U);
+        }
+      }
+      if (p.stateType === want || this.stateTime > 4) {
+        const c = atk.cmd[0];
+        if (c !== undefined && c >= 0 && this.cmds.length < 9) this.cmds.push(c);
+        this.attackSent = true;
+      }
+    }
+    if (p.moveType === 'i' && this.attackSent && this.stateTime > 0) return this.toState(0);
+    return false;
   }
 
   /** 0x431680. */
@@ -239,7 +431,9 @@ export class MugenAI {
       if (this.held(K_U)) this.push(K_U | REL);
       if (this.held(K_F)) this.push(K_F | REL);
       if (!this.held(K_B)) this.push(K_B);
-      if (this.held(K_D)) this.push(K_D | REL);
+      if (this.needCrouchGuard) {
+        if (!this.held(K_D)) this.push(K_D);
+      } else if (this.held(K_D)) this.push(K_D | REL);
     }
     return false;
   }
@@ -251,8 +445,8 @@ export class MugenAI {
     const adx = this.adx(opp);
     let r1 = this.rand(6) + 5;
     let r2 = this.rand(6) + 5;
-    // A type-0 message (opponent entered a command-triggered state) returns
-    // to idle; messages need the learning layer, so none arrive yet.
+    // The opponent started a command move: back to idle.
+    if (level === 9 ? this.msg(1, opp, true) : this.msg(0, opp, false)) return this.toState(0);
     if (this.rand(100) === 0) r1 = 11;
     // 0x431d62: the delayed button survives only 1 time in 8.
     if (r2 === r1 || this.rand(8) !== 0) r2 = 0;

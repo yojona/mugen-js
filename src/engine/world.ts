@@ -3,6 +3,7 @@
 import { CommandInput } from './cmd';
 import type { AnimationMap } from '../formats/air';
 import type { Sff } from '../formats/sff';
+import { postResolvedMessages, Recorder } from './ai-learn';
 import { applyHits, detectHits, detectProjectileHits, clsn2Overlap } from './combat';
 import { simpleExplod, updateExplod, type Explod } from './explod';
 import { updateProjectile, type Projectile } from './projectile';
@@ -152,11 +153,16 @@ export class World {
       const raw = this.inputLocked || p.ai ? 0 : (inputs[i] ?? 0);
       p.input.push(raw);
       p.cmdInput ??= new CommandInput(p.prog.cmd);
+      p.recorder ??= new Recorder(p);
       p.cmdInput.ingest(raw, p.facing, !p.ai);
     });
     // The AI pass sees the RoundState of the previous tick (measured: it does
     // not act on the first tick of RoundState 2).
-    if (!this.pause && !this.superPause) for (const p of this.players) p.ai?.tick(this.aiRoundFight);
+    if (!this.pause && !this.superPause) {
+      postResolvedMessages(this.players);
+      for (const p of this.players) p.ai?.tick(this.aiRoundFight);
+      for (const p of this.players) if (p.ai) p.ai.msgs.length = 0;
+    }
     this.aiRoundFight = this.roundState === 2;
     for (const p of this.players) {
       // Every player's input is processed each tick, frozen or in hit pause.
@@ -201,6 +207,8 @@ export class World {
     this.pushPlayers();
     this.clampToScreen();
     this.spawnDust(dustX);
+    // AI move recorders, last player first (mugen.exe 0x413d81).
+    for (const p of [...this.players].reverse()) p.recorder?.tick(!this.frozen(p));
     this.updateCamera();
     for (const p of active) {
       recordAfterImage(p.afterImage, p.drawFrame());

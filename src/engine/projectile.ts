@@ -136,6 +136,8 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
       hitTargets: new Set(),
     });
     projInfo(p, projId);
+    // mugen.exe 0x44a2bd: the move being recorded fired this projectile.
+    if (p.recorder) p.recorder.projPending = projId;
   };
 }
 

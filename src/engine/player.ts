@@ -83,6 +83,8 @@ export class Player {
   hitPauseLastTick = false;
   /** CPU control (MUGEN's AI); undefined for human players. */
   ai?: import('./ai').MugenAI;
+  /** AI learning recorder (every root player, CPU or human). */
+  recorder?: import('./ai-learn').Recorder;
   /** MUGEN's command pipeline (root players; World.tick feeds it every tick). */
   cmdInput?: CommandInput;
 
@@ -151,6 +153,11 @@ export class Player {
   // Attacking
   hitDef: HitDefData | undefined;
   hitDefActive = false;
+  /**
+   * A HitDef was set in this state and not reset by a state change; unlike
+   * hitDefActive it survives the hit (the AI recorder's p+0x1230).
+   */
+  hitDefSet = false;
   /** Players already hit by the current HitDef. */
   hitTargets = new Set<Player>();
   /** P1 freeze after a hit (pausetime p1). */
@@ -338,6 +345,7 @@ export class Player {
     const flag = (k: string) => (parseInt(d.get(k) ?? '0', 10) || 0) !== 0;
     if (!flag('hitdefpersist')) {
       this.hitDefActive = false;
+      this.hitDefSet = false;
       this.hitTargets.clear();
     }
     if (!flag('movehitpersist')) this.moveContact = this.moveHit = this.moveGuarded = 0;
@@ -428,8 +436,11 @@ export class Player {
     const cs = this.compiledState(no);
     if (!cs) return false;
     const paused = this.hitPause > 0;
+    const rec = this.recorder;
     for (const c of cs.controllers) {
       if (paused && !c.ignoreHitPause) continue;
+      // mugen.exe 0x45c209: the command= triggers seen by this controller.
+      rec?.beforeController();
       if (!this.triggered(c)) continue;
       const isCurrent = no === this.stateNo;
       if (isCurrent && c.persistent !== 1) {
@@ -438,8 +449,14 @@ export class Player {
         if (c.persistent === 0 ? n > 0 : n % c.persistent !== 0) continue;
       }
       this.stateChanged = false;
+      const custom = !!this.stateOwner;
       c.run(this);
-      if (this.stateChanged) return true;
+      if (this.stateChanged) {
+        // 0x448f50: a command-triggered state change starts a move record
+        // and tells the CPU players (not from or into custom states).
+        if (rec && !custom && !this.stateOwner) rec.afterStateChange();
+        return true;
+      }
     }
     return false;
   }

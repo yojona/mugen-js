@@ -125,7 +125,10 @@ export class Match {
       p.ctrl = false;
       p.returnToOwnStates();
       p.targets.clear();
+      p.recorder?.resetRound();
+      p.ai?.resetRound();
       p.hitDefActive = false;
+      p.hitDefSet = false;
       // Round 1 plays intros (state 190) when the character has one.
       p.changeState(this.round === 1 && p.compiledState(190) ? 190 : 0);
       p.ctrl = false;

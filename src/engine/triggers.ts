@@ -261,13 +261,34 @@ function call(node: CallNode, args: Fn<P>[]): Fn<P> | undefined {
   return undefined;
 }
 
+const slotCache = new WeakMap<object, Map<string, number>>();
+/** The command's number in MUGEN's command buffer. */
+function commandSlot(p: P, name: string): number {
+  const set = p.prog.cmd;
+  let m = slotCache.get(set);
+  if (!m) {
+    m = new Map();
+    for (const c of set.commands) if (!m.has(c.name)) m.set(c.name, c.slot);
+    slotCache.set(set, m);
+  }
+  return m.get(name) ?? -1;
+}
+
 function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
   const eq = node.op === '=';
   const word = node.words[0] ?? '';
   const boolOut = (f: (p: P) => boolean): Fn<P> => (p) => ((R.t = INT), f(p) === eq ? 1 : 0);
   switch (node.name) {
-    case 'command':
-      return boolOut((p) => p.commands.has(word.toLowerCase()));
+    case 'command': {
+      const name = word.toLowerCase();
+      // An active command is noted for the AI recorder (mugen.exe 0x456d9f).
+      return boolOut((p) => {
+        if (!p.commands.has(name)) return false;
+        const fired = p.recorder?.fired;
+        if (fired && fired.length < 9) fired.push(commandSlot(p, name));
+        return true;
+      });
+    }
     case 'statetype':
       return boolOut((p) => p.stateType === word[0]);
     case 'movetype':
