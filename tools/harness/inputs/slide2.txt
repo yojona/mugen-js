@@ -1,0 +1,10 @@
+# Hit slides with different slidetime/hittime, mid-screen (probein vs probein).
+
+40-64     1  r      ; P1 walks in until touching P2
+40-59     2  l
+80        1  x      ; jab (200): slidetime 5, hittime 11
+130-160   1  r
+180       1  b      ; kick (240): slidetime 12, hittime 17
+230-262   1  r
+278-283   1  d      ; crouch jab (400): slidetime 4, hittime 9
+280       1  x

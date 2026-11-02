@@ -1,0 +1,10 @@
+# Hit slide experiments (probein vs probein).
+# Mid-screen: both walk in, then P1's strong punch makes P2 slide far from any edge.
+
+40-59     1  r      ; P1 walks in
+40-59     2  l      ; P2 walks in
+80        1  y      ; strong punch, P2 slides mid-screen
+160-230   1  r      ; P1 walks P2 towards the right edge
+240       1  y      ; strong punch near the camera tension zone
+300-370   1  r      ; push P2 into the corner
+380       1  y      ; strong punch in the corner
