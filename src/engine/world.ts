@@ -190,11 +190,6 @@ export class World {
       p.changedStateThisTick = false;
       p.runStates();
       if (this.inputLocked && !p.isHelper) p.ctrl = false;
-      // A ChangeState taken with control (e.g. 52 -> 0) turns at once.
-      if (p.turnAfterChange) {
-        p.turnAfterChange = false;
-        this.tickTurn(p);
-      }
       p.physicsStep();
       // Screen bounds apply as part of the player's movement, before the
       // camera follows it.
@@ -339,6 +334,10 @@ export class World {
 
   /** Players with control turn to face the opponent (state 0/11 "turn" animations). */
   /** mugen.exe 0x43c390: turn to face the opponent once it is behind. */
+  turnCheck(p: Player): void {
+    this.tickTurn(p);
+  }
+
   private tickTurn(p: Player): void {
     const e = this.enemyOf(p);
     if (!e || (!p.ctrl && this.roundState <= 2) || p.special.has('noautoturn')) return;
