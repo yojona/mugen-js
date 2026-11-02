@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Modo entrenamiento</title>
+    <style>
+      :root { color-scheme: dark; --bg: #16161c; --panel: #202029; --text: #e6e6ee; --muted: #9a9aab; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; }
+      canvas { image-rendering: pixelated; background: #000; max-width: 100%; border-radius: 6px; }
+      aside { background: var(--panel); border-radius: 8px; padding: 12px; width: 300px; display: flex; flex-direction: column; gap: 10px; }
+      pre { margin: 0; color: var(--muted); font-size: 12px; white-space: pre-wrap; }
+      h1 { font-size: 15px; margin: 0; }
+      kbd { background: #2b2b36; border: 1px solid #3a3a48; border-radius: 3px; padding: 0 4px; font-size: 12px; }
+      label { display: flex; justify-content: space-between; align-items: center; }
+    </style>
+  </head>
+  <body>
+    <canvas id="screen"></canvas>
+    <aside>
+      <h1>Modo entrenamiento</h1>
+      <p>Mover: <kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd><br />Golpes: <kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> (x y z)<br />Patadas: <kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd> (a b c)</p>
+      <label>Cajas de colisión <input type="checkbox" id="clsn" /></label>
+      <pre id="info"></pre>
+    </aside>
+    <script type="module" src="/src/training/main.ts"></script>
+  </body>
+</html>

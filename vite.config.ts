@@ -3,7 +3,7 @@ import { join, relative } from 'node:path';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 
-const REF = join(__dirname, 'ref', 'mugen-1.1b1');
+const REF = join(import.meta.dirname, 'ref', 'mugen-1.1b1');
 
 /** Dev-only: expose a listing of the reference MUGEN tree for the VFS. */
 function refListing(): Plugin {
@@ -28,6 +28,7 @@ function refListing(): Plugin {
 
 export default defineConfig({
   plugins: [refListing()],
+  build: { rollupOptions: { input: ['index.html', 'training.html'] } },
   server: { port: 8120, fs: { allow: ['.'] } },
   test: { include: ['tests/**/*.test.ts'] },
 });
