@@ -249,8 +249,8 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
     const guardSlideTime = ni('guard.slidetime') ?? guardHitTime;
     const guardCtrlTime = ni('guard.ctrltime') ?? guardSlideTime;
     const fall = (ni('fall') ?? 0) !== 0;
-    const getPowerHit = ni('getpower', 0) ?? Math.trunc(damage * 0.7);
-    const givePowerHit = ni('givepower', 0) ?? Math.trunc(damage * 0.6);
+    const getPowerHit = ni('getpower', 0) ?? Math.round(damage * 0.7);
+    const givePowerHit = ni('givepower', 0) ?? Math.round(damage * 0.6);
     const isThrow = attrType[1] === 't';
     const spark = rv('sparkno', 0);
     const gspark = rv('guard.sparkno', 0);

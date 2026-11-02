@@ -232,6 +232,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     if (guarded) a.moveGuarded = 1;
     else a.moveHit = 1;
     a.hitPause = guarded ? hd.guardPause[0] : hd.pause[0];
+    // The pause starts counting next tick; this tick still advances (measured).
+    a.hitPauseFresh = true;
   }
   const src = proj ? { x: proj.x, y: proj.y } : { x: a.wx, y: a.wy };
   const towardA = src.x >= d.wx ? 1 : -1;
@@ -245,7 +247,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
 
   if (guarded) {
     const dmg = scaleDamage(a, d, hd.guardDamage);
-    d.life = Math.max(hd.guardKill ? 0 : Math.min(d.life, 1), d.life - dmg);
+    d.pendingDamage = { amount: dmg, kill: hd.guardKill, delay: 1 };
+    d.shakeFresh = true;
     g.guarded = 1;
     g.damage = dmg;
     g.hitshaketime = hd.guardPause[1];
@@ -264,7 +267,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     world.playHitSound(a, hd.guardSound);
   } else {
     const dmg = scaleDamage(a, d, hd.damage);
-    d.life = Math.max(hd.kill ? 0 : Math.min(d.life, 1), d.life - dmg);
+    // Damage lands on the following tick (measured against MUGEN 1.1).
+    d.pendingDamage = { amount: dmg, kill: hd.kill, delay: 1 };
+    d.shakeFresh = true;
     if (d.stateType === 'c' && hd.forceStand) d.stateType = 's';
     const wasFalling = d.moveType === 'h' && g.fall !== 0;
     const override = d.hitOverrides.find((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType) && hd.p1StateNo < 0 && !(hd.p2StateNo >= 0 && hd.p2GetP1State));
@@ -275,7 +280,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     const vel = inAir ? hd.airVel : hd.groundVel;
     g.guarded = 0;
     g.damage = dmg;
-    g.animtype = wasFalling ? hd.fallAnimType : inAir ? hd.airAnimType : hd.animType;
+    // Knock-down hits use fall.animtype (MUGEN shows anim 5030 for KFM's palm).
+    const willFall = (inAir ? hd.airFall : hd.fall) || (wasFalling && !hd.forceNoFall);
+    g.animtype = wasFalling || willFall ? hd.fallAnimType : inAir ? hd.airAnimType : hd.animType;
     g.groundtype = hd.groundType;
     g.airtype = hd.airType;
     g.type = inAir ? hd.airType : hd.groundType;
@@ -302,10 +309,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     if (hd.palFx) d.palFx = { time: hd.palFx.time, elapsed: 0, add: hd.palFx.add, mul: hd.palFx.mul, sinAdd: [0, 0, 0], sinPeriod: 0, invertAll: hd.palFx.invertAll, color: hd.palFx.color };
     g.chainid = hd.id;
     g.hitcount = d.moveType === 'h' ? g.hitcount + 1 : 1;
-    if (d.life <= 0) {
-      d.alive = false;
-      g.fall = 1;
-    }
+    if (d.life - dmg <= 0 && hd.kill) g.fall = 1;
     if (!proj) a.hitCount += hd.numHits;
     a.addPower(hd.getPower[0]);
     d.addPower(hd.givePower[0]);
@@ -320,7 +324,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     } else {
       d.returnToOwnStates();
       if (override && override.stateNo >= 0) d.changeState(override.stateNo);
-      else d.changeState(inAir || vel[1] !== 0 ? 5020 : d.stateType === 'c' ? 5010 : 5000);
+      // By statetype only: common1's 5000/5010 switch to air themselves when yvel != 0.
+      else d.changeState(inAir ? 5020 : d.stateType === 'c' ? 5010 : 5000);
     }
     d.moveType = 'h';
     if (!proj && !inAir && vel[1] === 0) cornerPush(a, d, hd.groundCornerPush);
