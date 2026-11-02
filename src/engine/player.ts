@@ -550,11 +550,14 @@ export class Player {
       this.vel.x = 0;
       return this.enterLater(120);
     }
-    if (this.stateType === 's' && (no === 0 || no === 20)) {
+    const guarding = no >= 120 && no <= 155;
+    if (this.stateType === 's' && !guarding) {
+      // Any standing state with control, not just 0/20 (measured: holding
+      // forward in 12 with control walks on the next tick).
       if (cmd.has('holdup')) return this.enterLater(40);
       if (cmd.has('holddown')) return this.enterLater(10);
       const walk = cmd.has('holdfwd') || cmd.has('holdback');
-      if (walk && no === 0 && !this.special.has('nowalk')) return this.enterLater(20);
+      if (walk && no !== 20 && !this.special.has('nowalk')) return this.enterLater(20);
       if (!walk && no === 20) return this.enterLater(0);
     } else if (this.stateType === 'c' && (no === 10 || no === 11)) {
       // Releasing down stands up, also mid stand-to-crouch (measured: 10 -> 12).
