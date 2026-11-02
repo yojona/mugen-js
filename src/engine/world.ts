@@ -33,6 +33,8 @@ export class World {
   roundNo = 1;
   camera = { x: 0, y: 0 };
   screenWidth = 320;
+  /** mugen.cfg GameWidth: MUGEN's internal x units are this / screenWidth per stage unit. */
+  gameWidth = 640;
   screenHeight = 240;
   /** Screen y of the ground line (stage zoffset). */
   groundY = 200;
@@ -139,6 +141,7 @@ export class World {
     // also turns right after its states (measured: landing with control).
     for (const p of active) p.advanceAnim();
     for (const p of active) this.autoTurn(p);
+    const dustX = new Map(this.allPlayers().map((p) => [p, this.internalX(p)] as const));
     this.players.forEach((p, i) => {
       const raw = this.inputLocked ? 0 : (inputs[i] ?? 0);
       p.input.push(raw);
@@ -176,6 +179,7 @@ export class World {
     this.applyBinds();
     this.pushPlayers();
     this.clampToScreen();
+    this.spawnDust(dustX);
     this.updateCamera();
     for (const p of active) {
       recordAfterImage(p.afterImage, p.drawFrame());
@@ -243,6 +247,32 @@ export class World {
       // Bind offsets are stored in world units.
       p.setWorldPos(b.to.wx + b.offset[0], b.to.wy + b.offset[1]);
       if (b.time > 0 && --b.time === 0) p.bind = undefined;
+    }
+  }
+
+  /** Player x in MUGEN's internal (GameWidth-based) units, truncated. */
+  private internalX(p: Player): number {
+    return Math.trunc(p.wx * (this.gameWidth / this.screenWidth));
+  }
+
+  /**
+   * Floor dust (mugen.exe 0x413d00 / 0x4415d0): players whose internal x
+   * moved this tick, every third game tick, if on the ground standing or
+   * crouching while being hit, or landing (52). Each puff draws two numbers.
+   */
+  private spawnDust(before: Map<Player, number>): void {
+    if (this.pause || this.superPause) return;
+    if (this.gameTime % 3 !== 0) return;
+    const ps = this.allPlayers();
+    for (let i = ps.length - 1; i >= 0; i--) {
+      const p = ps[i]!;
+      if (before.get(p) === undefined || before.get(p) === this.internalX(p)) continue;
+      const hitOnGround = p.pos.y === 0 && (p.stateType === 's' || p.stateType === 'c') && p.moveType === 'h';
+      if (!hitOnGround && p.stateNo !== 52) continue;
+      const dx = this.random(3) - 1;
+      const dy = this.random(3) - 1;
+      const anim = this.fightFx?.anims.get(120);
+      if (anim) this.explods.push(simpleExplod(p, anim, true, p.wx + dx, p.wy + dy, -1, 1));
     }
   }
 
