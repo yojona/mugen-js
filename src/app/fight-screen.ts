@@ -133,7 +133,7 @@ export class FightScreen implements Screen {
  * Placeholder CPU: walks in, attacks at close range, jumps now and then and
  * guards when attacked. MUGEN's own AI (AILevel) is not reproduced yet.
  */
-class SimpleAI {
+export class SimpleAI {
   private plan = 0;
   private hold = 0;
   constructor(private p: Player) {}
