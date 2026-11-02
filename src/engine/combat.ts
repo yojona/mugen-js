@@ -325,8 +325,18 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     a.addPower(hd.getPower[0]);
     d.addPower(hd.givePower[0]);
     const aFacing = proj ? proj.facing : a.facing;
-    if (hd.p2Facing === 1) d.facing = aFacing;
-    else if (hd.p2Facing === -1) d.facing = -aFacing;
+    // Applied when P2 next updates (measured: one tick after the hit).
+    if (!proj) {
+      d.pendingPlacement = () => {
+        placeDefender(a, d, hd);
+        // Not past the screen edge (measured: a cornered P2 stays put).
+        world.clampToScreenOne(d);
+      };
+    }
+    // p2facing = 1 turns P2 to face P1, -1 away from it (measured: KFM's
+    // Smash Kung Fu Upper).
+    if (hd.p2Facing === 1) d.facing = -aFacing;
+    else if (hd.p2Facing === -1) d.facing = aFacing;
     d.ctrl = false;
     if (hd.p2StateNo >= 0) {
       if (hd.p2GetP1State) d.stateOwner = a;
@@ -347,8 +357,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
       }
     }
     d.moveType = 'h';
-    if (!proj && !inAir && vel[1] === 0) cornerPush(a, d, hd.groundCornerPush);
-    else if (!proj && inAir) cornerPush(a, d, hd.airCornerPush);
+    if (!proj) cornerPush(a, d, inAir ? hd.airCornerPush : hd.groundCornerPush);
     world.spawnSpark(a, d, hd.spark, sparkXY, src);
     world.playHitSound(a, hd.hitSound);
   }
@@ -371,7 +380,30 @@ function cornerPush(a: Player, d: Player, veloff: number): void {
   const edge = awayFromA > 0 ? w.camera.x + w.screenWidth / 2 : w.camera.x - w.screenWidth / 2;
   const room = Math.abs(edge - d.wx) - (awayFromA > 0 ? w.screenRight : w.screenLeft);
   if (room > 1) return;
-  a.vel.x = Math.fround(veloff < 0 ? veloff : -veloff);
+  // A separate push, not vel x: it moves the attacker back after its hit
+  // pause, decaying by 0.7 per tick (measured: 14.3, 10.01, 7.007, ... with
+  // vel x staying 0).
+  a.cornerPushVel = veloff < 0 ? veloff : -veloff;
+}
+
+/**
+ * HitDef snap / mindist / maxdist: P2's position relative to P1 (x along P1's
+ * facing, y downwards), in P1's units (measured: KFM's Smash Kung Fu Upper
+ * lifts a standing P2 to maxdist's y = -10).
+ */
+function placeDefender(a: Player, d: Player, hd: HitDefData): void {
+  const k = a.scale;
+  let rx = ((d.wx - a.wx) * a.facing) / k;
+  let ry = (d.wy - a.wy) / k;
+  if (hd.snap[0] !== undefined) rx = hd.snap[0];
+  if (hd.snap[1] !== undefined) ry = hd.snap[1];
+  if (hd.minDist[0] !== undefined) rx = Math.max(rx, hd.minDist[0]);
+  if (hd.maxDist[0] !== undefined) rx = Math.min(rx, hd.maxDist[0]);
+  if (hd.minDist[1] !== undefined) ry = Math.max(ry, hd.minDist[1]);
+  if (hd.maxDist[1] !== undefined) ry = Math.min(ry, hd.maxDist[1]);
+  const x = a.wx + rx * a.facing * k;
+  const y = a.wy + ry * k;
+  if (x !== d.wx || y !== d.wy) d.setWorldPos(x, y);
 }
 
 function scaleDamage(a: Player, d: Player, dmg: number): number {

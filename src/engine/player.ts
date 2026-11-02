@@ -75,6 +75,10 @@ export class Player {
   readonly id = nextId++;
   /** Helpers with keyctrl share their root's input history. */
   input = new InputHistory();
+  /** Corner push (HitDef *.cornerpush.veloff): facing-relative x per tick. */
+  cornerPushVel = 0;
+  /** HitDef snap/mindist/maxdist, applied when this player next updates. */
+  pendingPlacement: (() => void) | undefined;
   /** MUGEN's command pipeline (root players; World.tick feeds it every tick). */
   cmdInput?: CommandInput;
 
@@ -664,7 +668,17 @@ export class Player {
   }
 
   physicsStep(): void {
+    // HitDef placement lands after P2's next states (measured: one tick later).
+    if (this.pendingPlacement) {
+      this.pendingPlacement();
+      this.pendingPlacement = undefined;
+    }
     if (this.hitPause > 0 || this.ghv.hitshaketime > 0) return;
+    if (this.cornerPushVel) {
+      this.pos.x = Math.fround(this.pos.x + this.cornerPushVel * this.facing);
+      this.cornerPushVel *= 0.7;
+      if (Math.abs(this.cornerPushVel) < 0.5) this.cornerPushVel = 0;
+    }
     if (!this.posFreeze) {
       this.pos.x = Math.fround(this.pos.x + this.vel.x * this.facing);
       this.pos.y = Math.fround(this.pos.y + this.vel.y);

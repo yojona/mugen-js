@@ -54,6 +54,10 @@ export interface HitDefData {
   guardDist: number;
   yaccel: number;
   groundVel: [number, number];
+  /** mindist / maxdist / snap: P2's position relative to P1 on hit (undefined = unset). */
+  minDist: [number | undefined, number | undefined];
+  maxDist: [number | undefined, number | undefined];
+  snap: [number | undefined, number | undefined];
   guardVel: number;
   airVel: [number, number];
   airGuardVel: [number, number];
@@ -312,6 +316,9 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
       guardDist: ni('guard.dist') ?? p.const('size.attack.dist'),
       yaccel: n('yaccel') ?? local(0.35),
       groundVel,
+      minDist: [n('mindist', 0), n('mindist', 1)],
+      maxDist: [n('maxdist', 0), n('maxdist', 1)],
+      snap: [n('snap', 0), n('snap', 1)],
       guardVel,
       airVel,
       airGuardVel: [n('airguard.velocity', 0) ?? airVel[0] * 1.5, n('airguard.velocity', 1) ?? airVel[1] / 2],

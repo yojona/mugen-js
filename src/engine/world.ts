@@ -345,6 +345,11 @@ export class World {
     for (const p of this.players) this.clampPlayer(p);
   }
 
+  /** Screen and stage bounds for one player (HitDef placement). */
+  clampToScreenOne(p: Player): void {
+    this.clampPlayer(p);
+  }
+
   private clampPlayer(p: Player): void {
     const left = this.camera.x - this.screenWidth / 2;
     const right = this.camera.x + this.screenWidth / 2;
