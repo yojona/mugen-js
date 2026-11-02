@@ -638,8 +638,9 @@ export class MugenAI {
       let thr = Math.trunc(((level + 6) * base) / 14);
       if (p.moveType === 'h') thr = Math.trunc(thr / 10);
       if (this.rand(1000) < thr) {
-        const nonProj = p.hitDef ? p.hitDef.attrType[1] !== 'p' : false;
-        const cthr = this.contactKind === 2 ? (nonProj ? 250 : 500) : 750;
+        // attr & 0x6d8: a normal or special (not hyper) attack.
+        const notHyper = p.hitDef ? p.hitDef.attrType[0] !== 'h' : false;
+        const cthr = this.contactKind === 2 ? (notHyper ? 250 : 500) : 750;
         if (this.rand(1000) < cthr) {
           const b = this.rand(6) + 5;
           this.push(this.held(b) ? b | REL : b);
