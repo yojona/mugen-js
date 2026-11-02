@@ -571,7 +571,11 @@ export class Player {
       // Any standing state with control, not just 0/20 (measured: holding
       // forward in 12 with control walks on the next tick).
       if (cmd.has('holdup')) return this.enterLater(40);
-      if (cmd.has('holddown')) return this.enterLater(10);
+      if (cmd.has('holddown')) {
+        // Crouching from a walk stops at once, like starting to guard (measured).
+        this.vel.x = 0;
+        return this.enterLater(10);
+      }
       const walk = cmd.has('holdfwd') || cmd.has('holdback');
       if (walk && no !== 20 && !this.special.has('nowalk')) return this.enterLater(20);
       if (!walk && no === 20) return this.enterLater(0);
