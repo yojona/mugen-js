@@ -129,8 +129,9 @@ export class World {
     this.players.forEach((p, i) => p.input.push(this.inputLocked ? 0 : (inputs[i] ?? 0)));
     const active = this.allPlayers().filter((p) => !this.frozen(p));
     for (const p of active) p.advanceAnim();
-    // Each player runs its states and then moves before the next player is
-    // processed: P2 sees P1's new position within the same tick (measured).
+    // Built-in transitions for everyone first, then each player runs its
+    // states and moves before the next one (both measured against MUGEN 1.1).
+    for (const p of active) p.startOfTick();
     for (const p of active) {
       p.runStates();
       if (this.inputLocked && !p.isHelper) p.ctrl = false;

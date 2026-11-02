@@ -463,11 +463,6 @@ export class Player {
       for (const special of [...sp, this.stateNo]) this.runState(special);
       return;
     }
-    // Built-in transitions (walk, crouch, stand up, jump, guard...) happen at
-    // the start of the tick with this tick's input; the new state shows
-    // Time = 0 and its statedef is applied when it runs below (measured with
-    // tools/harness keyboard scripts).
-    this.engineTransitions();
     // Helpers skip -3/-2, and -1 unless they read input (cns.html).
     const specials = this.isHelper ? (this.keyCtrl ? [-1] : []) : [-3, -2, -1];
     let changed = false;
@@ -521,6 +516,19 @@ export class Player {
     const newly = this.input.raw(0) & ~this.input.raw(1) & ~0xf;
     g.recovertime -= newly ? 2 : 1;
     if (g.recovertime <= 0 && this.time > 0) this.changeState(5120);
+  }
+
+  /**
+   * Built-in transitions (walk, crouch, stand up, jump, guard...). The world
+   * runs them for every player at the start of the tick, before anyone's
+   * states (measured: P2's guard check does not see an attack P1 starts in
+   * the same tick). The new state shows Time = 0 and its statedef is applied
+   * when it runs.
+   */
+  startOfTick(): void {
+    if (this.hitPause > 0) return;
+    this.commands = activeCommands(this.prog.cmd, this.input, this.facing);
+    this.engineTransitions();
   }
 
   /** Hard-coded transitions MUGEN performs for players with control. */
