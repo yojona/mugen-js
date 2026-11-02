@@ -518,7 +518,7 @@ export class Player {
   private engineHitTransitions(): void {
     if (this.stateNo !== 5110 || !this.alive) return;
     const g = this.ghv;
-    const newly = this.input.at(0) & ~this.input.at(1) & ~0xf;
+    const newly = this.input.raw(0) & ~this.input.raw(1) & ~0xf;
     g.recovertime -= newly ? 2 : 1;
     if (g.recovertime <= 0 && this.time > 0) this.changeState(5120);
   }
@@ -544,12 +544,13 @@ export class Player {
       const walk = cmd.has('holdfwd') || cmd.has('holdback');
       if (walk && no === 0 && !this.special.has('nowalk')) return this.enterLater(20);
       if (!walk && no === 20) return this.enterLater(0);
-    } else if (this.stateType === 'c' && no === 11) {
+    } else if (this.stateType === 'c' && (no === 10 || no === 11)) {
+      // Releasing down stands up, also mid stand-to-crouch (measured: 10 -> 12).
       if (!cmd.has('holddown')) return this.enterLater(12);
     } else if (this.stateType === 'a' && no === 50) {
       // Air jump.
       const n = this.const('movement.airjump.num');
-      if (cmd.has('holdup') && n > 0 && this.airJumps < n && -this.pos.y >= this.const('movement.airjump.height') && this.input.at(1) !== this.input.at(0)) {
+      if (cmd.has('holdup') && n > 0 && this.airJumps < n && -this.pos.y >= this.const('movement.airjump.height') && this.input.raw(1) !== this.input.raw(0)) {
         this.airJumps++;
         return this.enterLater(45);
       }
@@ -626,6 +627,10 @@ export class Player {
           } finally {
             this.inStates = false;
           }
+          // The new state's physics also runs this tick: MUGEN moves again
+          // and applies stand friction on the landing tick (measured).
+          this.physicsStep();
+          return;
         }
         break;
     }
