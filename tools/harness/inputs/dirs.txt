@@ -1,0 +1,6 @@
+# Direction taps vs held directions (built-in transitions).
+100       1  r      ; tap forward 1 tick
+160-161   1  r      ; 2 ticks
+220       1  d      ; tap down 1 tick
+280-284   1  d      ; down 5 ticks
+340       1  u      ; tap up 1 tick

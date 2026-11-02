@@ -168,3 +168,10 @@ type = VarSet
 trigger1 = 1
 var(39) = roundstate
 ignorehitpause = 1
+
+; Written last: the harness waits for this to equal gametime before reading.
+[State -2, cap done]
+type = VarSet
+trigger1 = 1
+var(38) = gametime
+ignorehitpause = 1

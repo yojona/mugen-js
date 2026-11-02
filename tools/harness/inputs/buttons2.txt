@@ -1,0 +1,8 @@
+# Button press length vs registration tick.
+100       1  x      ; 1 tick
+160-161   1  x      ; 2 ticks
+220-222   1  x      ; 3 ticks
+280-283   1  x      ; 4 ticks
+340-360   1  l      ; hold back...
+345       1  x      ; ...and tap x
+420       1  a      ; kick, 1 tick

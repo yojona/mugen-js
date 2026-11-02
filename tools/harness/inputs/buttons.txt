@@ -1,0 +1,6 @@
+# Button timing check: single-tick presses vs held presses.
+100       1  x      ; one tick
+200-204   1  y      ; five ticks
+300       1  a      ; one tick
+400-405   1  r      ; direction, six ticks
+460       1  b      ; one tick

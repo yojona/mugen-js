@@ -131,17 +131,22 @@ def main():
             # The frame may still be in progress (P1 updated, P2 not yet):
             # wait until every player reports the same gametime.
             settle = time.time() + 0.05
-            while time.time() < settle and any(v[55] != gt for side, v, f in rows):
+            # var(38) is the probe's last capture write.
+            while time.time() < settle and any(v[55] != gt or v[38] != gt for side, v, f in rows):
                 time.sleep(0.001)
                 rows = memread.read(pid, loc)
-            torn = any(v[55] != gt for side, v, f in rows)
+            torn = any(v[55] != gt or v[38] != gt for side, v, f in rows)
             if torn:
                 torn_count += 1
             if last_gt is not None and gt != last_gt + 1:
                 missed += gt - last_gt - 1
             last_gt = gt
             step += 1
-            apply_keys(dump(step, rows))
+            clock = dump(step, rows)
+            # Change keys only once this frame has fully finished (so no part
+            # of frame N sees tick N+1's keys) and well before the next one.
+            time.sleep(float(os.environ.get('KEY_DELAY', '0.03')))
+            apply_keys(clock)
         print('missed ticks', missed, 'torn reads', torn_count)
     out.close()
     subprocess.run(['pkill', '-f', 'mugen.exe']); subprocess.run(['wineserver', '-k'])
