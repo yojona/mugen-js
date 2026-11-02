@@ -30,7 +30,9 @@ const canvas = document.getElementById('screen') as HTMLCanvasElement;
 const setStatus = (t: string) => (status.textContent = t);
 
 setStatus('Cargando archivos…');
-const vfs = new Vfs(withContentFixes(await httpSource('/ref/mugen-1.1b1', '/__ref.json')));
+// ?pristine=1 skips the content fixes (harness comparisons with mugen.exe).
+const rawSource = await httpSource('/ref/mugen-1.1b1', '/__ref.json');
+const vfs = new Vfs(params.get('pristine') ? rawSource : withContentFixes(rawSource));
 
 // Motif: ?motif=, else mugen.cfg's "motif =", else data/system.def.
 async function motifPath(): Promise<string> {
