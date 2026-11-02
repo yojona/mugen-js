@@ -131,6 +131,7 @@ export class Match {
       p.ai?.resetRound();
       p.hitDefActive = false;
       p.hitDefSet = false;
+      p.airJumpsLeft = 0;
       // Every round starts in 5900 (common1: clears the variables, then
       // 190 on round 1 or 0; measured: a probe's variables restart each
       // round in mugen.exe).
