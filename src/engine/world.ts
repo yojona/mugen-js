@@ -279,9 +279,9 @@ export class World {
     for (const p of this.players) {
       let x = Math.max(this.leftBound, Math.min(this.rightBound, p.wx));
       if (p.screenBound) {
-        // Stage [Bound] screenleft/right, unless the Width controller sets an edge width.
-        const leftDist = p.width.edge ? p.bodyWidth(p.facing > 0 ? 'back' : 'front', 'edge') * p.scale : this.screenLeft;
-        const rightDist = p.width.edge ? p.bodyWidth(p.facing > 0 ? 'front' : 'back', 'edge') * p.scale : this.screenRight;
+        // Stage [Bound] screenleft/right plus any Width controller edge width.
+        const leftDist = this.screenLeft + p.bodyWidth(p.facing > 0 ? 'back' : 'front', 'edge') * p.scale;
+        const rightDist = this.screenRight + p.bodyWidth(p.facing > 0 ? 'front' : 'back', 'edge') * p.scale;
         x = Math.max(left + leftDist, Math.min(right - rightDist, x));
       }
       if (x !== p.wx) p.setWorldPos(x);

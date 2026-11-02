@@ -573,12 +573,18 @@ export class Player {
   // -------------------------------------------------------------------------
   // Physics, run after states each tick.
 
-  /** Body half-width toward the front or back, for edges or player push. */
+  /**
+   * Body half-width toward the front or back, for edges or player push.
+   * Width controller values are added to the defaults (measured: KFM's
+   * `Width value = 15,0` grows the push distance from 32 to 47). Edge widths
+   * default to 0 on top of the stage's screenleft/screenright.
+   */
   bodyWidth(side: 'front' | 'back', kind: 'edge' | 'player'): number {
     const o = kind === 'edge' ? this.width.edge : this.width.player;
-    if (o) return side === 'front' ? o[0] : o[1];
+    const extra = o ? (side === 'front' ? o[0] : o[1]) : 0;
+    if (kind === 'edge') return extra;
     const air = this.stateType === 'a';
-    return this.const(`size.${air ? 'air' : 'ground'}.${side}`);
+    return this.const(`size.${air ? 'air' : 'ground'}.${side}`) + extra;
   }
 
   /** Current drawn frame (for AfterImage history), in world units. */
