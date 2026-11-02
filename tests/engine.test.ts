@@ -126,9 +126,10 @@ describe('kfm state machine', () => {
       const e = p1.anim.current!;
       seen.push(`${p1.animNo}:${e.group},${e.number}`);
     }
-    // Built-in transitions apply on the next tick (measured against MUGEN 1.1),
-    // then action 10 = 11,0 x2 and 11,1 x2, then crouch (action 11) with no stand frame between.
-    expect(seen).toEqual(['0:0,0', '10:11,0', '10:11,0', '10:11,1', '10:11,1', '11:11,2']);
+    // Built-in transitions apply at the start of the tick with its input
+    // (measured against MUGEN 1.1); action 10 = 11,0 x2 and 11,1 x2, then
+    // crouch (action 11) with no stand frame between.
+    expect(seen).toEqual(['10:11,0', '10:11,0', '10:11,1', '10:11,1', '11:11,2', '11:11,2']);
   });
 });
 
