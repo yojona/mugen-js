@@ -126,8 +126,9 @@ describe('kfm state machine', () => {
       const e = p1.anim.current!;
       seen.push(`${p1.animNo}:${e.group},${e.number}`);
     }
-    // Action 10 = 11,0 x2 then 11,1 x2, then crouch (action 11) with no stand frame between.
-    expect(seen).toEqual(['10:11,0', '10:11,0', '10:11,1', '10:11,1', '11:11,2', '11:11,2']);
+    // Built-in transitions apply on the next tick (measured against MUGEN 1.1),
+    // then action 10 = 11,0 x2 and 11,1 x2, then crouch (action 11) with no stand frame between.
+    expect(seen).toEqual(['0:0,0', '10:11,0', '10:11,0', '10:11,1', '10:11,1', '11:11,2']);
   });
 });
 
@@ -209,7 +210,9 @@ describe('kfm combat', () => {
   it('super move: SuperPause freezes play, costs power and leaves afterimages', () => {
     const { w, p1, p2 } = close();
     p1.power = 3000;
-    const seq = [IN_D, IN_D | IN_R, IN_R, 0, IN_D, IN_D | IN_R, IN_R, IN_R | IN_X];
+    // The final forward is held one tick so the stand-up state (12) is entered
+    // before the button: built-in transitions apply on the next tick, as in MUGEN.
+    const seq = [IN_D, IN_D | IN_R, IN_R, 0, IN_D, IN_D | IN_R, IN_R, IN_R, IN_R | IN_X];
     for (const bits of seq) run(w, 1, bits);
     expect(p1.stateNo).toBe(3000);
     let paused = false;

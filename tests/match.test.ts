@@ -44,10 +44,14 @@ describe('match flow', () => {
     for (let i = 0; i < 400 && w.roundState !== 2; i++) {
       step();
       if (m.announce) seen.add(m.announce.kind);
-      if (w.roundState < 2) expect(p1.ctrl).toBe(false);
+      expect(p1.ctrl).toBe(false);
     }
     expect(seen).toEqual(new Set(['round', 'fight']));
     expect(w.roundState).toBe(2);
+    // Control arrives ctrl.time (30) ticks after RoundState 2 (measured against MUGEN 1.1).
+    step(29);
+    expect(p1.ctrl).toBe(false);
+    step(1);
     expect(p1.ctrl).toBe(true);
   });
 
