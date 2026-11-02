@@ -329,8 +329,10 @@ export class Player {
     this.changedStateThisTick = true;
     this.pendingStateType = undefined;
     this.pendingVel = undefined;
-    this.applyStatedef(cs);
+    // The controller's ctrl comes first; a ctrl in the new statedef wins
+    // (measured: 5210's ChangeState to 52 with ctrl = 1 lands without it).
     if (ctrl !== undefined) this.ctrl = ctrl;
+    this.applyStatedef(cs);
     if (anim !== undefined) this.changeAnim(anim);
   }
   /**
