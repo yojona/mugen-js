@@ -359,11 +359,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
       g.airtype = swap(g.airtype);
     }
     d.ctrl = false;
-    if (hd.p2StateNo >= 0) {
-      if (hd.p2GetP1State) d.stateOwner = a;
-      else d.returnToOwnStates();
-      d.changeState(hd.p2StateNo);
-    } else {
+    {
       d.returnToOwnStates();
       const oldType = d.stateType;
       const oldVel = { x: d.vel.x, y: d.vel.y };
@@ -372,6 +368,12 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
       else if (!inAir && hd.groundType === 3) d.changeState(5070);
       // By statetype only: common1's 5000/5010 switch to air themselves when yvel != 0.
       else d.changeState(inAir ? 5020 : d.stateType === 'c' ? 5010 : 5000);
+      // p2stateno passes through the common hit state first (measured: KFM's
+      // Fast Kung Fu Palm shows 1025 with prevstateno 5000).
+      if (hd.p2StateNo >= 0) {
+        if (hd.p2GetP1State) d.stateOwner = a;
+        d.changeState(hd.p2StateNo);
+      }
       // The new statetype shows once the hit state first runs (measured: 5070).
       if (d.stateType !== oldType) {
         d.pendingStateType = d.stateType;
