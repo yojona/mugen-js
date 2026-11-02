@@ -19,6 +19,8 @@ export interface SceneOptions {
   clsn?: boolean;
   /** Called after the background, before any sprite (stage layer 0). */
   background?: () => void;
+  /** Called after all sprites (stage layer 1). */
+  foreground?: () => void;
 }
 
 export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void {
@@ -29,6 +31,7 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
 
   opts.background?.();
   if (w.darkened) r.rect(0, 0, w.screenWidth, w.screenHeight, [0, 0, 0, 110]);
+  drawShadows(r, w, sx, sy);
 
   const list: Drawable[] = [];
   const top: Drawable[] = [];
@@ -75,6 +78,7 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
 
   list.sort((a, b) => a.priority - b.priority || a.order - b.order);
   for (const d of list) d.draw();
+  opts.foreground?.();
   for (const d of top) d.draw();
 
   function drawPlayer(p: Player): void {
@@ -118,5 +122,36 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
     const x = e.space === 'screen' ? e.x : sx(e.x);
     const y = e.space === 'screen' ? e.y : sy(e.y);
     sprite(s, palette, x + e.facing * v.x, y + e.vfacing * v.y, e.facing * (v.element.flipH ? -1 : 1) * v.scaleX * e.scale[0], e.vfacing * (v.element.flipV ? -1 : 1) * v.scaleY * e.scale[1], e.facing * (v.angle + e.angle), e.trans ?? v.blend, fx);
+  }
+}
+
+/** Floor shadows: each player's sprite flattened onto the ground (stage [Shadow]). */
+function drawShadows(r: Renderer, w: World, sx: (x: number) => number, sy: (y: number) => number): void {
+  const sh = w.shadow;
+  if (!sh || sh.intensity <= 0) return;
+  for (const p of w.allPlayers()) {
+    if (p.special.has('noshadow') || p.special.has('invisible')) continue;
+    // Fade out as the player rises (fade.range: high, middle).
+    let k = 1;
+    const [hi, mid] = sh.fadeRange;
+    if (hi < mid && p.pos.y < mid) k = p.pos.y <= hi ? 0 : (p.pos.y - hi) / (mid - hi);
+    if (k <= 0) continue;
+    const v = p.anim.view();
+    if (!v || v.element.group < 0) continue;
+    const s = p.prog.data.sff.get(v.element.group, v.element.number);
+    if (!s) continue;
+    const a = (sh.intensity / 256) * k;
+    r.draw({
+      sprite: s,
+      palette: p.prog.data.paletteFor(s, p.palNo),
+      x: sx(p.pos.x + p.facing * v.x),
+      // Shadows stay on the floor; the sprite offset is squashed by yscale.
+      y: sy(0) + v.y * sh.yscale,
+      scaleX: p.facing * (v.element.flipH ? -1 : 1),
+      scaleY: sh.yscale,
+      // Shadow color with partial opacity: multiply to black, blend by alpha.
+      palfx: { add: [sh.color[0] / 255, sh.color[1] / 255, sh.color[2] / 255], mul: [0, 0, 0], color: 1, invertAll: false },
+      blend: { kind: 'add', src: Math.round(a * 256), dst: 256 - Math.round(a * 256) },
+    });
   }
 }
