@@ -36,22 +36,36 @@ export interface DrawParams {
   mask?: boolean;
 }
 
+// Two modes: an affine sprite quad (uMatrix), or explicit corners for parallax
+// trapezoids. Corner mode interpolates u with a per-row q so each scanline maps
+// linearly across the sprite (MUGEN's PERSPECTIVE_EVEN in indexed.frag).
 const VS = `#version 300 es
 in vec2 aPos;
 uniform mat3 uMatrix;
 uniform vec2 uSize;
-out vec2 vUv;
+uniform bool uCornerMode;
+uniform vec2 uCorners[4]; // clip space: top-left, top-right, bottom-left, bottom-right
+uniform vec2 uQ;          // q for top and bottom rows
+out vec3 vUvq;
 void main() {
-  vUv = aPos;
-  vec3 p = uMatrix * vec3(aPos * uSize, 1.0);
-  gl_Position = vec4(p.xy, 0.0, 1.0);
+  if (uCornerMode) {
+    vec2 top = mix(uCorners[0], uCorners[1], aPos.x);
+    vec2 bot = mix(uCorners[2], uCorners[3], aPos.x);
+    float q = mix(uQ.x, uQ.y, aPos.y);
+    vUvq = vec3(aPos.x * q, aPos.y, q);
+    gl_Position = vec4(mix(top, bot, aPos.y), 0.0, 1.0);
+  } else {
+    vUvq = vec3(aPos, 1.0);
+    vec3 p = uMatrix * vec3(aPos * uSize, 1.0);
+    gl_Position = vec4(p.xy, 0.0, 1.0);
+  }
 }`;
 
 // Same color math as MUGEN's indexed.frag (non-premultiplied path).
 const FS = `#version 300 es
 precision highp float;
 precision highp usampler2D;
-in vec2 vUv;
+in vec3 vUvq;
 uniform usampler2D uIndex;
 uniform sampler2D uRgba;
 uniform sampler2D uPalette;
@@ -65,6 +79,7 @@ uniform float uSrcAlphaMul;
 uniform bool uPremulOut;
 out vec4 outColor;
 void main() {
+  vec2 vUv = vec2(vUvq.x / vUvq.z, vUvq.y);
   vec4 color;
   if (uIndexed) {
     uint idx = texture(uIndex, vUv).r;
@@ -109,7 +124,7 @@ export class Renderer {
     this.gl = gl;
     this.prog = link(gl, VS, FS);
     gl.useProgram(this.prog);
-    for (const n of ['uMatrix', 'uSize', 'uIndex', 'uRgba', 'uPalette', 'uIndexed', 'uMask', 'uAdd', 'uMul', 'uColorBal', 'uInvertAll', 'uSrcAlphaMul', 'uPremulOut']) {
+    for (const n of ['uCornerMode', 'uCorners', 'uQ', 'uMatrix', 'uSize', 'uIndex', 'uRgba', 'uPalette', 'uIndexed', 'uMask', 'uAdd', 'uMul', 'uColorBal', 'uInvertAll', 'uSrcAlphaMul', 'uPremulOut']) {
       this.u[n] = gl.getUniformLocation(this.prog, n);
     }
     gl.uniform1i(this.u.uIndex!, 0);
@@ -142,10 +157,34 @@ export class Renderer {
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
+  /**
+   * Draw a sprite stretched over an arbitrary quad (parallax floors). Corners
+   * in game pixels: top-left, top-right, bottom-left, bottom-right.
+   */
+  drawQuad(p: Omit<DrawParams, 'x' | 'y' | 'scaleX' | 'scaleY' | 'angle'> & { corners: [number, number][] }): void {
+    const kx = 2 / this.width;
+    const ky = -2 / this.height;
+    const c = p.corners.flatMap(([x, y]) => [x * kx - 1, y * ky + 1]);
+    const topW = Math.abs(p.corners[1]![0] - p.corners[0]![0]);
+    const botW = Math.abs(p.corners[3]![0] - p.corners[2]![0]);
+    this.cornerMode = { corners: c, q: [Math.max(topW, 1e-3), Math.max(botW, 1e-3)] };
+    try {
+      this.draw({ ...p, x: 0, y: 0, scaleX: 1, scaleY: 1 });
+    } finally {
+      this.cornerMode = undefined;
+    }
+  }
+  private cornerMode: { corners: number[]; q: [number, number] } | undefined;
+
   draw(p: DrawParams): void {
     const gl = this.gl;
     const s = p.sprite;
     if (s.width === 0 || s.height === 0) return;
+    gl.uniform1i(this.u.uCornerMode!, this.cornerMode ? 1 : 0);
+    if (this.cornerMode) {
+      gl.uniform2fv(this.u.uCorners!, this.cornerMode.corners);
+      gl.uniform2f(this.u.uQ!, this.cornerMode.q[0], this.cornerMode.q[1]);
+    }
     const st = this.spriteTexture(s);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, st.indexed ? st.tex : this.dummyIndex);
