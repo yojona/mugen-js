@@ -296,6 +296,17 @@ export class Player {
     // Entered from outside controller processing (landing, being hit): the new
     // state's controllers first run next tick, still at Time = 0.
     if (!this.inStates) this.freshState = true;
+    this.resetPersist(cs);
+    // Lying down: the get-up countdown starts when 5110 is entered.
+    if (no === 5110) this.ghv.recovertime = this.const('data.liedown.time');
+    this.stateChanged = true;
+    this.applyStatedef(cs);
+    if (ctrl !== undefined) this.ctrl = ctrl;
+    if (anim !== undefined) this.changeAnim(anim);
+  }
+
+  /** Statedef *persist flags: what carries over from the previous state. */
+  private resetPersist(cs: CompiledState): void {
     const d = cs.def.params;
     const flag = (k: string) => (parseInt(d.get(k) ?? '0', 10) || 0) !== 0;
     if (!flag('hitdefpersist')) {
@@ -305,12 +316,6 @@ export class Player {
     if (!flag('movehitpersist')) this.moveContact = this.moveHit = this.moveGuarded = 0;
     if (!flag('hitcountpersist')) this.hitCount = 0;
     this.reversal = undefined;
-    // Lying down: the get-up countdown starts when 5110 is entered.
-    if (no === 5110) this.ghv.recovertime = this.const('data.liedown.time');
-    this.stateChanged = true;
-    this.applyStatedef(cs);
-    if (ctrl !== undefined) this.ctrl = ctrl;
-    if (anim !== undefined) this.changeAnim(anim);
   }
 
   private applyStatedef(cs: CompiledState): void {
@@ -497,7 +502,12 @@ export class Player {
     if (this.pendingEntry) {
       this.pendingEntry = false;
       const cs = this.compiledState(this.stateNo);
-      if (cs) this.applyStatedef(cs);
+      // Built-in transitions apply the new statedef when it first runs, so a
+      // capture before that still sees the old MoveContact (measured: 400 -> 12).
+      if (cs) {
+        this.resetPersist(cs);
+        this.applyStatedef(cs);
+      }
     }
     // A ChangeState inside the new state restarts processing (bounded to avoid loops).
     for (let guard = 0; guard < 16; guard++) {
