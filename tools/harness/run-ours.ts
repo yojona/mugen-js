@@ -44,27 +44,15 @@ const m = new Match(w, hud.roundConfig(), [
   { x: stage.info.p2.x, y: stage.info.p2.y, facing: stage.info.p2.facing },
 ]);
 
+// Same layout as memread.py: the probe CNS captured its own state into vars.
 const lines: string[] = [];
-const dump = () => {
-  w.players.forEach((p, i) => {
-    const f = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(4));
-    lines.push(
-      [
-        'H', String(w.gameTime), 'fight', String(i + 1),
-        `stateno=${p.stateNo}`, `prevstateno=${p.prevStateNo}`, `anim=${p.animNo}`, `animtime=${p.anim.animTime()}`,
-        `ctrl=${p.ctrl}`, `statetype=${p.stateType.toUpperCase()}`, `movetype=${p.moveType.toUpperCase()}`,
-        `life=${p.life}`, `power=${p.power}`, `facing=${p.facing}`, `hitpausetime=${p.hitPause}`,
-        `hitshakeover=${p.ghv.hitshaketime <= 0}`, `hitover=${p.ghv.hittime <= 0}`,
-        `movecontact=${p.moveContact}`, `movehit=${p.moveHit}`, `moveguarded=${p.moveGuarded}`, `alive=${p.alive}`,
-        `pos=(${f(p.pos.x - w.camera.x / p.scale)}, ${f(p.pos.y)})`, `vel=(${f(p.vel.x)}, ${f(p.vel.y)})`,
-        `elem=${p.anim.animElemNo(0) ?? -1}`, `clock=${p.vars[58]}`,
-      ].join('|'),
-    );
-  });
-};
-for (let i = 0; i < ticks; i++) {
-  dump();
+for (let i = 1; i <= ticks; i++) {
   if (m.tick()) w.tick([0, 0]);
+  w.players.forEach((p) => {
+    const v = Array.from(p.vars).join(',');
+    const f = Array.from(p.fvars, (x) => x.toFixed(4)).join(',');
+    lines.push(`S|${i}|${p.side + 1}|${v}|${f}`);
+  });
 }
 writeFileSync(out, lines.join('\n') + '\n');
 console.log(`${lines.length} lines -> ${out}`);

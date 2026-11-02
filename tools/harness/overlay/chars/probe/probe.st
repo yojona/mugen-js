@@ -65,3 +65,156 @@ type = ChangeState
 triggerall = TeamSide = 1 && ctrl && statetype = S
 trigger1 = var(58) = [600, 610]
 value = 240
+
+; ---- State capture (both engines run this exact code) ----------------
+; Markers let the harness find this player's var array in MUGEN's memory.
+; var(56/57): 1297434964 / 1297434965 + TeamSide;  fvar(39) = 4242.5
+[State -2, capture markers]
+type = VarSet
+trigger1 = 1
+var(56) = 1297434964
+ignorehitpause = 1
+
+[State -2, capture marker 2]
+type = VarSet
+trigger1 = 1
+var(57) = 1297434964 + TeamSide
+ignorehitpause = 1
+
+[State -2, capture fmarker]
+type = VarSet
+trigger1 = 1
+fvar(39) = 4242.5
+ignorehitpause = 1
+
+[State -2, cap stateno]
+type = VarSet
+trigger1 = 1
+var(40) = stateno
+ignorehitpause = 1
+
+[State -2, cap prevstateno]
+type = VarSet
+trigger1 = 1
+var(41) = prevstateno
+ignorehitpause = 1
+
+[State -2, cap anim]
+type = VarSet
+trigger1 = 1
+var(42) = anim
+ignorehitpause = 1
+
+[State -2, cap animtime]
+type = VarSet
+trigger1 = 1
+var(43) = animtime
+ignorehitpause = 1
+
+[State -2, cap animelemno]
+type = VarSet
+trigger1 = 1
+var(44) = animelemno(0)
+ignorehitpause = 1
+
+[State -2, cap time]
+type = VarSet
+trigger1 = 1
+var(45) = time
+ignorehitpause = 1
+
+[State -2, cap ctrl]
+type = VarSet
+trigger1 = 1
+var(46) = ctrl
+ignorehitpause = 1
+
+[State -2, cap statetype]
+type = VarSet
+trigger1 = 1
+var(47) = (statetype = S) + 2 * (statetype = C) + 3 * (statetype = A) + 4 * (statetype = L)
+ignorehitpause = 1
+
+[State -2, cap movetype]
+type = VarSet
+trigger1 = 1
+var(48) = (movetype = I) + 2 * (movetype = A) + 3 * (movetype = H)
+ignorehitpause = 1
+
+[State -2, cap life]
+type = VarSet
+trigger1 = 1
+var(49) = life
+ignorehitpause = 1
+
+[State -2, cap power]
+type = VarSet
+trigger1 = 1
+var(50) = power
+ignorehitpause = 1
+
+[State -2, cap facing]
+type = VarSet
+trigger1 = 1
+var(51) = facing
+ignorehitpause = 1
+
+[State -2, cap hitpausetime]
+type = VarSet
+trigger1 = 1
+var(52) = hitpausetime
+ignorehitpause = 1
+
+[State -2, cap movecontact]
+type = VarSet
+trigger1 = 1
+var(53) = movecontact
+ignorehitpause = 1
+
+[State -2, cap hitshakeover]
+type = VarSet
+trigger1 = 1
+var(54) = hitshakeover + 2 * hitover
+ignorehitpause = 1
+
+[State -2, cap gametime]
+type = VarSet
+trigger1 = 1
+var(55) = gametime
+ignorehitpause = 1
+
+[State -2, cap pos x]
+type = VarSet
+trigger1 = 1
+fvar(30) = pos x
+ignorehitpause = 1
+
+[State -2, cap pos y]
+type = VarSet
+trigger1 = 1
+fvar(31) = pos y
+ignorehitpause = 1
+
+[State -2, cap vel x]
+type = VarSet
+trigger1 = 1
+fvar(32) = vel x
+ignorehitpause = 1
+
+[State -2, cap vel y]
+type = VarSet
+trigger1 = 1
+fvar(33) = vel y
+ignorehitpause = 1
+
+[State -2, cap screenpos x]
+type = VarSet
+trigger1 = 1
+fvar(34) = screenpos x
+ignorehitpause = 1
+
+[State -2, cap p2dist x]
+type = VarSet
+trigger1 = 1
+fvar(35) = p2dist x
+ignorehitpause = 1

@@ -1,73 +1,69 @@
-// Compare two harness logs (MUGEN vs mugen-web), aligned on the script clock.
-// Usage: npx tsx tools/harness/diff.ts <mugen.log> <ours.log> [maxReports]
+// Compare harness state logs (MUGEN vs mugen-web), aligned on the probe's
+// script clock var(58). Both sides log S|step|side|vars(60)|fvars(40).
+// Usage: npx tsx tools/harness/diff.ts <mugen-states.log> <ours.log> [maxReports]
 
 import { readFileSync } from 'node:fs';
 
-type Row = Map<string, string>;
+/** Fields the probe CNS captures (overlay/chars/probe/probe.st). */
+const VARS: Record<number, string> = {
+  40: 'stateno', 41: 'prevstateno', 42: 'anim', 43: 'animtime', 44: 'animelemno', 45: 'time', 46: 'ctrl',
+  47: 'statetype', 48: 'movetype', 49: 'life', 50: 'power', 51: 'facing', 52: 'hitpausetime', 53: 'movecontact',
+  54: 'hitshake/hitover', 58: 'clock',
+};
+const FVARS: Record<number, string> = { 30: 'pos x', 31: 'pos y', 32: 'vel x', 33: 'vel y', 34: 'screenpos x', 35: 'p2dist x' };
+
+interface Row {
+  v: number[];
+  f: number[];
+}
 
 function parse(file: string): Map<string, Row> {
   const rows = new Map<string, Row>();
   for (const line of readFileSync(file, 'latin1').split(/\r?\n/)) {
-    const i = line.indexOf('H|');
-    if (i < 0) continue;
-    const parts = line.slice(i).split('|');
-    const [, , mode, idx, ...kv] = parts;
-    if (mode !== 'fight') continue;
-    const row: Row = new Map();
-    for (const p of kv) {
-      const eq = p.indexOf('=');
-      if (eq > 0) row.set(p.slice(0, eq), p.slice(eq + 1));
-    }
-    const clock = row.get('clock');
-    if (!clock || clock === '0') continue; // only ticks once the script runs
-    // Keep the first row per (clock, player): later ones are the same tick re-dumped.
-    const key = `${clock}|${idx}`;
-    if (!rows.has(key)) rows.set(key, row);
+    if (!line.startsWith('S|')) continue;
+    const [, , side, vs, fs] = line.split('|');
+    const v = vs!.split(',').map(Number);
+    const f = (fs ?? '').split(',').map(Number);
+    const clock = v[58]!;
+    if (clock <= 0) continue; // compare from the moment the script runs
+    const key = `${clock}|${side}`;
+    if (!rows.has(key)) rows.set(key, { v, f });
   }
   return rows;
-}
-
-/** Normalise values: booleans, numbers (with tolerance) and vectors. */
-function nums(v: string): number[] | undefined {
-  const m = v.match(/-?\d+(\.\d+)?(e-?\d+)?/gi);
-  return m ? m.map(Number) : undefined;
-}
-function same(a: string, b: string): boolean {
-  const norm = (s: string) => s.trim().toLowerCase().replace(/^true$/, '1').replace(/^false$/, '0');
-  const x = norm(a);
-  const y = norm(b);
-  if (x === y) return true;
-  const nx = nums(x);
-  const ny = nums(y);
-  if (!nx || !ny || nx.length !== ny.length) return false;
-  return nx.every((v, i) => Math.abs(v - ny[i]!) <= 1e-3 * Math.max(1, Math.abs(v)));
 }
 
 const [ref, ours, maxArg] = process.argv.slice(2);
 const A = parse(ref!);
 const B = parse(ours!);
-const max = parseInt(maxArg ?? '30', 10);
+const max = parseInt(maxArg ?? '40', 10);
 const keys = [...A.keys()].filter((k) => B.has(k)).sort((a, b) => parseInt(a) - parseInt(b) || a.localeCompare(b));
 const perField = new Map<string, number>();
 const reports: string[] = [];
-let firstTick: string | undefined;
+let first: string | undefined;
 for (const k of keys) {
   const a = A.get(k)!;
   const b = B.get(k)!;
-  for (const [field, av] of a) {
-    if (field === 'clock' || !b.has(field)) continue;
-    const bv = b.get(field)!;
-    if (same(av, bv)) continue;
-    perField.set(field, (perField.get(field) ?? 0) + 1);
-    firstTick ??= k;
-    if (reports.length < max) reports.push(`clock ${k.replace('|', ' P')}  ${field}: MUGEN=${av}  ours=${bv}`);
+  const diffs: string[] = [];
+  for (const [i, name] of Object.entries(VARS)) {
+    const x = a.v[+i]!;
+    const y = b.v[+i]!;
+    if (x !== y) diffs.push(`${name} ${x}≠${y}`);
+  }
+  for (const [i, name] of Object.entries(FVARS)) {
+    const x = a.f[+i]!;
+    const y = b.f[+i]!;
+    if (Math.abs(x - y) > 1e-3 * Math.max(1, Math.abs(x))) diffs.push(`${name} ${x}≠${y}`);
+  }
+  for (const d of diffs) perField.set(d.split(' ')[0]!, (perField.get(d.split(' ')[0]!) ?? 0) + 1);
+  if (diffs.length) {
+    first ??= k;
+    if (reports.length < max) reports.push(`clock ${k.replace('|', ' P')}: ${diffs.join(', ')}   (MUGEN=, ours)`);
   }
 }
 console.log(`Compared ${keys.length} player-ticks (MUGEN ${A.size}, ours ${B.size}).`);
-if (!perField.size) {
-  console.log('No differences.');
-} else {
-  console.log(`First divergence at clock ${firstTick}.`);
-  console.log('Mismatches per field:', Object.fromEntries([...perField].sort((x, y) => y[1] - x[1])));
+if (!first) console.log('No differences.');
+else {
+  console.log(`First divergence at clock ${first}.`);
+  console.log('Ticks with a mismatch, per field:', Object.fromEntries([...perField].sort((x, y) => y[1] - x[1])));
   console.log(reports.join('\n'));
 }
