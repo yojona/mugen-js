@@ -1,0 +1,18 @@
+; Harness probe: Kung Fu Man's data driven by a fixed script (no input).
+; The script lives in probe.st and is identical for MUGEN and mugen-web.
+[Info]
+name = "Probe"
+displayname = "Probe"
+mugenversion = 1.0
+author = "mugen-web harness"
+localcoord = 320,240
+
+[Files]
+cmd     = ../kfm/kfm.cmd
+cns     = ../kfm/kfm.cns
+st      = ../kfm/kfm.cns
+st0     = probe.st
+stcommon = common1.cns
+sprite  = ../kfm/kfm.sff
+anim    = ../kfm/kfm.air
+sound   = ../kfm/kfm.snd

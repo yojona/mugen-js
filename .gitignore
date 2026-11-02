@@ -4,3 +4,4 @@ ref/
 *.log
 .DS_Store
 .vitest/
+tools/harness/work/
