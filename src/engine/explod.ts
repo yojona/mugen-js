@@ -267,7 +267,11 @@ export function compileMakeDust(c: ControllerDef, env: TriggerEnv<P>): (p: P) =>
     if (!a) return;
     for (const k of ['pos', 'pos2']) {
       if (k === 'pos2' && !prm.has('pos2')) continue;
-      p.world.explods.push(simpleExplod(p, a, true, p.wx + (prm.num(p, k, 0) ?? 0) * p.facing * p.scale, p.wy + (prm.num(p, k, 1) ?? 0) * p.scale, 0));
+      // Each puff jitters by -1..1 like the engine's floor dust: two draws
+      // from the shared generator (measured: KFM's hop-back landing, 106).
+      const jx = p.world.random(3) - 1;
+      const jy = p.world.random(3) - 1;
+      p.world.explods.push(simpleExplod(p, a, true, p.wx + (prm.num(p, k, 0) ?? 0) * p.facing * p.scale + jx, p.wy + (prm.num(p, k, 1) ?? 0) * p.scale + jy, 0));
     }
   };
 }
