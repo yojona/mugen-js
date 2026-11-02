@@ -3,3 +3,4 @@ dist/
 ref/
 *.log
 .DS_Store
+.vitest/
