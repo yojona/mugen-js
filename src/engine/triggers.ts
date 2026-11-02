@@ -282,11 +282,13 @@ function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
   switch (node.name) {
     case 'command': {
       const name = word.toLowerCase();
-      // An active command is noted for the AI recorder (mugen.exe 0x456d9f).
+      // An active command tested with "=" is noted for the AI recorder
+      // (mugen.exe 0x456d9f; measured: common1's command != "holdback" exit
+      // from 130 sends no message).
       return boolOut((p) => {
         if (!p.commands.has(name)) return false;
         const fired = p.recorder?.fired;
-        if (fired && fired.length < 9) fired.push(commandSlot(p, name));
+        if (eq && fired && fired.length < 9) fired.push(commandSlot(p, name));
         return true;
       });
     }
