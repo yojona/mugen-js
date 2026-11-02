@@ -177,6 +177,11 @@ export class World {
     applyHits(detectProjectileHits(this.projectiles, active));
     this.projectiles = this.projectiles.filter((pr) => pr.phase !== 'dead');
     this.applyBinds();
+    // MUGEN resolves player push in two passes per tick, clamping to the
+    // screen after each (mugen.exe 0x43da66 / 0x43de16; measured: walking
+    // into a cornered opponent closes 3/4 of the overlap per tick).
+    this.pushPlayers();
+    this.clampToScreen();
     this.pushPlayers();
     this.clampToScreen();
     this.spawnDust(dustX);
