@@ -4,7 +4,7 @@
 // widened to the display aspect (a 4:3 stage shows more width on 16:9); the
 // HUD is drawn in the motif's (fight.def's) coordinate space.
 
-import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_U, IN_X, IN_Y, IN_Z } from '../engine/cmd';
+import { MugenAI } from '../engine/ai';
 import { Match } from '../engine/match';
 import { Player, type CharacterProgram } from '../engine/player';
 import { World, type FightFx } from '../engine/world';
@@ -40,7 +40,6 @@ export class FightScreen implements Screen {
   readonly world = new World();
   readonly match: Match;
   private bg: StageRuntime;
-  private ai: SimpleAI[];
   private fade = new Fader(10, 10);
   private idle = [0, 0];
 
@@ -68,7 +67,10 @@ export class FightScreen implements Screen {
     ]);
     this.match.autoRematch = false;
     this.bg = new StageRuntime(s.stage);
-    this.ai = [new SimpleAI(p1), new SimpleAI(p2)];
+    // CPU sides run MUGEN's own AI (training mode leaves the dummy idle).
+    [p1, p2].forEach((p, i) => {
+      if (!s.human[i] && !s.training) p.ai = new MugenAI(p, ctx.aiLevel);
+    });
   }
 
   tick(): void {
@@ -85,7 +87,7 @@ export class FightScreen implements Screen {
     }
     const m = this.match;
     const w = this.world;
-    const inputs = w.players.map((p, i) => (this.s.human[i] ? this.ctx.keys.pads[i === 1 && !this.s.human[0] ? 0 : i]!.bits : this.s.training ? 0 : this.ai[i]!.think()));
+    const inputs = w.players.map((_, i) => (this.s.human[i] ? this.ctx.keys.pads[i === 1 && !this.s.human[0] ? 0 : i]!.bits : 0));
     if (m.tick()) {
       w.tick(inputs);
       if (!w.superPause && !w.pause) this.bg.tick();
@@ -126,54 +128,5 @@ export class FightScreen implements Screen {
     r.setProjection(mw, mh);
     this.s.hud.draw(r, this.match);
     this.fade.draw(r, mw, mh);
-  }
-}
-
-/**
- * Placeholder CPU: walks in, attacks at close range, jumps now and then and
- * guards when attacked. MUGEN's own AI (AILevel) is not reproduced yet.
- */
-export class SimpleAI {
-  // Own generator, so the placeholder AI does not consume MUGEN's sequence.
-  private seed = 12345;
-  private rnd(n: number): number {
-    this.seed = (this.seed * 16807) % 2147483647;
-    return this.seed % n;
-  }
-  private plan = 0;
-  private hold = 0;
-  constructor(private p: Player) {}
-
-  think(): number {
-    const p = this.p;
-    const e = p.world.enemyOf(p);
-    if (!e || p.world.roundState !== 2) return 0;
-    const towards = e.pos.x > p.pos.x ? IN_R : IN_L;
-    const away = towards === IN_R ? IN_L : IN_R;
-    const dist = Math.abs(e.pos.x - p.pos.x);
-    if (e.moveType === 'a' && dist < 90 && this.rnd(100) < 70) return away;
-    if (this.hold > 0) {
-      this.hold--;
-      return this.plan;
-    }
-    const roll = this.rnd(100);
-    const buttons = [IN_X, IN_Y, IN_Z, IN_A, IN_B, IN_C];
-    if (dist > 60) {
-      this.plan = roll < 8 ? towards | IN_U : towards;
-      this.hold = 8 + this.rnd(12);
-    } else if (roll < 35) {
-      this.plan = buttons[this.rnd(buttons.length)]!;
-      this.hold = 1;
-    } else if (roll < 45) {
-      this.plan = IN_D | buttons[this.rnd(buttons.length)]!;
-      this.hold = 2;
-    } else if (roll < 55) {
-      this.plan = away;
-      this.hold = 10;
-    } else {
-      this.plan = 0;
-      this.hold = 6;
-    }
-    return this.plan;
   }
 }

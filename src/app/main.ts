@@ -54,7 +54,17 @@ renderer.resize(mw, mh, zoom);
 const mixer = new Mixer();
 const keys = new Keyboard();
 keys.onFirstInput = () => mixer.unlock();
-const ctx: AppContext = { renderer, mixer, keys, motif };
+// mugen.cfg [Options] Difficulty: the CPU's AILevel (default 4, clamped 1..8).
+async function aiLevel(): Promise<number> {
+  try {
+    const cfg = parseIni(await vfs.text('data/mugen.cfg'));
+    const v = parseInt(getValue(findSection(cfg, 'Options'), 'difficulty') ?? '', 10);
+    return Number.isFinite(v) ? Math.max(1, Math.min(8, v)) : 4;
+  } catch {
+    return 4;
+  }
+}
+const ctx: AppContext = { renderer, mixer, keys, motif, aiLevel: await aiLevel() };
 
 setStatus('Cargando personajes…');
 const roster: Roster = await loadRoster(vfs, motif.selectDef);

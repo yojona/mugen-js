@@ -13,6 +13,8 @@ export interface AppContext {
   mixer: Mixer;
   keys: Keyboard;
   motif: Motif;
+  /** CPU AI level (mugen.cfg [Options] Difficulty, 1..8). */
+  aiLevel: number;
 }
 
 export interface Screen {
