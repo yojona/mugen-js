@@ -13,12 +13,31 @@ import { Renderer } from '../render/renderer';
 import { drawScene } from '../render/scene';
 import { drawStageLayer } from '../render/stage-draw';
 import { loadStage, StageRuntime } from '../stage/stage';
+import { Match } from '../engine/match';
+import { FightHud } from '../motif/fight';
 
 const KEYS: Record<string, number> = {
   ArrowUp: IN_U, ArrowDown: IN_D, ArrowLeft: IN_L, ArrowRight: IN_R,
   KeyA: IN_X, KeyS: IN_Y, KeyD: IN_Z, KeyZ: IN_A, KeyX: IN_B, KeyC: IN_C, Enter: IN_S,
 };
+// Second player (match mode): I J K L to move, U O P / M , . buttons.
+const KEYS2: Record<string, number> = {
+  KeyI: IN_U, KeyK: IN_D, KeyJ: IN_L, KeyL: IN_R,
+  KeyU: IN_X, KeyO: IN_Y, KeyP: IN_Z, KeyM: IN_A, Comma: IN_B, Period: IN_C,
+};
 let held = 0;
+let held2 = 0;
+addEventListener('keydown', (e) => {
+  const b = KEYS2[e.code];
+  if (b) {
+    held2 |= b;
+    e.preventDefault();
+  }
+});
+addEventListener('keyup', (e) => {
+  const b = KEYS2[e.code];
+  if (b) held2 &= ~b;
+});
 const mixer = new Mixer();
 addEventListener('keydown', (e) => {
   mixer.unlock();
@@ -62,6 +81,28 @@ world.fightFx = {
   sff: await parseSff(await vfs.read('data/fightfx.sff')),
 };
 const commonSnd = parseSnd(await vfs.read('data/common.snd'));
+const isMatch = new URLSearchParams(location.search).get('mode') === 'match';
+const hud = isMatch ? await FightHud.load(vfs) : undefined;
+const match = hud
+  ? new Match(world, hud.roundConfig(), [
+      { x: stage.info.p1.x, y: stage.info.p1.y, facing: stage.info.p1.facing },
+      { x: stage.info.p2.x, y: stage.info.p2.y, facing: stage.info.p2.facing },
+    ])
+  : undefined;
+if (isMatch) document.querySelector('h1')!.textContent = 'Partida';
+
+/** One simulation tick (match flow, world, stage, HUD). */
+function step(in1: number, in2: number): void {
+  const simulate = match ? match.tick() : true;
+  if (simulate) {
+    world.tick([in1, in2]);
+    if (!world.superPause && !world.pause) bg.tick();
+  }
+  if (match && hud) {
+    hud.tick(match);
+    for (const [g, n] of match.sounds) mixer.play(hud.snd?.get(g, n));
+  }
+}
 p1.changeState(0);
 p2.changeState(0);
 
@@ -93,7 +134,8 @@ function draw(): void {
     background: () => drawStageLayer(renderer, bg, world.camera, 0, W, H),
     foreground: () => drawStageLayer(renderer, bg, world.camera, 1, W, H),
   });
-  drawLifebars();
+  if (match && hud) hud.draw(renderer, match);
+  else drawLifebars();
   playSounds();
   const f = (n: number) => n.toFixed(2);
   info.textContent = [
@@ -119,11 +161,14 @@ if (demoParam) {
     throw: [...Array(48).fill(IN_R), IN_R | IN_Y],
   };
   if (name === 'super') p1.power = 3000;
-  const script = scripts[name!] ?? [];
-  for (let i = 0; i < parseInt(ticks!, 10); i++) {
-    world.tick([script[i] ?? 0, 0]);
-    bg.tick();
+  // In match mode, scripts start once the round is under way.
+  if (match) {
+    for (let i = 0; i < 600 && world.roundState !== 2; i++) step(0, 0);
+    const lowLife = new URLSearchParams(location.search).get('p2life');
+    if (lowLife) p2.life = parseInt(lowLife, 10);
   }
+  const script = scripts[name!] ?? [];
+  for (let i = 0; i < parseInt(ticks!, 10); i++) step(script[i] ?? 0, 0);
   draw();
   throw new Error('demo');
 }
@@ -135,8 +180,7 @@ function frame(now: number): void {
   acc += Math.min(now - last, 250);
   last = now;
   while (acc >= TICK) {
-    world.tick([held, 0]);
-    if (!world.superPause && !world.pause) bg.tick();
+    step(held, isMatch ? held2 : 0);
     acc -= TICK;
   }
   draw();
