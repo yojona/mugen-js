@@ -4,6 +4,7 @@ import { loadCharacter } from '../src/engine/character';
 import { IN_A, IN_D, IN_L, IN_R, IN_U, IN_X, IN_Y } from '../src/engine/cmd';
 import { nodeSource } from '../src/engine/node-source';
 import { loadProgram, Player, type CharacterProgram } from '../src/engine/player';
+import { parseStates } from '../src/engine/cns';
 import { Vfs } from '../src/engine/vfs';
 import { World, type FightFx } from '../src/engine/world';
 import { parseAir } from '../src/formats/air';
@@ -224,5 +225,124 @@ describe('kfm combat', () => {
     expect(after).toBe(true);
     expect(p2Hit).toBe(true);
     expect(p1.power).toBeLessThanOrEqual(2000 + 200);
+  });
+});
+
+describe('helpers and projectiles (synthetic states on KFM data)', () => {
+  const CNS = `
+[Statedef 9000]
+type = S
+movetype = A
+physics = S
+anim = 0
+ctrl = 0
+[State 9000, spawn helper]
+type = Helper
+trigger1 = Time = 0
+id = 7
+name = "Clone"
+stateno = 9100
+pos = -40, 0
+[State 9000, fire]
+type = Projectile
+trigger1 = Time = 1
+projid = 5
+projanim = 9999
+velocity = 6, 0
+offset = 20, -50
+attr = S, SP
+damage = 40
+pausetime = 4, 6
+ground.velocity = -3
+ground.hittime = 12
+ground.slidetime = 8
+[State 9000, saw hit]
+type = VarSet
+trigger1 = ProjHit5 = 1
+var(11) = 1
+[State 9000, count]
+type = VarSet
+trigger1 = 1
+var(12) = NumHelper(7)
+[State 9000, done]
+type = ChangeState
+trigger1 = Time = 90
+value = 0
+ctrl = 1
+
+[Statedef 9100]
+type = S
+movetype = I
+physics = N
+anim = 0
+[State 9100, tell parent]
+type = ParentVarSet
+trigger1 = Time = 0
+var(10) = 42
+[State 9100, parent time]
+type = VarSet
+trigger1 = Time = 1
+var(1) = parent, Time
+[State 9100, bye]
+type = DestroySelf
+trigger1 = Time = 20
+`;
+  const AIR = `
+[Begin Action 9999]
+Clsn1Default: 1
+ Clsn1[0] = -10, -10, 10, 10
+Clsn2Default: 1
+ Clsn2[0] = -10, -10, 10, 10
+0,0, 0,0, -1
+`;
+
+  function synthetic(): { w: World; p1: Player; p2: Player } {
+    const states = new Map(prog.states);
+    parseStates(CNS, 'synthetic.cns', states);
+    const anims = new Map(prog.data.anims);
+    for (const [k, v] of parseAir(AIR)) anims.set(k, v);
+    const prog2: CharacterProgram = { ...prog, states, compiled: new Map(), data: { ...prog.data, anims } };
+    const w = new World();
+    w.fightFx = fightFx;
+    const p1 = new Player(prog2, w, 0);
+    const p2 = new Player(prog, w, 1);
+    p1.pos.x = -80;
+    p2.pos.x = 60;
+    p2.facing = -1;
+    w.players.push(p1, p2);
+    p1.changeState(0);
+    p2.changeState(0);
+    return { w, p1, p2 };
+  }
+
+  it('spawns a helper that talks to its parent and destroys itself', () => {
+    const { w, p1 } = synthetic();
+    p1.changeState(9000);
+    run(w, 3);
+    expect(w.helpers).toHaveLength(1);
+    const h = w.helpers[0]!;
+    expect(h.isHelper).toBe(true);
+    expect(h.name).toBe('Clone');
+    expect(h.pos.x).toBeCloseTo(p1.pos.x - 40, 0);
+    expect(p1.vars[10]).toBe(42);
+    expect(p1.vars[12]).toBe(1);
+    expect(h.vars[1]).toBeGreaterThan(0); // read parent's Time through a redirect
+    run(w, 30);
+    expect(w.helpers).toHaveLength(0);
+    expect(p1.vars[12]).toBe(0);
+  });
+
+  it('fires a projectile that hits P2 and reports ProjHit', () => {
+    const { w, p1, p2 } = synthetic();
+    p1.changeState(9000);
+    let hit = false;
+    for (let i = 0; i < 60; i++) {
+      run(w, 1);
+      if (p2.moveType === 'h') hit = true;
+    }
+    expect(hit).toBe(true);
+    expect(p2.life).toBe(960);
+    expect(p1.vars[11]).toBe(1);
+    expect(w.projectiles).toHaveLength(0);
   });
 });
