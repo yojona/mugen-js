@@ -547,6 +547,10 @@ export class Player {
     this.stateNo = no;
     this.time = 0;
     this.persist.clear();
+    // The state change itself drops "HitDef set in this state" (measured:
+    // KFM's 800 throw, sent to 810 by p1stateno, is never recorded by the
+    // CPU's learning in mugen.exe).
+    this.hitDefSet = false;
     this.pendingEntry = true;
     // Entered from outside controller processing (a hit's p1stateno): Time
     // stays 0 until the state first runs, as with changeState.
