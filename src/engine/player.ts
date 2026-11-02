@@ -304,7 +304,10 @@ export class Player {
     if (!this.inStates) this.freshState = true;
     this.resetPersist(cs);
     // Lying down: the get-up countdown starts when 5110 is entered.
-    if (no === 5110) this.ghv.recovertime = this.const('data.liedown.time');
+    // The get-up count starts with a falling hit and again on hitting the
+    // ground (5100); lying down (5110) counts its entry tick (measured).
+    if (no === 5100) this.ghv.recovertime = this.const('data.liedown.time');
+    if (no === 5110) this.ghv.recovertime = (this.ghv.recovertime > 0 ? this.ghv.recovertime : this.const('data.liedown.time')) - 1;
     this.stateChanged = true;
     this.changedStateThisTick = true;
     this.pendingStateType = undefined;
@@ -546,13 +549,18 @@ export class Player {
       this.changeState(this.stateType === 'c' ? 11 : this.stateType === 'a' ? 51 : 0);
       return;
     }
-    if (this.stateNo !== 5110 || !this.alive) return;
     const g = this.ghv;
-    // Every key event the player's input consumes this tick shortens the
-    // wait to 75% (mugen.exe 0x43557f, truncated).
-    if (this.cmdInput?.lastEvent) g.recovertime = Math.trunc(g.recovertime * 0.75);
-    g.recovertime -= 1;
+    // Every key event the player's input consumes shortens the get-up wait
+    // (mugen.exe 0x43557f, truncated): to 75% lying down, to 90% while
+    // falling (measured: releasing a key during a trip's fall).
+    if (this.cmdInput?.lastEvent && this.moveType === 'h') {
+      if (this.stateType === 'l') g.recovertime = Math.trunc(g.recovertime * 0.75);
+      else if (this.stateType === 'a' && g.fall) g.recovertime = Math.trunc(g.recovertime * 0.9);
+    }
+    if (this.stateNo !== 5110 || !this.alive) return;
+    // mugen.exe 0x43cb34: get up once the count is spent, else count down.
     if (g.recovertime <= 0 && this.time > 0) this.changeState(5120);
+    else g.recovertime -= 1;
   }
 
   /**

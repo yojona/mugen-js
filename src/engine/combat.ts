@@ -303,6 +303,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.yvel = vel[1] * conv;
     g.yaccel = hd.yaccel * conv;
     g.fall = (inAir ? hd.airFall : hd.fall) || (wasFalling && !hd.forceNoFall) ? 1 : 0;
+    if (g.fall) g.recovertime = d.const('data.liedown.time');
     g['fall.damage'] = hd.fallDamage;
     g['fall.xvel'] = hd.fallXVel === undefined ? Number.NaN : hd.fallXVel * conv;
     g['fall.yvel'] = hd.fallYVel * conv;
