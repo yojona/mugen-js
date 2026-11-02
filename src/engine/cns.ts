@@ -34,8 +34,8 @@ const TRIGGER_RE = /^trigger(all|\d+)$/;
 /**
  * Parse state definitions. If `into` is given, states already present are kept
  * (first definition wins, which is how character states override common1.cns
- * when files are loaded in priority order). Special states -1/-2/-3 instead
- * append their controllers in load order.
+ * when files are loaded in priority order). This applies to the special states
+ * -1/-2/-3 too: MUGEN 1.1 ignores a later [Statedef -2] (measured).
  */
 export function parseStates(text: string, file: string, into: StateMap = new Map()): StateMap {
   const doc = parseIni(text);
@@ -46,14 +46,15 @@ export function parseStates(text: string, file: string, into: StateMap = new Map
     if (sd) {
       const number = parseInt(sd[1]!, 10);
       const existing = into.get(number);
-      if (existing && number >= 0) {
-        // Duplicate statedef: the earlier one (higher priority file) wins.
+      if (existing) {
+        // Duplicate statedef: the earlier one wins, special states included
+        // (measured against MUGEN 1.1 with two [Statedef -2] blocks).
         cur = null;
         skip = true;
         continue;
       }
       skip = false;
-      cur = existing ?? { number, params: paramMap(sec.entries), controllers: [], file, line: sec.line };
+      cur = { number, params: paramMap(sec.entries), controllers: [], file, line: sec.line };
       into.set(number, cur);
       continue;
     }

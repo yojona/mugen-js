@@ -43,19 +43,18 @@ export async function loadProgram(vfs: Vfs, data: CharacterData): Promise<Charac
   const dir = data.dir;
   const states: StateMap = new Map();
   const constDocs = [];
-  // Priority: cmd (state -1), st files in order, then stcommon.
+  // MUGEN 1.1's load order (mugen.log): st files in order, then the cmd's
+  // state entries, then stcommon. The first definition of any state wins,
+  // special states included (measured: a second [Statedef -2] is ignored).
+  // The cns file only provides constants.
   let cmd: CommandSet = { commands: [], names: new Set() };
+  if (f.cns) constDocs.push(parseIni(await vfs.text(f.cns, dir)));
+  for (const st of f.st) parseStates(await vfs.text(st, dir), st, states);
   if (f.cmd) {
     const text = await vfs.text(f.cmd, dir);
     cmd = parseCmd(text);
     parseStates(text, f.cmd, states);
   }
-  if (f.cns) {
-    const text = await vfs.text(f.cns, dir);
-    constDocs.push(parseIni(text));
-    if (!f.st.some((s) => s.toLowerCase() === f.cns!.toLowerCase())) parseStates(text, f.cns, states);
-  }
-  for (const st of f.st) parseStates(await vfs.text(st, dir), st, states);
   if (f.stcommon) parseStates(await vfs.text(f.stcommon, dir, 'data'), f.stcommon, states);
   const quotes: string[] = [];
   for (const doc of constDocs) {
