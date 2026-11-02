@@ -72,21 +72,11 @@ def main():
             except OSError:
                 pass
     print('pid', pid)
-    xdo('key', 'Pause')
-    time.sleep(0.3)
     spans = parse_inputs(INPUTS)
     held = [set(), set()]
-    loc = None
     out = open('/out/mugen-states.log', 'w')
-    for step in range(1, STEPS + 1):
-        if not loc:
-            loc = memread.find(pid)
-        rows = memread.read(pid, loc)
-        clock = 0
-        for side, v, f in rows:
-            out.write(f"S|{step}|{side}|" + ",".join(map(str, v)) + "|" + ",".join(f"{x:.4f}" for x in f) + "\n")
-            if side == 1:
-                clock = v[58]
+
+    def apply_keys(clock):
         # Keys for the next tick (clock + 1), applied as key state changes.
         want = wanted(spans, clock + 1) if clock > 0 else [set(), set()]
         for i in (0, 1):
@@ -95,8 +85,64 @@ def main():
             for k in want[i] - held[i]:
                 xdo('keydown', KEYS[i][k])
             held[i] = set(want[i])
-        xdo('key', 'Scroll_Lock')
-        time.sleep(float(os.environ.get('STEP_DELAY', '0.03')))
+
+    def dump(step, rows):
+        clock = 0
+        for side, v, f in rows:
+            out.write(f"S|{step}|{side}|" + ",".join(map(str, v)) + "|" + ",".join(f"{x:.4f}" for x in f) + "\n")
+            if side == 1:
+                clock = v[58]
+        return clock
+
+    loc = None
+    if not spans:
+        # No input: pause and framestep (exact, independent of speed).
+        xdo('key', 'Pause')
+        time.sleep(0.3)
+        for step in range(1, STEPS + 1):
+            if not loc:
+                loc = memread.find(pid)
+            dump(step, memread.read(pid, loc))
+            xdo('key', 'Scroll_Lock')
+            time.sleep(float(os.environ.get('STEP_DELAY', '0.03')))
+    else:
+        # MUGEN ignores the keyboard while paused, so with input the game runs
+        # slowly (GameSpeed in mugen.cfg) and we follow gametime in memory.
+        last_gt = None
+        missed = 0
+        torn_count = 0
+        step = 0
+        deadline = time.time() + 1200
+        while step < STEPS and time.time() < deadline:
+            if not loc:
+                loc = memread.find(pid)
+                if not loc:
+                    time.sleep(0.01)
+                    continue
+            rows = memread.read(pid, loc)
+            p1 = next((v for side, v, f in rows if side == 1), None)
+            if p1 is None:
+                time.sleep(0.002)
+                continue
+            gt = p1[55]
+            if gt == last_gt:
+                time.sleep(0.002)
+                continue
+            # The frame may still be in progress (P1 updated, P2 not yet):
+            # wait until every player reports the same gametime.
+            settle = time.time() + 0.05
+            while time.time() < settle and any(v[55] != gt for side, v, f in rows):
+                time.sleep(0.001)
+                rows = memread.read(pid, loc)
+            torn = any(v[55] != gt for side, v, f in rows)
+            if torn:
+                torn_count += 1
+            if last_gt is not None and gt != last_gt + 1:
+                missed += gt - last_gt - 1
+            last_gt = gt
+            step += 1
+            apply_keys(dump(step, rows))
+        print('missed ticks', missed, 'torn reads', torn_count)
     out.close()
     subprocess.run(['pkill', '-f', 'mugen.exe']); subprocess.run(['wineserver', '-k'])
     subprocess.run(['cp', 'mugen.log', '/out/mugen.log'])
