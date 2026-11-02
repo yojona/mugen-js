@@ -85,10 +85,10 @@ describe('MUGEN 1.1 reference (KFM probe)', () => {
   }, 60_000);
 
   // CPU vs CPU at other levels (mugen.cfg Difficulty), up to where they match.
-  for (const [lvl, min] of [[2, 1800], [7, 2000]] as const) {
+  for (const [lvl, min] of [[2, 3500], [7, 5400]] as const) {
     it(`matches the original CPU vs CPU at level ${lvl}`, async () => {
       const ref = gunzipSync(readFileSync(join(__dirname, 'reference', `kfm-ai-level${lvl}.mugen.log.gz`))).toString('latin1');
-      const ours = (await runProbe(1400, { char: 'probeai', seed: 937167434, ai: [lvl, lvl] })).join('\n');
+      const ours = (await runProbe(3000, { char: 'probeai', seed: 937167434, ai: [lvl, lvl] })).join('\n');
       const r = compareLogs(ref, ours, 10);
       expect(r.compared).toBeGreaterThan(min);
       expect(r.reports).toEqual([]);
