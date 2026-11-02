@@ -70,8 +70,14 @@ function canHit(a: Player, hd: HitDefData, d: Player): boolean {
   return stanceOk(f, d);
 }
 
+/**
+ * mugen.exe 0x43e4f3: a hit is guarded when the defender's guard flag
+ * (p+0xee8) is up, set by this tick's built-in transitions or a guard state,
+ * whatever state its controllers moved it to since (measured: a CPU holding
+ * guard that starts a jab in the same tick still guards).
+ */
 export function isGuarding(d: Player): boolean {
-  return d.stateNo >= 120 && d.stateNo <= 155;
+  return d.guardFlag;
 }
 
 export interface PendingHit {
