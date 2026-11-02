@@ -319,6 +319,7 @@ export class Player {
     this.stateChanged = true;
     this.changedStateThisTick = true;
     this.pendingStateType = undefined;
+    this.pendingVel = undefined;
     this.applyStatedef(cs);
     if (ctrl !== undefined) this.ctrl = ctrl;
     if (anim !== undefined) this.changeAnim(anim);
@@ -328,6 +329,8 @@ export class Player {
    * runs (measured: a trip into 5070, type A, still shows S next tick).
    */
   pendingStateType: StateType | undefined;
+  /** Statedef velset of a hit state, applied when the state first runs. */
+  pendingVel: { x: number; y: number } | undefined;
 
   /** Statedef *persist flags: what carries over from the previous state. */
   private resetPersist(cs: CompiledState): void {
@@ -527,6 +530,11 @@ export class Player {
     if (this.pendingStateType) {
       this.stateType = this.pendingStateType;
       this.pendingStateType = undefined;
+    }
+    if (this.pendingVel) {
+      this.vel.x = this.pendingVel.x;
+      this.vel.y = this.pendingVel.y;
+      this.pendingVel = undefined;
     }
     if (this.pendingEntry) {
       this.pendingEntry = false;

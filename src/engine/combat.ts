@@ -345,6 +345,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     } else {
       d.returnToOwnStates();
       const oldType = d.stateType;
+      const oldVel = { x: d.vel.x, y: d.vel.y };
       if (override && override.stateNo >= 0) d.changeState(override.stateNo);
       // A grounded defender hit by ground.type = Trip goes to 5070 (HITTRIP).
       else if (!inAir && hd.groundType === 3) d.changeState(5070);
@@ -354,6 +355,13 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
       if (d.stateType !== oldType) {
         d.pendingStateType = d.stateType;
         d.stateType = oldType;
+      }
+      // So does the statedef's velset (measured: a walking P2 hit into 5000
+      // still shows its walk speed that tick).
+      if (d.vel.x !== oldVel.x || d.vel.y !== oldVel.y) {
+        d.pendingVel = { x: d.vel.x, y: d.vel.y };
+        d.vel.x = oldVel.x;
+        d.vel.y = oldVel.y;
       }
     }
     d.moveType = 'h';
