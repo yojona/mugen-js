@@ -439,14 +439,21 @@ export class World {
     const maxX = Math.max(...xs);
     const lo = maxX - half + this.tension;
     const hi = minX + half - this.tension;
-    let cx = this.camera.x;
+    // The previous target is kept (mugen.exe G+0x11f10/14) and only moved
+    // as much as needed: the camera keeps easing towards it even after the
+    // players are back between the tension zones (measured).
+    let cx = this.camTarget ?? this.camera.x;
     if (lo <= hi) cx = Math.min(Math.max(cx, lo), hi); // move the minimum needed
     else cx = (minX + maxX) / 2; // too far apart: centre between them
     // Never push a player off the opposite edge.
     cx = Math.min(cx, minX - this.screenLeft + half);
     cx = Math.max(cx, maxX + this.screenRight - half);
-    return Math.max(this.boundLeft, Math.min(this.boundRight, cx));
+    cx = Math.max(this.boundLeft, Math.min(this.boundRight, cx));
+    this.camTarget = cx;
+    return cx;
   }
+  /** Camera target kept between steps; reset with the camera. */
+  camTarget: number | undefined;
 
   /**
    * One horizontal camera step, as in mugen.exe (0x415ae0): the camera moves
@@ -492,6 +499,7 @@ export class World {
   applyStage(info: import('../stage/stage').StageInfo): void {
     const c = info.camera;
     this.camera = { x: c.startX, y: c.startY };
+    this.camTarget = undefined;
     this.boundLeft = c.boundLeft;
     this.boundRight = c.boundRight;
     this.boundHigh = c.boundHigh;

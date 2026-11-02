@@ -137,6 +137,7 @@ export class Match {
     w.projectiles = [];
     w.helpers = [];
     w.camera.x = 0;
+    w.camTarget = undefined;
     this.clock = this.cfg.roundSeconds < 0 ? -1 : this.cfg.roundSeconds * this.cfg.framesPerCount;
     this.phase = 'wait';
     this.phaseTime = 0;
