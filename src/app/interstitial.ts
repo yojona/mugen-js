@@ -58,8 +58,9 @@ export class VersusScreen implements Screen {
     this.t++;
     this.bg.tick();
     this.fade.tick();
-    // Pressing a button skips ahead.
-    if (!this.fade.fadingOut && (this.t >= this.time || (this.t > 20 && this.ctx.keys.pads[0]!.pressed(BUTTONS | IN_S)))) this.fade.fadeOut();
+    // Pressing a button skips ahead. The screen lasts one frame past `time`
+    // (measured: VS to RoundState 1 takes 196 frames in mugen.exe).
+    if (!this.fade.fadingOut && (this.t > this.time || (this.t > 20 && this.ctx.keys.pads[0]!.pressed(BUTTONS | IN_S)))) this.fade.fadeOut();
     if (this.fade.done) this.result = true;
   }
 
