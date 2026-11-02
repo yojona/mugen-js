@@ -217,7 +217,10 @@ export class World {
     this.clampToScreen();
     this.spawnDust(dustX);
     // AI move recorders, last player first (mugen.exe 0x413d81).
-    for (const p of [...this.players].reverse()) p.recorder?.tick(!this.frozen(p));
+    // The recording clock stands still in hit pause, a tick late like the
+    // pause flag p+0xef8 (measured: KFM's 640 records its last active tick
+    // exactly its 12 pause ticks earlier than counting them).
+    for (const p of [...this.players].reverse()) p.recorder?.tick(!this.frozen(p) && !p.hitPauseLastTick);
     this.updateCamera();
     for (const p of active) {
       recordAfterImage(p.afterImage, p.drawFrame());
