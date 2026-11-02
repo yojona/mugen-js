@@ -24,6 +24,7 @@ export const IN_Y = 256;
 export const IN_Z = 512;
 export const IN_S = 1024;
 const DIR_MASK = IN_U | IN_D | IN_L | IN_R;
+const BUTTON_MASK = IN_A | IN_B | IN_C | IN_X | IN_Y | IN_Z | IN_S;
 const BUTTONS: Record<string, number> = { a: IN_A, b: IN_B, c: IN_C, x: IN_X, y: IN_Y, z: IN_Z, s: IN_S };
 
 /** Relative direction bits used inside commands. */
@@ -149,10 +150,24 @@ export class InputHistory {
     this.count = Math.min(this.count + 1, this.size);
   }
 
-  /** Input `ago` ticks back (0 = current tick). Ticks before the start are 0. */
-  at(ago: number): number {
+  /** Raw input `ago` ticks back (0 = current tick). Ticks before the start are 0. */
+  raw(ago: number): number {
     if (ago >= this.count) return 0;
     return this.buf[(this.head - ago + this.size * 2) % this.size]!;
+  }
+
+  /**
+   * Input as MUGEN's command matcher sees it. Directions are current, but
+   * buttons lag (measured against MUGEN 1.1 with tools/harness): a held button
+   * is seen one tick after it goes down; a one-tick tap two ticks after.
+   *   seen(T) = (raw(T-1) & raw(T)) | (raw(T-2) & ~raw(T-1))
+   */
+  at(ago: number): number {
+    const r0 = this.raw(ago);
+    const r1 = this.raw(ago + 1);
+    const r2 = this.raw(ago + 2);
+    const buttons = ((r1 & r0) | (r2 & ~r1)) & BUTTON_MASK;
+    return (r0 & DIR_MASK) | buttons;
   }
 
   get length(): number {
