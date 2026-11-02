@@ -301,9 +301,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     const inAir = d.stateType === 'a' || !!override?.forceAir;
     // Juggle points: reset on a fresh hit, spent on air hits.
     if (d.moveType !== 'h' || d.stateType !== 'a') d.juggleLeft = d.const('data.airjuggle');
+    else d.juggleLeft -= hd.airJuggle;
     // A fresh combo starts the fall count again.
     if (d.moveType !== 'h') g.fallcount = 0;
-    else d.juggleLeft -= hd.airJuggle;
     const vel = inAir ? hd.airVel : hd.groundVel;
     g.guarded = 0;
     g.damage = dmg;
