@@ -246,11 +246,15 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
     const groundSlideTime = ni('ground.slidetime') ?? 0;
     const groundHitTime = ni('ground.hittime') ?? 0;
     const guardHitTime = ni('guard.hittime') ?? groundHitTime;
-    const guardSlideTime = ni('guard.slidetime') ?? guardHitTime;
+    // The docs say guard.slidetime defaults to guard.hittime, but MUGEN 1.1 uses
+    // ground.slidetime (measured: KFM's jab stops the guard slide at 5, not 11).
+    const guardSlideTime = ni('guard.slidetime') ?? groundSlideTime;
     const guardCtrlTime = ni('guard.ctrltime') ?? guardSlideTime;
     const fall = (ni('fall') ?? 0) !== 0;
-    const getPowerHit = ni('getpower', 0) ?? Math.round(damage * 0.7);
-    const givePowerHit = ni('givepower', 0) ?? Math.round(damage * 0.6);
+    // mugen.cfg LifeToPowerMul (.7 / .6), applied in exact decimal and
+    // truncated: damage 90 -> 63, 57 -> 39 (measured against MUGEN 1.1).
+    const getPowerHit = ni('getpower', 0) ?? Math.trunc((damage * 70) / 100);
+    const givePowerHit = ni('givepower', 0) ?? Math.trunc((damage * 60) / 100);
     const isThrow = attrType[1] === 't';
     const spark = rv('sparkno', 0);
     const gspark = rv('guard.sparkno', 0);
@@ -338,6 +342,7 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
       guardKill: (ni('guard.kill') ?? 1) !== 0,
       fallKill: (ni('fall.kill') ?? 1) !== 0,
       numHits: ni('numhits') ?? 1,
+      // Guard defaults: half the hit value, truncated (damage 23 -> 16/2, 13/2).
       getPower: [getPowerHit, ni('getpower', 1) ?? Math.trunc(getPowerHit / 2)],
       givePower: [givePowerHit, ni('givepower', 1) ?? Math.trunc(givePowerHit / 2)],
     };
