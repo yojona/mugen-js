@@ -79,6 +79,8 @@ export class Player {
   cornerPushVel = 0;
   /** HitDef snap/mindist/maxdist, applied when this player next updates. */
   pendingPlacement: (() => void) | undefined;
+  /** CPU control (MUGEN's AI); undefined for human players. */
+  ai?: import('./ai').MugenAI;
   /** MUGEN's command pipeline (root players; World.tick feeds it every tick). */
   cmdInput?: CommandInput;
 

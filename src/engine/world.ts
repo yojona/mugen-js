@@ -35,6 +35,7 @@ export class World {
   screenWidth = 320;
   /** mugen.cfg GameWidth: MUGEN's internal x units are this / screenWidth per stage unit. */
   gameWidth = 640;
+  private aiRoundFight = false;
   screenHeight = 240;
   /** Screen y of the ground line (stage zoffset). */
   groundY = 200;
@@ -142,14 +143,23 @@ export class World {
     for (const p of active) p.advanceAnim();
     for (const p of active) this.autoTurn(p);
     const dustX = new Map(this.allPlayers().map((p) => [p, this.internalX(p)] as const));
+    // MUGEN's order (main tick 0x4130xx): facing sync and human key events,
+    // then the CPU AI pass, then every player's input processing.
     this.players.forEach((p, i) => {
-      const raw = this.inputLocked ? 0 : (inputs[i] ?? 0);
+      const raw = this.inputLocked || p.ai ? 0 : (inputs[i] ?? 0);
       p.input.push(raw);
-      // Every player's input is processed each tick, frozen or in hit pause.
       p.cmdInput ??= new CommandInput(p.prog.cmd);
-      p.cmdInput.tick(raw, p.facing, this.gameTime, this.frozen(p));
-      p.commands = p.cmdInput.active();
+      p.cmdInput.ingest(raw, p.facing, !p.ai);
     });
+    // The AI pass sees the RoundState of the previous tick (measured: it does
+    // not act on the first tick of RoundState 2).
+    if (!this.pause && !this.superPause) for (const p of this.players) p.ai?.tick(this.aiRoundFight);
+    this.aiRoundFight = this.roundState === 2;
+    for (const p of this.players) {
+      // Every player's input is processed each tick, frozen or in hit pause.
+      p.cmdInput!.update(this.gameTime, this.frozen(p), p.ai?.cmds);
+      p.commands = p.cmdInput!.active();
+    }
     // Built-in transitions for everyone first, then each player runs its
     // states and moves before the next one (both measured against MUGEN 1.1).
     for (const p of active) p.startOfTick();
