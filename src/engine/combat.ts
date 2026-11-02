@@ -269,7 +269,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.fall = 0;
     g.hitshaketime = hd.guardPause[1];
     // An air guard has no hit time: HitOver is 1 at once (measured: 154).
-    g.hittime = airborne ? 0 : hd.guardHitTime;
+    g.hittime = airborne ? -1 : hd.guardHitTime;
     g.slidetime = hd.guardSlideTime;
     g.ctrltime = airborne ? hd.airGuardCtrlTime : hd.guardCtrlTime;
     g.xvel = (airborne ? hd.airGuardVel[0] : hd.guardVel) * xdir * conv;
@@ -412,7 +412,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
   a.sprPriority = hd.p1SprPriority;
   if (hd.p1GetP2Facing) a.facing = hd.p1GetP2Facing > 0 ? d.facing : -d.facing;
   else if (hd.p1Facing === -1) a.facing = -a.facing;
-  if (!guarded && hd.p1StateNo >= 0) a.changeState(hd.p1StateNo);
+  // p1stateno: the statedef applies when the state first runs (measured: a
+  // KFM throw keeps anim 800 and its MoveContact on the hit tick).
+  if (!guarded && hd.p1StateNo >= 0) a.enterLater(hd.p1StateNo);
 }
 
 /**

@@ -541,13 +541,16 @@ export class Player {
    * applied when the state runs later this tick (special states still see
    * the old statetype).
    */
-  private enterLater(no: number): void {
+  enterLater(no: number): void {
     if (!this.compiledState(no)) return;
     this.prevStateNo = this.stateNo;
     this.stateNo = no;
     this.time = 0;
     this.persist.clear();
     this.pendingEntry = true;
+    // Entered from outside controller processing (a hit's p1stateno): Time
+    // stays 0 until the state first runs, as with changeState.
+    if (!this.inStates) this.freshState = true;
   }
   private pendingEntry = false;
 
@@ -857,16 +860,17 @@ export class Player {
     const fresh = this.hitPauseFresh;
     this.hitPauseFresh = false;
     const g = this.ghv;
+    // The hit time counts down from the tick the shake ends, down to -1
+    // (HitOver is hittime < 0, mugen.exe 0x4574d8), and keeps running out
+    // after control returns (measured: a guard hit's HitOver turns 1 three
+    // ticks into the jump that ended it; a throw with hittime 0 is not over
+    // during its shake).
     if (g.hitshaketime > 0) {
       // Like the attacker's pause, the shake starts counting next tick.
       if (this.shakeFresh) this.shakeFresh = false;
       else g.hitshaketime--;
     }
-    else {
-      // The hit time runs out even after control returns (measured: a guard
-      // hit's HitOver turns 1 three ticks into the jump that ended it).
-      if (g.hittime > 0) g.hittime--;
-    }
+    if (g.hitshaketime <= 0 && !this.shakeFresh && g.hittime >= 0) g.hittime--;
     // fall.recovertime also counts down during the hit shake (measured: a
     // CPU recovers from 5050 one tick earlier than counting after it).
     if (this.moveType === 'h' && g['fall.recovertime'] > 0) g['fall.recovertime']--;

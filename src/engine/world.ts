@@ -211,6 +211,10 @@ export class World {
     const order = [...active.filter((p) => p.moveType === 'a'), ...active.filter((p) => p.moveType !== 'a')];
     for (const p of order) {
       p.changedStateThisTick = false;
+      // A bound player is moved at the start of its own update (mugen.exe
+      // 0x43c480 -> 0x4349b0; measured: a thrown P2 already shows the
+      // TargetBind position its thrower set this tick).
+      this.placeBound(p);
       p.runStates();
       if (this.inputLocked && !p.isHelper) p.ctrl = false;
       p.physicsStep();
@@ -301,18 +305,22 @@ export class World {
   }
 
   /** TargetBind / BindToTarget position locks. */
+  /** End of tick: frozen players still follow their binds; bind times run out. */
   private applyBinds(): void {
     for (const p of this.allPlayers()) {
       const b = p.bind;
       if (!b) continue;
-      if (b.time === 0) {
-        p.bind = undefined;
-        continue;
-      }
-      // Bind offsets are stored in world units.
-      p.setWorldPos(b.to.wx + b.offset[0], b.to.wy + b.offset[1]);
-      if (b.time > 0 && --b.time === 0) p.bind = undefined;
+      if (this.frozen(p)) this.placeBound(p);
+      // The bind (and GetHitVar(isbound)) lasts the whole tick.
+      if (b.time === 0 || (b.time > 0 && --b.time === 0)) p.bind = undefined;
     }
+  }
+
+  private placeBound(p: Player): void {
+    const b = p.bind;
+    if (!b || b.time === 0) return;
+    // Bind offsets are stored in world units.
+    p.setWorldPos(b.to.wx + b.offset[0], b.to.wy + b.offset[1]);
   }
 
   /** Player x in MUGEN's internal (GameWidth-based) units, truncated. */

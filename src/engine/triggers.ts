@@ -68,7 +68,8 @@ const NULLARY: Record<string, Fn<P>> = {
   moveguarded: int((p) => p.moveGuarded),
   movereversed: int(() => 0),
   hitshakeover: int((p) => (p.ghv.hitshaketime <= 0 ? 1 : 0)),
-  hitover: int((p) => (p.ghv.hittime <= 0 ? 1 : 0)),
+  // mugen.exe 0x4574d8: hittime < 0.
+  hitover: int((p) => (p.ghv.hittime < 0 ? 1 : 0)),
   hitfall: int((p) => p.ghv.fall),
   hitpausetime: int((p) => p.hitPause),
   canrecover: int((p) => (p.ghv.fall && p.ghv['fall.recover'] && p.ghv['fall.recovertime'] <= 0 ? 1 : 0)),
