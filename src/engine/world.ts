@@ -208,7 +208,10 @@ export class World {
     }
     // Built-in transitions for everyone first, then each player runs its
     // states and moves before the next one (both measured against MUGEN 1.1).
-    for (const p of active) p.startOfTick();
+    // They are part of input processing, so a player frozen by a SuperPause
+    // still takes them (measured: the CPU's jump input during the pause
+    // enters 40 twice, prevstateno 40).
+    for (const p of this.allPlayers()) p.startOfTick();
     // Attacking players update first (measured: an opponent's P2Dist already
     // sees an attacking P2's movement of this tick).
     const order = [...active.filter((p) => p.moveType === 'a'), ...active.filter((p) => p.moveType !== 'a')];
