@@ -463,6 +463,11 @@ export class Player {
       for (const special of [...sp, this.stateNo]) this.runState(special);
       return;
     }
+    // Built-in transitions (walk, crouch, stand up, jump, guard...) happen at
+    // the start of the tick with this tick's input; the new state shows
+    // Time = 0 and its statedef is applied when it runs below (measured with
+    // tools/harness keyboard scripts).
+    this.engineTransitions();
     // Helpers skip -3/-2, and -1 unless they read input (cns.html).
     const specials = this.isHelper ? (this.keyCtrl ? [-1] : []) : [-3, -2, -1];
     let changed = false;
@@ -476,16 +481,12 @@ export class Player {
     // current state runs (measured: 5110 Time = 60 is visible in -2).
     if (!changed) this.engineHitTransitions();
     this.runCurrent();
-    // MUGEN applies its built-in transitions after the current state has run
-    // (measured with tools/harness: crouch 11 -> 12 shows Time = 0 and the old
-    // statetype on the next tick).
-    void changed;
-    this.engineTransitions();
   }
 
   /**
-   * Built-in transitions: the state number changes now, but the statedef is
-   * applied (and its controllers run) on the next tick, starting at Time = 0.
+   * Built-in transitions: the state number changes now; the statedef is
+   * applied when the state runs later this tick (special states still see
+   * the old statetype).
    */
   private enterLater(no: number): void {
     if (!this.compiledState(no)) return;
@@ -494,7 +495,6 @@ export class Player {
     this.time = 0;
     this.persist.clear();
     this.pendingEntry = true;
-    this.freshState = true;
   }
   private pendingEntry = false;
 
