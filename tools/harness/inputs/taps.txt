@@ -1,0 +1,13 @@
+# Button tap timing next to direction changes (P1 jab = x, standing).
+# The tap's registration tick shows up as the tick P1 enters state 200.
+
+100       1  x      ; A: tap alone
+160-162   1  r      ; B: tap while forward is held, both released together
+162       1  x
+230-236   1  r      ; C: tap while forward stays held
+232       1  x
+300       1  rx     ; D: tap pressed together with forward, forward held on
+300-304   1  r
+370-371   1  l      ; E: tap while back is held, both released together
+371       1  x
+440       1  y      ; F: tap alone again (strong punch)

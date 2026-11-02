@@ -39,6 +39,8 @@ describe('MUGEN 1.1 reference (KFM probe)', () => {
   // Keyboard scenarios (tools/harness/inputs/*.txt), captured with MUGEN
   // running slowly while the harness types the keys.
   for (const [name, ticks, min] of [
+    ['basic', 1200, 1600],
+    ['taps', 700, 1000],
     ['slide', 700, 700],
     ['slide2', 700, 600],
   ] as const) {
