@@ -3,7 +3,7 @@
 import { CommandInput } from './cmd';
 import type { AnimationMap } from '../formats/air';
 import type { Sff } from '../formats/sff';
-import { applyHits, detectHits, detectProjectileHits } from './combat';
+import { applyHits, detectHits, detectProjectileHits, clsn2Overlap } from './combat';
 import { simpleExplod, updateExplod, type Explod } from './explod';
 import { updateProjectile, type Projectile } from './projectile';
 import { newPalFx, recordAfterImage, tickPalFx, type EnvShake, type PalFxState } from './fx';
@@ -272,6 +272,9 @@ export class World {
         const a = ps[i]!;
         const b = ps[j]!;
         if (a.side === b.side || !a.pushEnabled || !b.pushEnabled || a.bind || b.bind) continue;
+        // Push needs touching Clsn2 boxes first (mugen.exe 0x43de40), then the
+        // size-based check below.
+        if (!clsn2Overlap(a, b)) continue;
         // Vertical overlap of the two bodies (height from [Size]).
         if (a.wy - a.const('size.height') * a.scale >= b.wy || b.wy - b.const('size.height') * b.scale >= a.wy) continue;
         const dir = b.wx >= a.wx ? 1 : -1;

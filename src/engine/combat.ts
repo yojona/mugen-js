@@ -31,6 +31,11 @@ function worldBoxes(p: Player, boxes: Clsn[] | null): Box[] {
   });
 }
 
+/** Do the players' current Clsn2 boxes touch? MUGEN only pushes them apart if so. */
+export function clsn2Overlap(a: Player, b: Player): boolean {
+  return overlap(worldBoxes(a, a.anim.current?.clsn2 ?? null), worldBoxes(b, b.anim.current?.clsn2 ?? null));
+}
+
 function overlap(a: Box[], b: Box[]): boolean {
   for (const x of a) for (const y of b) if (x.x1 <= y.x2 && y.x1 <= x.x2 && x.y1 <= y.y2 && y.y1 <= x.y2) return true;
   return false;
