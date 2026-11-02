@@ -301,7 +301,10 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     // Damage lands on the following tick (measured against MUGEN 1.1).
     d.pendingDamage = { amount: dmg, kill: hd.kill, delay: 1 };
     d.shakeFresh = true;
-    if (d.stateType === 'c' && hd.forceStand) d.stateType = 's';
+    // A crouching defender stands for a forcestand HitDef or a killing hit
+    // (mugen.exe 0x43f1bb: the kill flag also selects 5000 over 5010).
+    const killsNow = hd.kill && d.life - dmg <= 0;
+    if (d.stateType === 'c' && (hd.forceStand || killsNow)) d.stateType = 's';
     const wasFalling = d.moveType === 'h' && g.fall !== 0;
     const override = d.hitOverrides.find((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType) && hd.p1StateNo < 0 && !(hd.p2StateNo >= 0 && hd.p2GetP1State));
     const inAir = d.stateType === 'a' || !!override?.forceAir;
