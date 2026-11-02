@@ -1,0 +1,6 @@
+# Camera experiments (probein vs probein).
+# P2 walks back alone into the tension zone (velocity-driven camera), then
+# P1 walks in and pushes P2 (push-driven camera).
+
+40-120    2  r      ; P2 walks back to the right edge
+140-280   1  r      ; P1 walks in and keeps pushing P2

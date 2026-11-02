@@ -25,4 +25,14 @@ describe('MUGEN 1.1 reference (KFM probe)', () => {
     expect(r.compared).toBeGreaterThan(2000);
     expect(r.reports).toEqual([]);
   }, 60_000);
+
+  it('matches the original camera: tension, centring, pushing and the stage bound', async () => {
+    // Scripted probecam scenario (overlay/chars/probe/camscript.st): exercises
+    // the eased camera (0.05 of the distance + 0.1, three steps per tick).
+    const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kfm-camera.mugen.log.gz'))).toString('latin1');
+    const ours = (await runProbe(470, { char: 'probecam' })).join('\n');
+    const r = compareLogs(ref, ours, 10);
+    expect(r.compared).toBeGreaterThan(600);
+    expect(r.reports).toEqual([]);
+  }, 60_000);
 });
