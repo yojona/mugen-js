@@ -165,3 +165,31 @@ describe('camera', () => {
     for (let i = 1; i < xs.length; i++) expect(xs[i]!).toBeGreaterThanOrEqual(xs[i - 1]! - 1e-6);
   });
 });
+
+describe('content fixes', () => {
+  it('kfm720 no longer gets stuck mid-air after a knock-down', async () => {
+    const { withContentFixes } = await import('../src/engine/content-fixes');
+    const fixed = new Vfs(withContentFixes(nodeSource(join(__dirname, '..', 'ref', 'mugen-1.1b1'))));
+    const hd = await loadProgram(fixed, await loadCharacter(fixed, 'chars/kfm720/kfm720.def'));
+    const w = new World();
+    const a = new Player(prog, w, 0);
+    const b = new Player(hd, w, 1);
+    w.players.push(a, b);
+    a.setWorldPos(-25);
+    b.setWorldPos(25);
+    b.facing = -1;
+    a.changeState(0);
+    b.changeState(0);
+    // Kung Fu Palm (QCF + x) knocks kfm720 down.
+    for (const bits of [2, 2 | 8, 8, 8 | 128]) w.tick([bits, 0]);
+    const seen = new Set<number>();
+    for (let i = 0; i < 300; i++) {
+      w.tick([0, 0]);
+      seen.add(b.stateNo);
+    }
+    expect(seen.has(5101)).toBe(true);
+    expect(seen.has(5110)).toBe(true); // reached the ground instead of hovering in 5101
+    expect(b.stateNo).toBe(0);
+    expect(b.pos.y).toBe(0);
+  });
+});
