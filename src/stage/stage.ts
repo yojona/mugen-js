@@ -5,7 +5,7 @@ import { AnimPlayer } from '../engine/anim';
 import { dirname, type Vfs } from '../engine/vfs';
 import { parseAir, parseBlend, type AnimationMap, type Blend } from '../formats/air';
 import { parseSff, type Sff } from '../formats/sff';
-import { findSection, getValue, parseIni, splitCsv, unquote, type Section } from '../formats/text';
+import { findSection, getValue, parseIni, splitCsv, unquote, type IniDoc, type Section } from '../formats/text';
 
 const nums = (v: string | undefined, d: number[]): number[] => {
   if (v === undefined) return d;
@@ -95,12 +95,8 @@ export interface BgCtrlDef {
   ctrls: BgCtrl[];
 }
 
-export interface Stage {
+export interface Stage extends Background {
   info: StageInfo;
-  sff: Sff;
-  anims: AnimationMap;
-  elements: BgElementDef[];
-  ctrlDefs: BgCtrlDef[];
 }
 
 export async function loadStage(vfs: Vfs, defPath: string): Promise<Stage> {
@@ -165,19 +161,33 @@ export async function loadStage(vfs: Vfs, defPath: string): Promise<Stage> {
   const sff = await parseSff(await vfs.read(sprFile ?? '', dir, 'stages'));
   // [Begin Action n] blocks may live anywhere in the stage file.
   const anims = parseAir(text);
+  const { elements, ctrlDefs } = parseBackground(doc, bgdef, 'bg');
+  return { info: stageInfo, sff, anims, elements, ctrlDefs };
+}
 
+/**
+ * Parse background elements and controllers following `bgdef`. `prefix` is
+ * "bg" for stages, "titlebg" / "selectbg" / ... for motif screens and
+ * storyboard layers.
+ */
+export function parseBackground(doc: IniDoc, bgdef: Section | undefined, prefix: string): { elements: BgElementDef[]; ctrlDefs: BgCtrlDef[] } {
+  prefix = prefix.toLowerCase();
   const elements: BgElementDef[] = [];
   const ctrlDefs: BgCtrlDef[] = [];
   let curCtrlDef: BgCtrlDef | undefined;
-  const bgIndex = doc.sections.indexOf(bgdef!);
+  const bgIndex = bgdef ? doc.sections.indexOf(bgdef) : -1;
+  if (bgIndex < 0) return { elements, ctrlDefs };
+  const g = (sec: Section | undefined, k: string) => getValue(sec, k);
   for (const sec of doc.sections.slice(bgIndex + 1)) {
     const lname = sec.name.toLowerCase();
-    if (lname.startsWith('bgctrldef')) {
+    // A new *BGdef / *Def section ends this background.
+    if (/def$/.test(lname) && !lname.startsWith(`${prefix}ctrldef`)) break;
+    if (lname.startsWith(`${prefix}ctrldef`)) {
       curCtrlDef = { looptime: num(g(sec, 'looptime'), -1), ids: idList(g(sec, 'ctrlid')), ctrls: [] };
       ctrlDefs.push(curCtrlDef);
       continue;
     }
-    if (lname.startsWith('bgctrl')) {
+    if (lname.startsWith(`${prefix}ctrl`)) {
       if (!curCtrlDef) continue;
       const params = new Map(sec.entries.map((e) => [e.key, e.value]));
       const time = nums(params.get('time'), [0, -1, -1]);
@@ -191,7 +201,7 @@ export async function loadStage(vfs: Vfs, defPath: string): Promise<Stage> {
       });
       continue;
     }
-    if (!lname.startsWith('bg ') && lname !== 'bg') continue;
+    if (!lname.startsWith(`${prefix} `) && lname !== prefix) continue;
     const v = (k: string) => g(sec, k);
     const type = (v('type') ?? 'normal').toLowerCase() as BgType;
     const trans = v('trans')?.toLowerCase();
@@ -229,7 +239,7 @@ export async function loadStage(vfs: Vfs, defPath: string): Promise<Stage> {
       yscaleDelta: num(v('yscaledelta'), 0),
     });
   }
-  return { info: stageInfo, sff, anims, elements, ctrlDefs };
+  return { elements, ctrlDefs };
 }
 
 function idList(v: string | undefined): number[] | null {
@@ -252,12 +262,20 @@ export interface BgElementState {
   anim: AnimPlayer | undefined;
 }
 
+/** Anything with background elements: a stage, a motif screen, a storyboard layer. */
+export interface Background {
+  sff: Sff;
+  anims: AnimationMap;
+  elements: BgElementDef[];
+  ctrlDefs: BgCtrlDef[];
+}
+
 export class StageRuntime {
   elements: BgElementState[];
   time = 0;
   private ctrlTimers: number[];
 
-  constructor(readonly stage: Stage) {
+  constructor(readonly stage: Background) {
     this.elements = stage.elements.map((def) => this.makeState(def));
     this.ctrlTimers = stage.ctrlDefs.map(() => 0);
   }
@@ -313,7 +331,7 @@ function sinValue(s: [number, number, number], t: number): number {
   return s[0] * Math.sin(((t + s[2] / 360 * s[1]) * 2 * Math.PI) / s[1]);
 }
 
-function applyBgCtrl(c: BgCtrl, targets: BgElementState[], stage: Stage): void {
+function applyBgCtrl(c: BgCtrl, targets: BgElementState[], stage: Background): void {
   const p = (k: string) => c.params.get(k);
   const n = (k: string, i = 0) => {
     const v = p(k);

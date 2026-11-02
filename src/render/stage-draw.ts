@@ -30,11 +30,19 @@ export function drawStageLayer(r: Renderer, rt: StageRuntime, cam: { x: number; 
     } else sprite = sff.get(d.spriteNo[0], d.spriteNo[1]);
     if (!sprite) continue;
     const palette = sprite.palette >= 0 ? sff.palettes[sprite.palette] : undefined;
+    // Masking window (screen coordinates), moved by windowdelta with the camera.
+    const win = d.window;
+    if (win) {
+      const wx = cam.x * d.windowDelta[0];
+      const wy = cam.y * d.windowDelta[1];
+      r.setClip([win[0] - wx, win[1] - wy, win[2] - wx + 1, win[3] - wy + 1]);
+    }
     const x = pos[0] + ox;
     const y = pos[1] + oy + shakeY;
 
     if (d.type === 'parallax') {
       drawParallax(r, sprite, palette, d, cam, x, y, screenW, blend);
+      if (win) r.setClip(undefined);
       continue;
     }
 
@@ -57,6 +65,7 @@ export function drawStageLayer(r: Renderer, rt: StageRuntime, cam: { x: number; 
         r.draw({ sprite, palette, x: x + tx * stepX, y: y + ty * stepY, scaleX: flipH ? -1 : 1, scaleY: flipV ? -1 : 1, blend, mask: d.mask });
       }
     }
+    if (win) r.setClip(undefined);
   }
 }
 

@@ -143,6 +143,12 @@ export class Renderer {
     this.dummyRgba = this.texture(gl.RGBA8, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
   }
 
+  /** Change the logical coordinate space without resizing the canvas. */
+  setProjection(width: number, height: number): void {
+    this.width = width;
+    this.height = height;
+  }
+
   resize(width: number, height: number, zoom: number): void {
     this.width = width;
     this.height = height;
