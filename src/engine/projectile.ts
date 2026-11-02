@@ -79,15 +79,18 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
       p.warn(`Projectile: animación ${animNo} no existe`);
       return;
     }
-    const off = pair(p, 'offset', [0, 0]);
+    // Projectiles live in world units; parameters are in the owner's units.
+    const k = p.scale;
+    const off = pair(p, 'offset', [0, 0]).map((v) => v * k) as [number, number];
+    const kp = (v: [number, number]): [number, number] => [v[0] * k, v[1] * k];
     const postype = (c.params.get('postype') ?? 'p1').trim().toLowerCase();
-    let x = p.pos.x + off[0] * p.facing;
-    const y = p.pos.y + off[1];
+    let x = p.wx + off[0] * p.facing;
+    const y = p.wy + off[1];
     const left = w.camera.x - w.screenWidth / 2;
     const right = w.camera.x + w.screenWidth / 2;
     if (postype === 'p2') {
       const e = w.enemyOf(p);
-      if (e) x = e.pos.x + off[0] * p.facing;
+      if (e) x = e.wx + off[0] * p.facing;
     } else if (postype === 'front') x = (p.facing > 0 ? right : left) + off[0] * p.facing;
     else if (postype === 'back') x = (p.facing > 0 ? left : right) + off[0] * p.facing;
     else if (postype === 'left') x = left + off[0] * p.facing;
@@ -106,11 +109,11 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
       x,
       y,
       facing: p.facing,
-      vel: pair(p, 'velocity', [0, 0]),
-      remVel: pair(p, 'remvelocity', [0, 0]),
-      accel: pair(p, 'accel', [0, 0]),
+      vel: kp(pair(p, 'velocity', [0, 0])),
+      remVel: kp(pair(p, 'remvelocity', [0, 0])),
+      accel: kp(pair(p, 'accel', [0, 0])),
       velMul: pair(p, 'velmul', [1, 1]),
-      scale: doScale ? [ps[0] * p.const('size.xscale'), ps[1] * p.const('size.yscale')] : ps,
+      scale: (doScale ? [ps[0] * p.const('size.xscale') * k, ps[1] * p.const('size.yscale') * k] : [ps[0] * k, ps[1] * k]) as [number, number],
       removeOnHit: (int(p, 'projremove') ?? 1) !== 0,
       removeTime: int(p, 'projremovetime') ?? -1,
       hitsLeft: int(p, 'projhits') ?? 1,
@@ -118,9 +121,9 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
       missTimer: 0,
       priority: int(p, 'projpriority') ?? 1,
       sprPriority: int(p, 'projsprpriority') ?? 3,
-      edgeBound: int(p, 'projedgebound') ?? Math.trunc(40 * local),
-      stageBound: int(p, 'projstagebound') ?? Math.trunc(40 * local),
-      heightBound: [int(p, 'projheightbound', 0) ?? Math.trunc(-240 * local), int(p, 'projheightbound', 1) ?? Math.trunc(1 * local)],
+      edgeBound: (int(p, 'projedgebound') ?? Math.trunc(40 * local)) * k,
+      stageBound: (int(p, 'projstagebound') ?? Math.trunc(40 * local)) * k,
+      heightBound: [(int(p, 'projheightbound', 0) ?? Math.trunc(-240 * local)) * k, (int(p, 'projheightbound', 1) ?? Math.trunc(1 * local)) * k],
       hd: hdBuild(p),
       phase: 'active',
       age: 0,

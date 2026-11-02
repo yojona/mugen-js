@@ -25,6 +25,8 @@ interface PauseState {
 
 export class World {
   players: Player[] = [];
+  /** Stage localcoord width: the world's coordinate unit. */
+  localWidth = 320;
   gameTime = 0;
   roundState = 2; // 2 = fighting
   roundNo = 1;
@@ -87,17 +89,17 @@ export class World {
     let best: Player | undefined;
     for (const q of this.players) {
       if (q.side === p.side) continue;
-      if (!best || Math.abs(q.pos.x - p.pos.x) < Math.abs(best.pos.x - p.pos.x)) best = q;
+      if (!best || Math.abs(q.wx - p.wx) < Math.abs(best.wx - p.wx)) best = q;
     }
     return best;
   }
 
-  /** Distance from the player to the front (or back) screen edge. */
+  /** Distance from the player to the front (or back) screen edge, in the player's units. */
   edgeDist(p: Player, front: boolean): number {
     const left = this.camera.x - this.screenWidth / 2;
     const right = this.camera.x + this.screenWidth / 2;
     const towardRight = (p.facing > 0) === front;
-    return towardRight ? right - p.pos.x : p.pos.x - left;
+    return (towardRight ? right - p.wx : p.wx - left) / p.scale;
   }
 
   /** Pause / SuperPause controllers. */
@@ -204,20 +206,21 @@ export class World {
         p.bind = undefined;
         continue;
       }
-      p.pos.x = b.to.pos.x + b.offset[0];
-      p.pos.y = b.to.pos.y + b.offset[1];
+      // Bind offsets are stored in world units.
+      p.setWorldPos(b.to.wx + b.offset[0], b.to.wy + b.offset[1]);
       if (b.time > 0 && --b.time === 0) p.bind = undefined;
     }
   }
 
   /** Hit spark at the defender's front edge, facing the attacker (sctrls.html sparkxy). */
-  spawnSpark(a: Player, d: Player, ref: SparkRef, xy: [number, number], src: { x: number; y: number } = a.pos): void {
+  /** `xy` and `src` are in world units. */
+  spawnSpark(a: Player, d: Player, ref: SparkRef, xy: [number, number], src: { x: number; y: number } = { x: a.wx, y: a.wy }): void {
     const anims = ref.own ? a.prog.data.anims : this.fightFx?.anims;
     const anim = anims?.get(ref.action);
     if (!anim) return;
-    const dirToA = src.x >= d.pos.x ? 1 : -1;
-    const width = dirToA === d.facing ? d.const('size.ground.front') : d.const('size.ground.back');
-    const x = d.pos.x + dirToA * width + dirToA * xy[0];
+    const dirToA = src.x >= d.wx ? 1 : -1;
+    const width = (dirToA === d.facing ? d.const('size.ground.front') : d.const('size.ground.back')) * d.scale;
+    const x = d.wx + dirToA * width + dirToA * xy[0];
     const y = src.y + xy[1];
     const e = simpleExplod(a, anim, !ref.own, x, y, 9, -dirToA);
     e.removeTime = -2;
@@ -232,7 +235,7 @@ export class World {
   private autoTurn(p: Player): void {
     const e = this.enemyOf(p);
     if (!e || !p.ctrl || p.moveType !== 'i' || p.hitPause > 0 || p.special.has('noautoturn')) return;
-    if ((e.pos.x - p.pos.x) * p.facing >= 0) return;
+    if ((e.wx - p.wx) * p.facing >= 0) return;
     if (p.stateType === 's' && (p.stateNo === 0 || p.stateNo === 20)) {
       p.facing = -p.facing;
       if (p.hasAnim(5)) p.changeAnim(5);
@@ -251,16 +254,16 @@ export class World {
         const b = ps[j]!;
         if (a.side === b.side || !a.pushEnabled || !b.pushEnabled || a.bind || b.bind) continue;
         // Vertical overlap of the two bodies (height from [Size]).
-        if (a.pos.y - a.const('size.height') >= b.pos.y || b.pos.y - b.const('size.height') >= a.pos.y) continue;
-        const dir = b.pos.x >= a.pos.x ? 1 : -1;
-        const aw = a.bodyWidth(dir === a.facing ? 'front' : 'back', 'player');
-        const bw = b.bodyWidth(-dir === b.facing ? 'front' : 'back', 'player');
-        const dist = Math.abs(b.pos.x - a.pos.x);
+        if (a.wy - a.const('size.height') * a.scale >= b.wy || b.wy - b.const('size.height') * b.scale >= a.wy) continue;
+        const dir = b.wx >= a.wx ? 1 : -1;
+        const aw = a.bodyWidth(dir === a.facing ? 'front' : 'back', 'player') * a.scale;
+        const bw = b.bodyWidth(-dir === b.facing ? 'front' : 'back', 'player') * b.scale;
+        const dist = Math.abs(b.wx - a.wx);
         const min = aw + bw;
         if (dist >= min) continue;
         const overlap = (min - dist) / 2;
-        a.pos.x -= overlap * dir;
-        b.pos.x += overlap * dir;
+        a.setWorldPos(a.wx - overlap * dir);
+        b.setWorldPos(b.wx + overlap * dir);
       }
     }
   }
@@ -269,13 +272,14 @@ export class World {
     const left = this.camera.x - this.screenWidth / 2;
     const right = this.camera.x + this.screenWidth / 2;
     for (const p of this.players) {
-      p.pos.x = Math.max(this.leftBound, Math.min(this.rightBound, p.pos.x));
-      if (!p.screenBound) continue;
-      // Stage [Bound] screenleft/right, unless the Width controller sets an edge width.
-      const leftDist = p.width.edge ? p.bodyWidth(p.facing > 0 ? 'back' : 'front', 'edge') : this.screenLeft;
-      const rightDist = p.width.edge ? p.bodyWidth(p.facing > 0 ? 'front' : 'back', 'edge') : this.screenRight;
-      if (p.pos.x < left + leftDist) p.pos.x = left + leftDist;
-      if (p.pos.x > right - rightDist) p.pos.x = right - rightDist;
+      let x = Math.max(this.leftBound, Math.min(this.rightBound, p.wx));
+      if (p.screenBound) {
+        // Stage [Bound] screenleft/right, unless the Width controller sets an edge width.
+        const leftDist = p.width.edge ? p.bodyWidth(p.facing > 0 ? 'back' : 'front', 'edge') * p.scale : this.screenLeft;
+        const rightDist = p.width.edge ? p.bodyWidth(p.facing > 0 ? 'front' : 'back', 'edge') * p.scale : this.screenRight;
+        x = Math.max(left + leftDist, Math.min(right - rightDist, x));
+      }
+      if (x !== p.wx) p.setWorldPos(x);
     }
   }
 
@@ -288,7 +292,7 @@ export class World {
     const ps = this.players.filter((p) => p.moveCamera[0]);
     if (ps.length) {
       const half = this.screenWidth / 2;
-      const xs = ps.map((p) => p.pos.x);
+      const xs = ps.map((p) => p.wx);
       const minX = Math.min(...xs);
       const maxX = Math.max(...xs);
       let cx = this.camera.x;
@@ -303,7 +307,7 @@ export class World {
     }
     const vs = this.players.filter((p) => p.moveCamera[1] || p.moveCamera[0]);
     if (vs.length) {
-      const highest = Math.min(...vs.map((p) => p.pos.y));
+      const highest = Math.min(...vs.map((p) => p.wy));
       const target = highest < -this.floorTension ? (highest + this.floorTension) * this.verticalFollow : 0;
       this.camera.y = Math.max(this.boundHigh, Math.min(this.boundLow, target));
     }
@@ -325,6 +329,7 @@ export class World {
     this.screenLeft = info.screenLeft;
     this.screenRight = info.screenRight;
     this.groundY = info.zoffset;
+    this.localWidth = info.localCoord[0];
     this.screenWidth = info.localCoord[0];
     this.screenHeight = info.localCoord[1];
     this.shadow = info.shadow;

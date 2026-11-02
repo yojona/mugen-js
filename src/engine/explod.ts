@@ -37,6 +37,8 @@ export interface Explod {
   removeOnGetHit: boolean;
   ignoreHitPause: boolean;
   trans: Blend | undefined;
+  /** Sprite scale: the owner's unit scale (own files) or the fightfx scale. */
+  drawScale: number;
   /** Set when created during a SuperPause/Pause: ticks it may still animate. */
   superMoveTime: number;
   pauseMoveTime: number;
@@ -99,7 +101,9 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
       return;
     }
     const posType = (prm.raw('postype') ?? (legacy(p) && !prm.has('space') ? 'p1' : 'none')).toLowerCase();
-    const off: [number, number] = [prm.num(p, 'pos', 0) ?? 0, prm.num(p, 'pos', 1) ?? 0];
+    // Explods live in world units; parameters are in the owner's units.
+    const k = p.scale;
+    const off: [number, number] = [(prm.num(p, 'pos', 0) ?? 0) * k, (prm.num(p, 'pos', 1) ?? 0) * k];
     const rnd: [number, number] = [prm.int(p, 'random', 0) ?? 0, prm.int(p, 'random', 1) ?? 0];
     if (rnd[0]) off[0] += p.world.random(rnd[0]) - Math.floor(rnd[0] / 2);
     if (rnd[1]) off[1] += p.world.random(rnd[1]) - Math.floor(rnd[1] / 2);
@@ -114,8 +118,8 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
       case 'p1':
       case 'p2': {
         const ref = posType === 'p1' ? p : (w.enemyOf(p) ?? p);
-        x = ref.pos.x + off[0] * ref.facing;
-        y = ref.pos.y + off[1];
+        x = ref.wx + off[0] * ref.facing;
+        y = ref.wy + off[1];
         facing *= ref.facing;
         if (prm.has('bindtime')) bindTo = ref;
         space = 'stage';
@@ -137,8 +141,8 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
       default:
         if (space === 'stage' && bindId !== -2) {
           bindTo = bindId === -1 ? p : (w.allPlayers().find((q) => q.id === bindId) ?? p);
-          x = bindTo.pos.x + off[0];
-          y = bindTo.pos.y + off[1];
+          x = bindTo.wx + off[0];
+          y = bindTo.wy + off[1];
         }
     }
     const e: Explod = {
@@ -154,8 +158,9 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
       bindTo,
       bindTime: bindTo ? (prm.int(p, 'bindtime') ?? (posType === 'none' ? -1 : 0)) : 0,
       bindOffset: posType === 'p1' || posType === 'p2' ? [off[0] * (bindTo?.facing ?? 1), off[1]] : off,
-      vel: [prm.num(p, 'vel', 0) ?? 0, prm.num(p, 'vel', 1) ?? 0],
-      accel: [prm.num(p, 'accel', 0) ?? 0, prm.num(p, 'accel', 1) ?? 0],
+      vel: [(prm.num(p, 'vel', 0) ?? 0) * k, (prm.num(p, 'vel', 1) ?? 0) * k],
+      accel: [(prm.num(p, 'accel', 0) ?? 0) * k, (prm.num(p, 'accel', 1) ?? 0) * k],
+      drawScale: anim.common ? 1 : k,
       removeTime: prm.int(p, 'removetime') ?? -2,
       age: 0,
       scale: [prm.num(p, 'scale', 0) ?? 1, prm.num(p, 'scale', 1) ?? 1],
@@ -197,7 +202,8 @@ export function compileModifyExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P
     const id = prm.int(p, 'id') ?? -1;
     for (const e of p.world.explods) {
       if (e.owner !== p || (id !== -1 && e.id !== id)) continue;
-      const v2 = (k: string): [number, number] | undefined => (prm.has(k) ? [prm.num(p, k, 0) ?? 0, prm.num(p, k, 1) ?? 0] : undefined);
+      const sc = p.scale;
+      const v2 = (k: string, unit = sc): [number, number] | undefined => (prm.has(k) ? [(prm.num(p, k, 0) ?? 0) * unit, (prm.num(p, k, 1) ?? 0) * unit] : undefined);
       const pos = v2('pos');
       if (pos) {
         if (e.bindTo) e.bindOffset = pos;
@@ -208,7 +214,7 @@ export function compileModifyExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P
       }
       e.vel = v2('vel') ?? e.vel;
       e.accel = v2('accel') ?? e.accel;
-      e.scale = v2('scale') ?? e.scale;
+      e.scale = v2('scale', 1) ?? e.scale;
       if (prm.has('angle')) e.angle = prm.num(p, 'angle') ?? e.angle;
       if (prm.has('facing')) e.facing = (prm.int(p, 'facing') ?? 1) < 0 ? -1 : 1;
       if (prm.has('vfacing')) e.vfacing = (prm.int(p, 'vfacing') ?? 1) < 0 ? -1 : 1;
@@ -245,7 +251,7 @@ export function compileGameMakeAnim(c: ControllerDef, env: TriggerEnv<P>): (p: P
     const a = p.world.fightFx?.anims.get(prm.int(p, 'value') ?? 0);
     if (!a) return;
     const under = (prm.int(p, 'under') ?? 0) !== 0;
-    p.world.explods.push(simpleExplod(p, a, true, p.pos.x + (prm.num(p, 'pos', 0) ?? 0) * p.facing, p.pos.y + (prm.num(p, 'pos', 1) ?? 0), under ? -10 : 10));
+    p.world.explods.push(simpleExplod(p, a, true, p.wx + (prm.num(p, 'pos', 0) ?? 0) * p.facing * p.scale, p.wy + (prm.num(p, 'pos', 1) ?? 0) * p.scale, under ? -10 : 10));
   };
 }
 
@@ -259,7 +265,7 @@ export function compileMakeDust(c: ControllerDef, env: TriggerEnv<P>): (p: P) =>
     if (!a) return;
     for (const k of ['pos', 'pos2']) {
       if (k === 'pos2' && !prm.has('pos2')) continue;
-      p.world.explods.push(simpleExplod(p, a, true, p.pos.x + (prm.num(p, k, 0) ?? 0) * p.facing, p.pos.y + (prm.num(p, k, 1) ?? 0), 0));
+      p.world.explods.push(simpleExplod(p, a, true, p.wx + (prm.num(p, k, 0) ?? 0) * p.facing * p.scale, p.wy + (prm.num(p, k, 1) ?? 0) * p.scale, 0));
     }
   };
 }
@@ -268,15 +274,15 @@ export function simpleExplod(p: P, a: Animation, common: boolean, x: number, y: 
   return {
     owner: p, id: -1, anim: new AnimPlayer(a), common, space: 'stage', x, y, facing, vfacing: 1, bindTo: undefined, bindTime: 0, bindOffset: [0, 0],
     vel: [0, 0], accel: [0, 0], removeTime: -2, age: 0, scale: [1, 1], angle: 0, sprPriority, onTop: false, ownPal: true, removeOnGetHit: false,
-    ignoreHitPause: true, trans: undefined, superMoveTime: 0, pauseMoveTime: 0,
+    ignoreHitPause: true, trans: undefined, superMoveTime: 0, pauseMoveTime: 0, drawScale: common ? 1 : p.scale,
   };
 }
 
 /** Advance one explod by a tick; returns false when it should be removed. */
 export function updateExplod(e: Explod): boolean {
   if (e.bindTo && e.bindTime !== 0) {
-    e.x = e.bindTo.pos.x + e.bindOffset[0];
-    e.y = e.bindTo.pos.y + e.bindOffset[1];
+    e.x = e.bindTo.wx + e.bindOffset[0];
+    e.y = e.bindTo.wy + e.bindOffset[1];
     if (e.bindTime > 0) e.bindTime--;
   } else {
     e.x += e.vel[0] * e.facing;

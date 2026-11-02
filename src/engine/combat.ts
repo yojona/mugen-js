@@ -19,12 +19,15 @@ interface Box {
 
 function worldBoxes(p: Player, boxes: Clsn[] | null): Box[] {
   if (!boxes) return [];
-  const sx = p.const('size.xscale');
-  const sy = p.const('size.yscale');
+  // Boxes are in the character's units; collisions happen in world units.
+  const sx = p.const('size.xscale') * p.scale;
+  const sy = p.const('size.yscale') * p.scale;
+  const x = p.wx;
+  const y = p.wy;
   return boxes.map((b) => {
-    const xa = p.pos.x + p.facing * b.x1 * sx;
-    const xb = p.pos.x + p.facing * b.x2 * sx;
-    return { x1: Math.min(xa, xb), x2: Math.max(xa, xb), y1: p.pos.y + b.y1 * sy, y2: p.pos.y + b.y2 * sy };
+    const xa = x + p.facing * b.x1 * sx;
+    const xb = x + p.facing * b.x2 * sx;
+    return { x1: Math.min(xa, xb), x2: Math.max(xa, xb), y1: y + b.y1 * sy, y2: y + b.y2 * sy };
   });
 }
 
@@ -134,7 +137,7 @@ function applyReversal(r: Player, a: Player): void {
   r.hitPause = rv.hd.pause[0];
   a.hitPause = rv.hd.pause[1];
   r.targets.set(a, rv.hd.id);
-  r.world.spawnSpark(r, a, rv.hd.spark, [rv.hd.sparkXY[0] + (a.hitDef?.sparkXY[0] ?? 0), rv.hd.sparkXY[1] + (a.hitDef?.sparkXY[1] ?? 0)]);
+  r.world.spawnSpark(r, a, rv.hd.spark, [(rv.hd.sparkXY[0] + (a.hitDef?.sparkXY[0] ?? 0)) * r.scale, (rv.hd.sparkXY[1] + (a.hitDef?.sparkXY[1] ?? 0)) * r.scale], { x: r.wx, y: r.wy });
   r.world.playHitSound(r, rv.hd.hitSound);
   if (rv.hd.p1StateNo >= 0) r.changeState(rv.hd.p1StateNo);
   if (rv.hd.p2StateNo >= 0) {
@@ -230,8 +233,11 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     else a.moveHit = 1;
     a.hitPause = guarded ? hd.guardPause[0] : hd.pause[0];
   }
-  const src = proj ? { x: proj.x, y: proj.y } : a.pos;
-  const towardA = src.x >= d.pos.x ? 1 : -1;
+  const src = proj ? { x: proj.x, y: proj.y } : { x: a.wx, y: a.wy };
+  const towardA = src.x >= d.wx ? 1 : -1;
+  // HitDef values are in the attacker's units; the defender stores its own.
+  const conv = a.scale / d.scale;
+  const sparkXY: [number, number] = [hd.sparkXY[0] * a.scale, hd.sparkXY[1] * a.scale];
   const facesA = d.facing === towardA;
   const xdir = facesA ? 1 : -1; // converts "away from attacker" velocities into d's frame
   const airborne = d.stateType === 'a';
@@ -246,15 +252,15 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.hittime = hd.guardHitTime;
     g.slidetime = hd.guardSlideTime;
     g.ctrltime = airborne ? hd.airGuardCtrlTime : hd.guardCtrlTime;
-    g.xvel = (airborne ? hd.airGuardVel[0] : hd.guardVel) * xdir;
-    g.yvel = airborne ? hd.airGuardVel[1] : 0;
-    g.yaccel = hd.yaccel;
+    g.xvel = (airborne ? hd.airGuardVel[0] : hd.guardVel) * xdir * conv;
+    g.yvel = (airborne ? hd.airGuardVel[1] : 0) * conv;
+    g.yaccel = hd.yaccel * conv;
     a.addPower(hd.getPower[1]);
     d.addPower(hd.givePower[1]);
     d.returnToOwnStates();
     d.changeState(d.stateType === 'a' ? 154 : d.stateType === 'c' ? 152 : 150);
     if (!proj) cornerPush(a, d, airborne ? hd.airGuardCornerPush : hd.guardCornerPush);
-    world.spawnSpark(a, d, hd.guardSpark, hd.sparkXY, src);
+    world.spawnSpark(a, d, hd.guardSpark, sparkXY, src);
     world.playHitSound(a, hd.guardSound);
   } else {
     const dmg = scaleDamage(a, d, hd.damage);
@@ -276,13 +282,13 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.hitshaketime = hd.pause[1];
     g.hittime = inAir || vel[1] !== 0 ? hd.airHitTime : hd.groundHitTime;
     g.slidetime = hd.groundSlideTime;
-    g.xvel = vel[0] * xdir;
-    g.yvel = vel[1];
-    g.yaccel = hd.yaccel;
+    g.xvel = vel[0] * xdir * conv;
+    g.yvel = vel[1] * conv;
+    g.yaccel = hd.yaccel * conv;
     g.fall = (inAir ? hd.airFall : hd.fall) || (wasFalling && !hd.forceNoFall) ? 1 : 0;
     g['fall.damage'] = hd.fallDamage;
-    g['fall.xvel'] = hd.fallXVel ?? Number.NaN;
-    g['fall.yvel'] = hd.fallYVel;
+    g['fall.xvel'] = hd.fallXVel === undefined ? Number.NaN : hd.fallXVel * conv;
+    g['fall.yvel'] = hd.fallYVel * conv;
     g['fall.recover'] = hd.fallRecover ? 1 : 0;
     g['fall.recovertime'] = hd.fallRecoverTime;
     g['fall.kill'] = hd.fallKill ? 1 : 0;
@@ -319,7 +325,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     d.moveType = 'h';
     if (!proj && !inAir && vel[1] === 0) cornerPush(a, d, hd.groundCornerPush);
     else if (!proj && inAir) cornerPush(a, d, hd.airCornerPush);
-    world.spawnSpark(a, d, hd.spark, hd.sparkXY, src);
+    world.spawnSpark(a, d, hd.spark, sparkXY, src);
     world.playHitSound(a, hd.hitSound);
   }
   d.sprPriority = hd.p2SprPriority;
@@ -337,9 +343,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
 function cornerPush(a: Player, d: Player, veloff: number): void {
   if (!veloff || a.stateType === 'a') return;
   const w = a.world;
-  const awayFromA = d.pos.x >= a.pos.x ? 1 : -1;
+  const awayFromA = d.wx >= a.wx ? 1 : -1;
   const edge = awayFromA > 0 ? w.camera.x + w.screenWidth / 2 : w.camera.x - w.screenWidth / 2;
-  const room = Math.abs(edge - d.pos.x) - d.bodyWidth(awayFromA === d.facing ? 'front' : 'back', 'edge');
+  const room = Math.abs(edge - d.wx) - (awayFromA > 0 ? w.screenRight : w.screenLeft);
   if (room > 1) return;
   a.vel.x = Math.fround(veloff < 0 ? veloff : -veloff);
 }

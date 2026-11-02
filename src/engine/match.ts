@@ -75,6 +75,12 @@ export class Match {
   /** Sounds from fight.snd requested this tick ([group, number]). */
   sounds: [number, number][] = [];
   matchOver = false;
+  /** Set when the match (including the win announcement) is over. */
+  finished = false;
+  /** Restart from round 1 when finished (training / standalone use). */
+  autoRematch = true;
+  /** Winner of the match (null = draw), valid once matchOver. */
+  winner: Player | null = null;
   private phaseTime = 0;
   private phase: 'wait' | 'intro' | 'announce' | 'fight' | 'ko' | 'over' | 'win' = 'wait';
   private roundWinner: Player | null = null;
@@ -103,8 +109,7 @@ export class Match {
     const w = this.world;
     this.players.forEach((p, i) => {
       const s = this.starts[i]!;
-      p.pos.x = s.x;
-      p.pos.y = s.y;
+      p.setWorldPos(s.x, s.y);
       p.vel.x = p.vel.y = 0;
       p.facing = s.facing;
       p.life = p.const('data.life');
@@ -218,6 +223,8 @@ export class Match {
         break;
       case 'win':
         if (this.phaseTime >= c.winTime + 480) {
+          this.finished = true;
+          if (!this.autoRematch) break;
           // Rematch from round 1 (no select screen yet).
           this.round = 1;
           this.wins = [0, 0];
@@ -247,6 +254,9 @@ export class Match {
     const w = this.roundWinner;
     if (!w) this.draws++;
     else this.wins[w.side]!++;
-    if (this.wins[0] >= this.cfg.matchWins || this.wins[1] >= this.cfg.matchWins || this.draws > this.cfg.maxDrawGames) this.matchOver = true;
+    if (this.wins[0] >= this.cfg.matchWins || this.wins[1] >= this.cfg.matchWins || this.draws > this.cfg.maxDrawGames) {
+      this.matchOver = true;
+      this.winner = this.wins[0] === this.wins[1] ? null : this.players[this.wins[0] > this.wins[1] ? 0 : 1] ?? null;
+    }
   }
 }

@@ -126,7 +126,7 @@ const IMPLS: Record<string, Impl> = {
   posset: (_c, prm) => (p) => {
     const x = prm.num(p, 'x');
     const y = prm.num(p, 'y');
-    if (x !== undefined) p.pos.x = Math.fround(p.world.camera.x + x);
+    if (x !== undefined) p.pos.x = Math.fround(p.world.camera.x / p.scale + x);
     if (y !== undefined) p.pos.y = Math.fround(y);
   },
   posadd: (_c, prm) => (p) => {
@@ -351,7 +351,8 @@ const EXTRA: Record<string, Impl> = {
       if (animNo !== -1 && !Number.isNaN(animNo)) {
         const a = ownAnim ? p.prog.data.anims.get(animNo) : w.fightFx?.anims.get(animNo);
         if (a) {
-          const e = simpleExplod(p, a, !ownAnim, p.pos.x + (prm.num(p, 'pos', 0) ?? 0) * p.facing, p.pos.y + (prm.num(p, 'pos', 1) ?? 0), 5);
+          const k = p.scale;
+          const e = simpleExplod(p, a, !ownAnim, p.wx + (prm.num(p, 'pos', 0) ?? 0) * p.facing * k, p.wy + (prm.num(p, 'pos', 1) ?? 0) * k, 5);
           e.superMoveTime = -1;
           w.explods.push(e);
         }
@@ -423,7 +424,8 @@ const EXTRA: Record<string, Impl> = {
     const time = prm.int(p, 'time') ?? 1;
     const off: [number, number] = [prm.num(p, 'pos', 0) ?? 0, prm.num(p, 'pos', 1) ?? 0];
     eachTarget(p, prm, (t) => {
-      t.bind = { to: p, offset: [off[0] * p.facing, off[1]], time, byTarget: true };
+      // Offsets are in the binder's units; binds are stored in world units.
+      t.bind = { to: p, offset: [off[0] * p.facing * p.scale, off[1] * p.scale], time, byTarget: true };
     });
   },
   bindtotarget: (_c, prm) => (p) => {
@@ -433,7 +435,7 @@ const EXTRA: Record<string, Impl> = {
     eachTarget(p, prm, (t) => {
       if (done) return;
       done = true;
-      p.bind = { to: t, offset: [off[0] * t.facing, off[1]], time };
+      p.bind = { to: t, offset: [off[0] * t.facing * p.scale, off[1] * p.scale], time };
     });
   },
   targetstate: (_c, prm) => (p) => {
@@ -468,14 +470,16 @@ const EXTRA: Record<string, Impl> = {
     eachTarget(p, prm, (t) => {
       const x = prm.num(p, 'x');
       const y = prm.num(p, 'y');
-      if (x !== undefined) t.vel.x = x;
-      if (y !== undefined) t.vel.y = y;
+      const k = p.scale / t.scale;
+      if (x !== undefined) t.vel.x = x * k;
+      if (y !== undefined) t.vel.y = y * k;
     });
   },
   targetveladd: (_c, prm) => (p) => {
     eachTarget(p, prm, (t) => {
-      t.vel.x += prm.num(p, 'x') ?? 0;
-      t.vel.y += prm.num(p, 'y') ?? 0;
+      const k = p.scale / t.scale;
+      t.vel.x += (prm.num(p, 'x') ?? 0) * k;
+      t.vel.y += (prm.num(p, 'y') ?? 0) * k;
     });
   },
   targetdrop: (_c, prm) => (p) => {

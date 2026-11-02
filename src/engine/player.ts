@@ -27,6 +27,8 @@ export interface CharacterProgram {
   cmd: CommandSet;
   /** Compiled controllers, built lazily per state. */
   compiled: Map<number, CompiledState>;
+  /** [Quotes] victory1..victoryN from the constants file. */
+  quotes: string[];
 }
 
 export interface CompiledState {
@@ -55,7 +57,12 @@ export async function loadProgram(vfs: Vfs, data: CharacterData): Promise<Charac
   }
   for (const st of f.st) parseStates(await vfs.text(st, dir), st, states);
   if (f.stcommon) parseStates(await vfs.text(f.stcommon, dir, 'data'), f.stcommon, states);
-  return { data, consts: parseConstants(constDocs), states, cmd, compiled: new Map() };
+  const quotes: string[] = [];
+  for (const doc of constDocs) {
+    const q = doc.sections.find((s) => s.name.toLowerCase() === 'quotes');
+    for (const e of q?.entries ?? []) if (/^victory\d+$/.test(e.key)) quotes.push(e.value.replace(/^"|"$/g, ''));
+  }
+  return { data, consts: parseConstants(constDocs), states, cmd, compiled: new Map(), quotes };
 }
 
 export interface Vec {
@@ -86,9 +93,29 @@ export class Player {
   projInfo = new Map<number, { hit: number; contact: number; guarded: number; cancel: number }>();
   commands = new Set<string>();
 
+  /** Position and velocity in the character's own coordinate space (localcoord). */
   pos: Vec = { x: 0, y: 0 };
   vel: Vec = { x: 0, y: 0 };
   facing = 1;
+
+  /**
+   * World units per character unit: stage localcoord width / character
+   * localcoord width (trigger.html Const240p: spaces convert by width ratio).
+   */
+  get scale(): number {
+    return this.world.localWidth / (this.prog.data.def.localCoord[0] || 320);
+  }
+  /** Position in world (stage) units. */
+  get wx(): number {
+    return this.pos.x * this.scale;
+  }
+  get wy(): number {
+    return this.pos.y * this.scale;
+  }
+  setWorldPos(x: number, y?: number): void {
+    this.pos.x = x / this.scale;
+    if (y !== undefined) this.pos.y = y / this.scale;
+  }
 
   stateNo = 0;
   prevStateNo = 0;
@@ -308,7 +335,7 @@ export class Player {
     if (spr !== undefined) this.sprPriority = spr;
     if ((num('facep2') ?? 0) !== 0) {
       const e = this.world.enemyOf(this);
-      if (e && (e.pos.x - this.pos.x) * this.facing < 0) this.facing = -this.facing;
+      if (e && (e.wx - this.wx) * this.facing < 0) this.facing = -this.facing;
     }
     const juggle = num('juggle');
     if (juggle !== undefined) this.juggleCost = juggle;
@@ -491,19 +518,20 @@ export class Player {
     return this.const(`size.${air ? 'air' : 'ground'}.${side}`);
   }
 
-  /** Current drawn frame (for AfterImage history). */
+  /** Current drawn frame (for AfterImage history), in world units. */
   drawFrame(): import('./fx').AfterImageFrame | undefined {
     const v = this.anim.view();
     if (!v || v.element.group < 0) return undefined;
     const sprite = this.prog.data.sff.get(v.element.group, v.element.number);
     if (!sprite) return undefined;
+    const k = this.scale;
     return {
       sprite,
       palette: this.prog.data.paletteFor(sprite, this.palRemap ?? this.palNo),
-      x: this.pos.x + this.facing * v.x,
-      y: this.pos.y + v.y,
-      scaleX: this.facing * (v.element.flipH ? -1 : 1) * v.scaleX,
-      scaleY: (v.element.flipV ? -1 : 1) * v.scaleY,
+      x: (this.pos.x + this.facing * v.x) * k,
+      y: (this.pos.y + v.y) * k,
+      scaleX: this.facing * (v.element.flipH ? -1 : 1) * v.scaleX * k * this.const('size.xscale'),
+      scaleY: (v.element.flipV ? -1 : 1) * v.scaleY * k * this.const('size.yscale'),
       angle: this.facing * v.angle,
     };
   }
@@ -513,7 +541,8 @@ export class Player {
     for (const e of this.world.players) {
       if (e.side === this.side || e.moveType !== 'a') continue;
       const dist = e.hitDefActive && e.hitDef ? e.hitDef.guardDist : e.const('size.attack.dist');
-      const dx = (this.pos.x - e.pos.x) * e.facing;
+      // Distance in the attacker's units.
+      const dx = ((this.wx - e.wx) * e.facing) / e.scale;
       if (dx >= 0 && dx <= dist) return true;
     }
     return false;

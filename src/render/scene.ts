@@ -87,25 +87,26 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
     const s = p.prog.data.sff.get(v.element.group, v.element.number);
     const fx = palFxUniforms(p.palFx);
     const angle = p.angleDraw ? p.angle : v.angle;
+    const k = p.scale;
     sprite(
       s,
       s ? p.prog.data.paletteFor(s, p.palRemap ?? p.palNo) : undefined,
-      sx(p.pos.x + p.facing * (v.x + p.drawOffset[0])),
-      sy(p.pos.y + v.y + p.drawOffset[1]),
-      p.facing * (v.element.flipH ? -1 : 1) * v.scaleX * p.drawScale[0] * p.const('size.xscale'),
-      (v.element.flipV ? -1 : 1) * v.scaleY * p.drawScale[1] * p.const('size.yscale'),
+      sx((p.pos.x + p.facing * (v.x + p.drawOffset[0])) * k),
+      sy((p.pos.y + v.y + p.drawOffset[1]) * k),
+      p.facing * (v.element.flipH ? -1 : 1) * v.scaleX * p.drawScale[0] * p.const('size.xscale') * k,
+      (v.element.flipV ? -1 : 1) * v.scaleY * p.drawScale[1] * p.const('size.yscale') * k,
       p.facing * angle,
       p.trans ?? v.blend,
       fx,
     );
     if (opts.clsn) {
-      const x0 = sx(p.pos.x);
-      const y0 = sy(p.pos.y);
+      const x0 = sx(p.wx);
+      const y0 = sy(p.wy);
       for (const [boxes, color] of [
         [v.element.clsn2, [60, 120, 255, 90]],
         [v.element.clsn1, [255, 60, 60, 110]],
       ] as const) {
-        for (const b of boxes ?? []) r.rect(x0 + p.facing * b.x1, y0 + b.y1, x0 + p.facing * b.x2, y0 + b.y2, [...color]);
+        for (const b of boxes ?? []) r.rect(x0 + p.facing * b.x1 * k, y0 + b.y1 * k, x0 + p.facing * b.x2 * k, y0 + b.y2 * k, [...color]);
       }
     }
   }
@@ -121,7 +122,8 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
     const fx = e.ownPal ? undefined : palFxUniforms(owner.palFx);
     const x = e.space === 'screen' ? e.x : sx(e.x);
     const y = e.space === 'screen' ? e.y : sy(e.y);
-    sprite(s, palette, x + e.facing * v.x, y + e.vfacing * v.y, e.facing * (v.element.flipH ? -1 : 1) * v.scaleX * e.scale[0], e.vfacing * (v.element.flipV ? -1 : 1) * v.scaleY * e.scale[1], e.facing * (v.angle + e.angle), e.trans ?? v.blend, fx);
+    const k = e.drawScale;
+    sprite(s, palette, x + e.facing * v.x * k * e.scale[0], y + e.vfacing * v.y * k * e.scale[1], e.facing * (v.element.flipH ? -1 : 1) * v.scaleX * e.scale[0] * k, e.vfacing * (v.element.flipV ? -1 : 1) * v.scaleY * e.scale[1] * k, e.facing * (v.angle + e.angle), e.trans ?? v.blend, fx);
   }
 }
 
@@ -144,11 +146,11 @@ function drawShadows(r: Renderer, w: World, sx: (x: number) => number, sy: (y: n
     r.draw({
       sprite: s,
       palette: p.prog.data.paletteFor(s, p.palNo),
-      x: sx(p.pos.x + p.facing * v.x),
+      x: sx(p.wx + p.facing * v.x * p.scale),
       // Shadows stay on the floor; the sprite offset is squashed by yscale.
-      y: sy(0) + v.y * sh.yscale,
-      scaleX: p.facing * (v.element.flipH ? -1 : 1),
-      scaleY: sh.yscale,
+      y: sy(0) + v.y * sh.yscale * p.scale,
+      scaleX: p.facing * (v.element.flipH ? -1 : 1) * p.scale,
+      scaleY: sh.yscale * p.scale,
       // Shadow color with partial opacity: multiply to black, blend by alpha.
       palfx: { add: [sh.color[0] / 255, sh.color[1] / 255, sh.color[2] / 255], mul: [0, 0, 0], color: 1, invertAll: false },
       blend: { kind: 'add', src: Math.round(a * 256), dst: 256 - Math.round(a * 256) },

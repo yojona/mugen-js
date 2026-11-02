@@ -85,17 +85,17 @@ const NULLARY: Record<string, Fn<P>> = {
     const e = p.world.enemyOf(p);
     return e ? ((R.t = INT), e.stateNo) : bottom();
   },
-  // Screen / stage geometry (world units; see World).
-  gamewidth: flt((p) => p.world.screenWidth),
-  gameheight: flt((p) => p.world.screenHeight),
-  screenwidth: flt((p) => p.world.screenWidth),
-  screenheight: flt((p) => p.world.screenHeight),
-  leftedge: flt((p) => p.world.camera.x - p.world.screenWidth / 2),
-  rightedge: flt((p) => p.world.camera.x + p.world.screenWidth / 2),
-  topedge: flt((p) => p.world.camera.y),
-  bottomedge: flt((p) => p.world.camera.y + p.world.screenHeight),
-  frontedge: flt((p) => (p.facing > 0 ? p.world.camera.x + p.world.screenWidth / 2 : p.world.camera.x - p.world.screenWidth / 2)),
-  backedge: flt((p) => (p.facing > 0 ? p.world.camera.x - p.world.screenWidth / 2 : p.world.camera.x + p.world.screenWidth / 2)),
+  // Screen / stage geometry, converted from world units to the player's units.
+  gamewidth: flt((p) => p.world.screenWidth / p.scale),
+  gameheight: flt((p) => p.world.screenHeight / p.scale),
+  screenwidth: flt((p) => p.world.screenWidth / p.scale),
+  screenheight: flt((p) => p.world.screenHeight / p.scale),
+  leftedge: flt((p) => (p.world.camera.x - p.world.screenWidth / 2) / p.scale),
+  rightedge: flt((p) => (p.world.camera.x + p.world.screenWidth / 2) / p.scale),
+  topedge: flt((p) => p.world.camera.y / p.scale),
+  bottomedge: flt((p) => (p.world.camera.y + p.world.screenHeight) / p.scale),
+  frontedge: flt((p) => (p.facing > 0 ? p.world.camera.x + p.world.screenWidth / 2 : p.world.camera.x - p.world.screenWidth / 2) / p.scale),
+  backedge: flt((p) => (p.facing > 0 ? p.world.camera.x - p.world.screenWidth / 2 : p.world.camera.x + p.world.screenWidth / 2) / p.scale),
   frontedgedist: int((p) => Math.trunc(p.world.edgeDist(p, true))),
   backedgedist: int((p) => Math.trunc(p.world.edgeDist(p, false))),
   frontedgebodydist: int((p) => Math.trunc(p.world.edgeDist(p, true) - p.const('size.ground.front'))),
@@ -105,28 +105,30 @@ const NULLARY: Record<string, Fn<P>> = {
 
 /** Vector triggers selected with an axis word. */
 const AXIS: Record<string, (p: P, axis: 'x' | 'y' | 'z') => number | undefined> = {
-  pos: (p, a) => (a === 'x' ? p.pos.x - p.world.camera.x : a === 'y' ? p.pos.y : 0),
+  // Pos X is relative to the camera centre (trigger.html), in the player's units.
+  pos: (p, a) => (a === 'x' ? p.pos.x - p.world.camera.x / p.scale : a === 'y' ? p.pos.y : 0),
   vel: (p, a) => (a === 'x' ? p.vel.x : a === 'y' ? p.vel.y : 0),
   hitvel: (p, a) => (a === 'x' ? p.ghv.xvel : a === 'y' ? p.ghv.yvel : 0),
-  screenpos: (p, a) => (a === 'x' ? p.pos.x - (p.world.camera.x - p.world.screenWidth / 2) : a === 'y' ? p.pos.y - p.world.camera.y + p.world.groundY : 0),
-  camerapos: (p, a) => (a === 'x' ? p.world.camera.x : a === 'y' ? p.world.camera.y : 0),
+  screenpos: (p, a) => (a === 'x' ? (p.wx - (p.world.camera.x - p.world.screenWidth / 2)) / p.scale : a === 'y' ? (p.wy - p.world.camera.y + p.world.groundY) / p.scale : 0),
+  camerapos: (p, a) => (a === 'x' ? p.world.camera.x / p.scale : a === 'y' ? p.world.camera.y / p.scale : 0),
   p2dist: (p, a) => {
     const e = p.world.enemyOf(p);
     if (!e) return undefined;
-    return a === 'x' ? (e.pos.x - p.pos.x) * p.facing : a === 'y' ? e.pos.y - p.pos.y : 0;
+    return a === 'x' ? ((e.wx - p.wx) * p.facing) / p.scale : a === 'y' ? (e.wy - p.wy) / p.scale : 0;
   },
   p2bodydist: (p, a) => {
     const e = p.world.enemyOf(p);
     if (!e) return undefined;
-    if (a !== 'x') return a === 'y' ? e.pos.y - p.pos.y : 0;
-    const dx = (e.pos.x - p.pos.x) * p.facing;
+    if (a !== 'x') return a === 'y' ? (e.wy - p.wy) / p.scale : 0;
+    const dx = ((e.wx - p.wx) * p.facing) / p.scale;
     const front = p.stateType === 'a' ? p.const('size.air.front') : p.const('size.ground.front');
     const eFacesUs = e.facing !== p.facing;
     const eBack = e.stateType === 'a' ? (eFacesUs ? e.const('size.air.front') : e.const('size.air.back')) : eFacesUs ? e.const('size.ground.front') : e.const('size.ground.back');
-    return dx - front - eBack;
+    // The opponent's width is in its own units.
+    return dx - front - (eBack * e.scale) / p.scale;
   },
-  parentdist: (p, a) => (p.parent ? (a === 'x' ? (p.parent.pos.x - p.pos.x) * p.facing : a === 'y' ? p.parent.pos.y - p.pos.y : 0) : undefined),
-  rootdist: (p, a) => (p.isHelper ? (a === 'x' ? (p.root.pos.x - p.pos.x) * p.facing : a === 'y' ? p.root.pos.y - p.pos.y : 0) : undefined),
+  parentdist: (p, a) => (p.parent ? (a === 'x' ? ((p.parent.wx - p.wx) * p.facing) / p.scale : a === 'y' ? (p.parent.wy - p.wy) / p.scale : 0) : undefined),
+  rootdist: (p, a) => (p.isHelper ? (a === 'x' ? ((p.root.wx - p.wx) * p.facing) / p.scale : a === 'y' ? (p.root.wy - p.wy) / p.scale : 0) : undefined),
 };
 
 /** Axis triggers whose result is an int (trigger.html). */

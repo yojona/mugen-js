@@ -56,14 +56,15 @@ export function compileHelper(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
     const off: [number, number] = [prm.num(p, 'pos', 0) ?? 0, prm.num(p, 'pos', 1) ?? 0];
     const facingParam = (prm.int(p, 'facing') ?? 1) < 0 ? -1 : 1;
     const postype = (prm.raw('postype') ?? 'p1').toLowerCase();
-    const left = w.camera.x - w.screenWidth / 2;
-    const right = w.camera.x + w.screenWidth / 2;
+    // Screen edges in the helper's (= parent's) units.
+    const left = (w.camera.x - w.screenWidth / 2) / p.scale;
+    const right = (w.camera.x + w.screenWidth / 2) / p.scale;
     h.pos.y = p.pos.y + off[1];
     switch (postype) {
       case 'p2': {
         const e = w.enemyOf(p) ?? p;
-        h.pos.x = e.pos.x + off[0] * e.facing;
-        h.pos.y = e.pos.y + off[1];
+        h.pos.x = e.wx / p.scale + off[0] * e.facing;
+        h.pos.y = e.wy / p.scale + off[1];
         h.facing = facingParam * e.facing;
         break;
       }
@@ -135,6 +136,6 @@ export function compileBindTo(c: ControllerDef, env: TriggerEnv<P>, toRoot: bool
     const off: [number, number] = [prm.num(p, 'pos', 0) ?? 0, prm.num(p, 'pos', 1) ?? 0];
     const facing = prm.int(p, 'facing') ?? 0;
     if (facing) p.facing = facing > 0 ? to.facing : -to.facing;
-    p.bind = { to, offset: [off[0] * to.facing, off[1]], time: prm.int(p, 'time') ?? 1 };
+    p.bind = { to, offset: [off[0] * to.facing * p.scale, off[1] * p.scale], time: prm.int(p, 'time') ?? 1 };
   };
 }
