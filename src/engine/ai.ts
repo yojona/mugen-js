@@ -383,7 +383,8 @@ export class MugenAI {
         if (p.ghv.hitcount > 2) c = Math.trunc(c / 2);
         if (p.stateType === 'l') c = Math.trunc(c / 2);
       }
-      if (c === 0) return this.toState(4);
+      // p+0x1520 is HitCount: a move that has hit sends the AI to state 4.
+      if (c === 0 || (this.stateTime > 0 && p.hitCount !== 0)) return this.toState(4);
     }
     // The opponent started a command move: watch it if there is a record.
     const m0 = this.msg(0, opp, true);
