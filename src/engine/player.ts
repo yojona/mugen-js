@@ -729,7 +729,9 @@ export class Player {
         break;
       case 'a':
         this.vel.y = Math.fround(this.vel.y + this.const('movement.yaccel'));
-        if (this.pos.y >= 0 && this.vel.y > 0 && this.moveType !== 'h') {
+        // State 105 (hop back) is exempt: it lands through its own
+        // ChangeState (mugen.exe 0x43cd63 compares stateno with 105).
+        if (this.pos.y >= 0 && this.vel.y > 0 && this.moveType !== 'h' && this.stateNo !== 105) {
           this.pos.y = 0;
           this.airJumps = 0;
           // Landing enters state 52 and runs it in the same tick (measured:
