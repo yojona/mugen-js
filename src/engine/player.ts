@@ -178,6 +178,8 @@ export class Player {
   // Being hit
   ghv: GetHitVars = emptyGetHitVars();
   defenceMul = 1;
+  /** SuperPause p2defmul on a target, until it recovers from the hit. */
+  superDefMul = 1;
   /** NotHitBy / HitBy slots: allowed or blocked attributes for a time. */
   hitBy: { attrs: string[]; time: number; not: boolean }[] = [];
   /** HitOverride slots (0..7). */
@@ -843,6 +845,7 @@ export class Player {
 
   /** End of tick: advance state time. */
   advance(): void {
+    if (this.moveType !== 'h') this.superDefMul = 1;
     for (const s of this.hitBy) if (s.time > 0) s.time--;
     for (const o of this.hitOverrides) if (o && o.time > 0) o.time--;
     if (this.pendingDamage && this.pendingDamage.delay-- <= 0) this.applyPendingDamage();

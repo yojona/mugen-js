@@ -354,6 +354,10 @@ const EXTRA: Record<string, Impl> = {
         unhittable: (prm.int(p, 'unhittable') ?? 1) !== 0,
         p2defmul: prm.num(p, 'p2defmul') ?? 1.5,
       });
+      // The super's current targets take less damage until they recover
+      // (Super.TargetDefenceMul; measured: KFM's 155-damage super does 103).
+      const mul = prm.num(p, 'p2defmul') ?? 1.5;
+      if (mul > 0) for (const t of p.targets.keys()) t.superDefMul = mul;
       const animNo = prm.int(p, 'anim') ?? parseInt(animRaw.replace(/^s/i, ''), 10);
       if (animNo !== -1 && !Number.isNaN(animNo)) {
         const a = ownAnim ? p.prog.data.anims.get(animNo) : w.fightFx?.anims.get(animNo);
