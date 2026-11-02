@@ -146,6 +146,12 @@ export class Player {
   hitTargets = new Set<Player>();
   /** P1 freeze after a hit (pausetime p1). */
   hitPause = 0;
+  /** Set on the tick a hit pause starts: that tick still advances normally. */
+  hitPauseFresh = false;
+  /** Damage from a hit, applied at the end of the next tick (measured). */
+  pendingDamage: { amount: number; kill: boolean; delay: number } | undefined;
+  shakeFresh = false;
+  private pauseAtLastTickStart = 0;
   moveContact = 0;
   moveHit = 0;
   moveGuarded = 0;
@@ -300,6 +306,8 @@ export class Player {
     if (!flag('movehitpersist')) this.moveContact = this.moveHit = this.moveGuarded = 0;
     if (!flag('hitcountpersist')) this.hitCount = 0;
     this.reversal = undefined;
+    // Lying down: the get-up countdown starts when 5110 is entered.
+    if (no === 5110) this.ghv.recovertime = this.const('data.liedown.time');
     this.stateChanged = true;
     this.applyStatedef(cs);
     if (ctrl !== undefined) this.ctrl = ctrl;
@@ -351,6 +359,18 @@ export class Player {
   /** Drop targets that are no longer being hit. */
   pruneTargets(): void {
     for (const [t] of this.targets) if (t.moveType !== 'h' || t.world !== this.world) this.targets.delete(t);
+  }
+
+  /** Apply damage held back during the hit shake. */
+  applyPendingDamage(): void {
+    const d = this.pendingDamage;
+    if (!d) return;
+    this.pendingDamage = undefined;
+    this.life = Math.max(d.kill ? 0 : Math.min(this.life, 1), this.life - d.amount);
+    if (this.life <= 0) {
+      this.alive = false;
+      this.ghv.fall = 1;
+    }
   }
 
   addPower(v: number): void {
@@ -444,7 +464,6 @@ export class Player {
       for (const special of [...sp, this.stateNo]) this.runState(special);
       return;
     }
-    this.engineHitTransitions();
     // Helpers skip -3/-2, and -1 unless they read input (cns.html).
     const specials = this.isHelper ? (this.keyCtrl ? [-1] : []) : [-3, -2, -1];
     let changed = false;
@@ -454,6 +473,9 @@ export class Player {
         break;
       }
     }
+    // Get-up from lying down happens after the special states and before the
+    // current state runs (measured: 5110 Time = 60 is visible in -2).
+    if (!changed) this.engineHitTransitions();
     this.runCurrent();
     // MUGEN applies its built-in transitions after the current state has run
     // (measured with tools/harness: crouch 11 -> 12 shows Time = 0 and the old
@@ -497,7 +519,6 @@ export class Player {
   private engineHitTransitions(): void {
     if (this.stateNo !== 5110 || !this.alive) return;
     const g = this.ghv;
-    if (this.time === 0) g.recovertime = this.const('data.liedown.time');
     const newly = this.input.at(0) & ~this.input.at(1) & ~0xf;
     g.recovertime -= newly ? 2 : 1;
     if (g.recovertime <= 0 && this.time > 0) this.changeState(5120);
@@ -613,7 +634,13 @@ export class Player {
    * action would wrap, so the wrapped frame is never drawn.
    */
   advanceAnim(): void {
-    if (this.hitPause > 0 || (this.moveType === 'h' && this.ghv.hitshaketime > 0)) return;
+    // Only the attacker's hit pause freezes the animation (the defender's shake
+    // is common1 re-setting the anim each tick). Measured against MUGEN 1.1, the
+    // freeze lags the pause by one tick at both ends: the animation is frozen
+    // this tick if a pause was running at the start of the previous tick.
+    const frozen = this.pauseAtLastTickStart > 0;
+    this.pauseAtLastTickStart = this.hitPause;
+    if (frozen) return;
     this.anim.tick();
   }
 
@@ -621,12 +648,19 @@ export class Player {
   advance(): void {
     for (const s of this.hitBy) if (s.time > 0) s.time--;
     for (const o of this.hitOverrides) if (o && o.time > 0) o.time--;
-    if (this.hitPause > 0) {
+    if (this.pendingDamage && this.pendingDamage.delay-- <= 0) this.applyPendingDamage();
+    if (this.hitPause > 0 && !this.hitPauseFresh) {
       this.hitPause--;
       return;
     }
+    const fresh = this.hitPauseFresh;
+    this.hitPauseFresh = false;
     const g = this.ghv;
-    if (g.hitshaketime > 0) g.hitshaketime--;
+    if (g.hitshaketime > 0) {
+      // Like the attacker's pause, the shake starts counting next tick.
+      if (this.shakeFresh) this.shakeFresh = false;
+      else g.hitshaketime--;
+    }
     else if (this.moveType === 'h') {
       if (g.hittime > 0) g.hittime--;
       if (g['fall.recovertime'] > 0) g['fall.recovertime']--;
@@ -634,9 +668,11 @@ export class Player {
     for (const info of this.projInfo.values()) {
       for (const k of ['hit', 'contact', 'guarded', 'cancel'] as const) if (info[k] >= 0) info[k]++;
     }
-    if (this.moveContact) this.moveContact++;
-    if (this.moveHit) this.moveHit++;
-    if (this.moveGuarded) this.moveGuarded++;
+    if (!fresh) {
+      if (this.moveContact) this.moveContact++;
+      if (this.moveHit) this.moveHit++;
+      if (this.moveGuarded) this.moveGuarded++;
+    }
     if (this.freshState) {
       this.freshState = false;
       return;
