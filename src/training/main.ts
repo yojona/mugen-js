@@ -11,6 +11,8 @@ import { parseSff } from '../formats/sff';
 import { parseSnd } from '../formats/snd';
 import { Renderer } from '../render/renderer';
 import { drawScene } from '../render/scene';
+import { drawStageLayer } from '../render/stage-draw';
+import { loadStage, StageRuntime } from '../stage/stage';
 
 const KEYS: Record<string, number> = {
   ArrowUp: IN_U, ArrowDown: IN_D, ArrowLeft: IN_L, ArrowRight: IN_R,
@@ -40,12 +42,19 @@ renderer.resize(320, 240, 2);
 
 const vfs = new Vfs(await httpSource('/ref/mugen-1.1b1', '/__ref.json'));
 const prog = await loadProgram(vfs, await loadCharacter(vfs, 'chars/kfm/kfm.def'));
+const stageParam = new URLSearchParams(location.search).get('stage') ?? 'stages/kfm.def';
+const stage = await loadStage(vfs, stageParam);
+const bg = new StageRuntime(stage);
 const world = new World();
+world.applyStage(stage.info);
 const p1 = new Player(prog, world, 0);
 const p2 = new Player(prog, world, 1);
-p1.pos.x = -70;
-p2.pos.x = 70;
-p2.facing = -1;
+p1.pos.x = stage.info.p1.x;
+p1.pos.y = stage.info.p1.y;
+p1.facing = stage.info.p1.facing;
+p2.pos.x = stage.info.p2.x;
+p2.pos.y = stage.info.p2.y;
+p2.facing = stage.info.p2.facing;
 p2.palNo = 2;
 world.players.push(p1, p2);
 world.fightFx = {
@@ -76,10 +85,13 @@ function playSounds(): void {
 }
 
 function draw(): void {
-  renderer.clear(0.24, 0.3, 0.42);
+  renderer.clear(0, 0, 0);
+  const W = world.screenWidth;
+  const H = world.screenHeight;
   drawScene(renderer, world, {
     clsn: clsn.checked,
-    background: () => renderer.rect(0, world.groundY, 320, 240, [70, 64, 58, 255]),
+    background: () => drawStageLayer(renderer, bg, world.camera, 0, W, H),
+    foreground: () => drawStageLayer(renderer, bg, world.camera, 1, W, H),
   });
   drawLifebars();
   playSounds();
@@ -108,7 +120,10 @@ if (demoParam) {
   };
   if (name === 'super') p1.power = 3000;
   const script = scripts[name!] ?? [];
-  for (let i = 0; i < parseInt(ticks!, 10); i++) world.tick([script[i] ?? 0, 0]);
+  for (let i = 0; i < parseInt(ticks!, 10); i++) {
+    world.tick([script[i] ?? 0, 0]);
+    bg.tick();
+  }
   draw();
   throw new Error('demo');
 }
@@ -121,6 +136,7 @@ function frame(now: number): void {
   last = now;
   while (acc >= TICK) {
     world.tick([held, 0]);
+    if (!world.superPause && !world.pause) bg.tick();
     acc -= TICK;
   }
   draw();
