@@ -186,11 +186,18 @@ const RING = 30;
 const QUEUE = 128;
 
 export class CommandInput {
-  /** Held flags by key index (relative: index 2 = forward, 4 = back). */
-  private held = new Uint8Array(12);
+  /**
+   * Held flags by key index (relative: index 2 = forward, 4 = back). MUGEN's
+   * array is 1-based with 11 keys; the AI's release loops run to 13, where
+   * slot 13 aliases the ring's read index (see heldAt / setHeld).
+   */
+  private held = new Uint8Array(13);
   private facingLeft = false;
   private prevRaw = 0;
-  private ring: number[] = [];
+  // 30-entry key event ring with MUGEN's read/write indices.
+  private ring = new Int32Array(RING);
+  private ringR = 0;
+  private ringW = 0;
   private dirState = 0;
   private pending = 0;
   private pressTime = new Int32Array(16);
@@ -211,14 +218,23 @@ export class CommandInput {
     this.last = new Float64Array(Math.max(1, set.slots)).fill(-Infinity);
   }
 
+  get commandCount(): number {
+    return this.set.slots;
+  }
+
   /**
-   * One tick: facing-change events, this tick's key events, then the player's
-   * update (one event consumed, queue matched). `raw` is the absolute input.
+   * One tick for a human player: facing-change events, this tick's key
+   * events, then the player's update (one event consumed, queue matched).
    */
   tick(raw: number, facing: number, time: number, frozen: boolean): void {
-    this.syncFacing(facing < 0);
-    this.keyEvents(raw);
+    this.ingest(raw, facing, true);
     this.update(time, frozen);
+  }
+
+  /** First half of the tick: facing sync, then OS key events (humans only). */
+  ingest(raw: number, facing: number, human: boolean): void {
+    this.syncFacing(facing < 0);
+    if (human) this.keyEvents(raw);
   }
 
   /** Active command names (buffer > 0). */
@@ -228,10 +244,33 @@ export class CommandInput {
     return out;
   }
 
+  /** held[k] as MUGEN reads it (k = 13 is the ring's read index). */
+  heldAt(k: number): number {
+    if (k === 13) return this.ringR;
+    return this.held[k] ?? 0;
+  }
+
+  /** mugen.exe 0x477d00: push a key event and update the held flag. */
+  pushKey(code: number): void {
+    const k = code & 0xf;
+    if (!k) return;
+    this.ring[this.ringW] = code;
+    this.ringW = (this.ringW + 1) % RING;
+    if (this.ringW === this.ringR) this.ringR = (this.ringR + 1) % RING;
+    const v = (code & EV_RELEASE) ? 0 : 1;
+    if (k === 13) this.ringR = v;
+    else this.held[k] = v;
+  }
+
+  private popKey(): number {
+    if (this.ringR === this.ringW) return 0;
+    const v = this.ring[this.ringR]!;
+    this.ringR = (this.ringR + 1) % RING;
+    return v;
+  }
+
   private pushEvent(code: number): void {
-    if (this.ring.length >= RING) this.ring.shift();
-    this.ring.push(code);
-    this.held[code & 0xf] = code & EV_RELEASE ? 0 : 1;
+    this.pushKey(code);
   }
 
   /** mugen.exe 0x477c40: turning around swaps a held forward/back key. */
@@ -269,8 +308,12 @@ export class CommandInput {
   /** Key event consumed this tick (0 if none). */
   lastEvent = 0;
 
-  private update(time: number, frozen: boolean): void {
-    const ev = this.ring.length ? this.ring.shift()! : 0;
+  /**
+   * mugen.exe 0x434db0 (input part). `aiCmds` (command indices pushed by the
+   * CPU this tick) are set after matching, active for this tick only (0x42f750).
+   */
+  update(time: number, frozen: boolean, aiCmds?: readonly number[]): void {
+    const ev = this.popKey();
     this.lastEvent = ev;
     let held = 0;
     for (let i = 1; i < 12; i++) if (this.held[i]) held |= KEY_BITS[i]!;
@@ -284,6 +327,7 @@ export class CommandInput {
     }
     this.produce(ev, time);
     this.process(time);
+    if (aiCmds) for (const i of aiCmds) if (i >= 0 && i < this.buffer.length) this.buffer[i] = 1;
   }
 
   private push(bits: number, time: number, hold: number): void {
@@ -298,7 +342,7 @@ export class CommandInput {
   private produce(ev: number, time: number): void {
     let esi = 0;
     if (ev) {
-      esi = KEY_BITS[ev & 0xf]!;
+      esi = KEY_BITS[ev & 0xf] ?? 0;
       if (ev & EV_RELEASE) esi |= F_RELEASE;
       if (ev & EV_SYNTH) esi |= F_SYNTH;
     }
