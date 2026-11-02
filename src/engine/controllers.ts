@@ -461,7 +461,9 @@ const EXTRA: Record<string, Impl> = {
     if (v === undefined) return;
     eachTarget(p, prm, (t) => {
       t.stateOwner = p;
-      t.changeState(v);
+      // Like p1stateno: the statedef (poweradd, anim...) applies when the
+      // state first runs (measured: KFM's 821 adds its power a tick later).
+      t.enterLater(v);
     });
   },
   targetfacing: (_c, prm) => (p) => {
