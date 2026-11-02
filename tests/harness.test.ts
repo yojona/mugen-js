@@ -76,11 +76,11 @@ describe('MUGEN 1.1 reference (KFM probe)', () => {
   }, 60_000);
 
   it('matches the original CPU vs CPU (level 4): records, guards, counters, push and turns', async () => {
-    // Both sides at AI level 4 for 930 clocks of the round.
+    // Both sides at AI level 4 for 2847 clocks (the whole first round).
     const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kfm-aivsai.mugen.log.gz'))).toString('latin1');
-    const ours = (await runProbe(1100, { char: 'probeai', seed: 937167434, ai: [4, 4] })).join('\n');
+    const ours = (await runProbe(3000, { char: 'probeai', seed: 937167434, ai: [4, 4] })).join('\n');
     const r = compareLogs(ref, ours, 10);
-    expect(r.compared).toBeGreaterThan(1800);
+    expect(r.compared).toBeGreaterThan(5600);
     expect(r.reports).toEqual([]);
   }, 60_000);
 
