@@ -477,9 +477,12 @@ export class World {
   /** Where the camera centre wants to be: keep players out of the tension zones. */
   private cameraTargetX(ps: Player[]): number {
     const half = this.screenWidth / 2;
-    const xs = ps.map((p) => p.wx);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
+    // Each player's extent includes its Width edge (mugen.exe 0x415cb1, in
+    // whole internal units; measured: KFM's throw with edge = 60).
+    const k = this.gameWidth / this.screenWidth;
+    const edge = (p: Player, side: 'front' | 'back') => Math.floor(p.bodyWidth(side, 'edge') * p.scale * k + 0.5) / k;
+    const minX = Math.min(...ps.map((p) => p.wx - edge(p, p.facing > 0 ? 'back' : 'front')));
+    const maxX = Math.max(...ps.map((p) => p.wx + edge(p, p.facing > 0 ? 'front' : 'back')));
     const lo = maxX - half + this.tension;
     const hi = minX + half - this.tension;
     // The previous target is kept (mugen.exe G+0x11f10/14) and only moved

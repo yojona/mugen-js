@@ -437,6 +437,9 @@ const EXTRA: Record<string, Impl> = {
     eachTarget(p, prm, (t) => {
       // Offsets are in the binder's units; binds are stored in world units.
       t.bind = { to: p, offset: [off[0] * p.facing * p.scale, off[1] * p.scale], time, byTarget: true };
+      // The target moves at once (measured: the camera already follows a
+      // thrown P2 before P2's own update).
+      if (time !== 0) t.setWorldPos(p.wx + t.bind.offset[0], p.wy + t.bind.offset[1]);
     });
   },
   bindtotarget: (_c, prm) => (p) => {
