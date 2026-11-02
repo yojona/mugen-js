@@ -39,7 +39,7 @@ const NULLARY: Record<string, Fn<P>> = {
   powermax: int((p) => p.const('data.power')),
   palno: int((p) => p.palNo),
   id: int((p) => p.id),
-  ishelper: int(() => 0),
+  ishelper: int((p) => (p.isHelper ? 1 : 0)),
   teamside: int((p) => p.side + 1),
   gametime: int((p) => p.world.gameTime),
   random: int((p) => p.world.random(1000)),
@@ -57,10 +57,9 @@ const NULLARY: Record<string, Fn<P>> = {
   numenemy: int((p) => (p.world.enemyOf(p) ? 1 : 0)),
   numpartner: int(() => 0),
   numtarget: int((p) => (p.hitTargets.size > 0 && p.hitCount > 0 ? p.hitTargets.size : 0)),
-  numexplod: int(() => 0),
-  numproj: int(() => 0),
-  numprojid: int(() => 0),
-  numhelper: int(() => 0),
+  numexplod: int((p) => p.world.explods.filter((e) => e.owner === p).length),
+  numproj: int((p) => p.world.projectiles.filter((pr) => pr.owner === p && pr.phase !== 'dead').length),
+  numhelper: int((p) => p.world.helpersOf(p).length),
   hitcount: int((p) => p.hitCount),
   uniqhitcount: int((p) => p.hitCount),
   movecontact: int((p) => p.moveContact),
@@ -73,10 +72,10 @@ const NULLARY: Record<string, Fn<P>> = {
   hitpausetime: int((p) => p.hitPause),
   canrecover: int((p) => (p.ghv.fall && p.ghv['fall.recover'] && p.ghv['fall.recovertime'] <= 0 ? 1 : 0)),
   inguarddist: int((p) => (p.inGuardDist() ? 1 : 0)),
-  projcanceltime: int(() => -1),
-  projcontacttime: int(() => -1),
-  projguardedtime: int(() => -1),
-  projhittime: int(() => -1),
+  projcanceltime: int((p) => projTime(p, 0, 'cancel')),
+  projcontacttime: int((p) => projTime(p, 0, 'contact')),
+  projguardedtime: int((p) => projTime(p, 0, 'guarded')),
+  projhittime: int((p) => projTime(p, 0, 'hit')),
   ishometeam: int((p) => (p.side === 0 ? 1 : 0)),
   p2life: (p) => {
     const e = p.world.enemyOf(p);
@@ -126,8 +125,8 @@ const AXIS: Record<string, (p: P, axis: 'x' | 'y' | 'z') => number | undefined> 
     const eBack = e.stateType === 'a' ? (eFacesUs ? e.const('size.air.front') : e.const('size.air.back')) : eFacesUs ? e.const('size.ground.front') : e.const('size.ground.back');
     return dx - front - eBack;
   },
-  parentdist: () => undefined,
-  rootdist: () => undefined,
+  parentdist: (p, a) => (p.parent ? (a === 'x' ? (p.parent.pos.x - p.pos.x) * p.facing : a === 'y' ? p.parent.pos.y - p.pos.y : 0) : undefined),
+  rootdist: (p, a) => (p.isHelper ? (a === 'x' ? (p.root.pos.x - p.pos.x) * p.facing : a === 'y' ? p.root.pos.y - p.pos.y : 0) : undefined),
 };
 
 /** Axis triggers whose result is an int (trigger.html). */
@@ -211,17 +210,50 @@ function call(node: CallNode, args: Fn<P>[]): Fn<P> | undefined {
       };
     }
     case 'numhelper':
+      return (p) => {
+        const id = argInt(a, p);
+        return id === undefined ? bottom() : ((R.t = INT), p.world.helpersOf(p, id).length);
+      };
     case 'numexplod':
+      return (p) => {
+        const id = argInt(a, p);
+        return id === undefined ? bottom() : ((R.t = INT), p.world.explods.filter((e) => e.owner === p && (id === -1 || e.id === id)).length);
+      };
     case 'numproj':
     case 'numprojid':
+      return (p) => {
+        const id = argInt(a, p);
+        return id === undefined ? bottom() : ((R.t = INT), p.world.projectiles.filter((pr) => pr.owner === p && pr.phase !== 'dead' && pr.projId === id).length);
+      };
     case 'numtarget':
+      return (p) => {
+        const id = argInt(a, p);
+        if (id === undefined) return bottom();
+        R.t = INT;
+        let n = 0;
+        for (const tid of p.targets.values()) if (id === -1 || tid === id) n++;
+        return n;
+      };
     case 'playeridexist':
+      return (p) => {
+        const id = argInt(a, p);
+        return id === undefined ? bottom() : ((R.t = INT), p.world.allPlayers().some((q) => q.id === id) ? 1 : 0);
+      };
     case 'ishelper':
-      return (p) => (argNum(a, p) === undefined ? bottom() : ((R.t = INT), 0));
+      return (p) => {
+        const id = argInt(a, p);
+        return id === undefined ? bottom() : ((R.t = INT), p.isHelper && p.helperId === id ? 1 : 0);
+      };
+    case 'projcanceltime':
     case 'projcontacttime':
     case 'projguardedtime':
-    case 'projhittime':
-      return (p) => (argNum(a, p) === undefined ? bottom() : ((R.t = INT), -1));
+    case 'projhittime': {
+      const kind = name.slice(4, -4) as 'cancel' | 'contact' | 'guarded' | 'hit';
+      return (p) => {
+        const id = argInt(a, p);
+        return id === undefined ? bottom() : ((R.t = INT), projTime(p, id, kind));
+      };
+    }
   }
   return undefined;
 }
@@ -308,9 +340,27 @@ function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
     }
     case 'projcontact':
     case 'projguarded':
-    case 'projhit':
-      // Projectiles are not simulated yet: never hit/contacted/guarded.
-      return () => ((R.t = INT), eq ? 0 : 1);
+    case 'projhit': {
+      // ProjHit[ID] = value [, op time]: true if a projectile (with that ID) hit,
+      // optionally comparing the ticks since the hit.
+      const kind = node.name === 'projhit' ? 'hit' : node.name === 'projcontact' ? 'contact' : 'guarded';
+      const want = nums[0]!;
+      const second = node.second;
+      const secondFn = second ? compileSecond(second.value) : undefined;
+      return (p) => {
+        const v = argInt(want, p);
+        if (v === undefined) return bottom();
+        const t = projTime(p, node.id ?? 0, kind);
+        let happened = t >= 0;
+        if (happened && second) {
+          const sv = argInt(secondFn!, p);
+          if (sv === undefined) return bottom();
+          happened = relFn(second.op)(t, sv);
+        }
+        R.t = INT;
+        return happened === ((v !== 0) === eq) ? 1 : 0;
+      };
+    }
   }
   return undefined;
 }
@@ -320,10 +370,31 @@ function compileSecond(node: ClauseNode['nums'][number]): Fn<P> {
   return compileNode(node, playerEnv);
 }
 
+/** Ticks since the last projectile event of a kind (-1 = never); id 0 = any. */
+function projTime(p: P, id: number, kind: 'hit' | 'contact' | 'guarded' | 'cancel'): number {
+  if (id !== 0) return p.projInfo.get(id)?.[kind] ?? -1;
+  let best = -1;
+  for (const info of p.projInfo.values()) {
+    const t = info[kind];
+    if (t >= 0 && (best < 0 || t < best)) best = t;
+  }
+  return best;
+}
+
 function redirect(p: P, to: string, _id: number | undefined): P | undefined {
   switch (to) {
     case 'root':
-      return p;
+      return p.root;
+    case 'parent':
+      return p.parent;
+    case 'helper':
+      return p.world.helpersOf(p, _id)[0];
+    case 'target': {
+      for (const [t, tid] of p.targets) if (_id === undefined || tid === _id) return t;
+      return undefined;
+    }
+    case 'partner':
+      return undefined;
     case 'enemy':
     case 'enemynear':
       return p.world.enemyOf(p);
