@@ -1,5 +1,6 @@
 // The game: title -> select -> VS -> fight -> victory, driven by the motif.
 
+import { withContentFixes } from '../engine/content-fixes';
 import { Mixer } from '../audio/mixer';
 import { loadCharacter } from '../engine/character';
 import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../engine/cmd';
@@ -28,7 +29,7 @@ const canvas = document.getElementById('screen') as HTMLCanvasElement;
 const setStatus = (t: string) => (status.textContent = t);
 
 setStatus('Cargando archivos…');
-const vfs = new Vfs(await httpSource('/ref/mugen-1.1b1', '/__ref.json'));
+const vfs = new Vfs(withContentFixes(await httpSource('/ref/mugen-1.1b1', '/__ref.json')));
 
 // Motif: ?motif=, else mugen.cfg's "motif =", else data/system.def.
 async function motifPath(): Promise<string> {

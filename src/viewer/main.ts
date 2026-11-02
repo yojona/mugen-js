@@ -1,5 +1,6 @@
 // Character viewer: plays AIR actions with the real palette pipeline.
 
+import { withContentFixes } from '../engine/content-fixes';
 import { AnimPlayer } from '../engine/anim';
 import { loadCharacter, type CharacterData } from '../engine/character';
 import { httpSource, Vfs } from '../engine/vfs';
@@ -22,7 +23,7 @@ const ui = {
 };
 
 const renderer = new Renderer($<HTMLCanvasElement>('screen'));
-const vfs = new Vfs(await httpSource('/ref/mugen-1.1b1', '/__ref.json'));
+const vfs = new Vfs(withContentFixes(await httpSource('/ref/mugen-1.1b1', '/__ref.json')));
 
 let ch: CharacterData | undefined;
 let player: AnimPlayer | undefined;

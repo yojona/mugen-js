@@ -1,5 +1,6 @@
 // Training mode: P1 on keyboard vs an idle P2, rendered with the real engine.
 
+import { withContentFixes } from '../engine/content-fixes';
 import { loadCharacter } from '../engine/character';
 import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../engine/cmd';
 import { loadProgram, Player } from '../engine/player';
@@ -59,7 +60,7 @@ const clsn = document.getElementById('clsn') as HTMLInputElement;
 const renderer = new Renderer(canvas);
 renderer.resize(320, 240, 2);
 
-const vfs = new Vfs(await httpSource('/ref/mugen-1.1b1', '/__ref.json'));
+const vfs = new Vfs(withContentFixes(await httpSource('/ref/mugen-1.1b1', '/__ref.json')));
 const prog = await loadProgram(vfs, await loadCharacter(vfs, 'chars/kfm/kfm.def'));
 const stageParam = new URLSearchParams(location.search).get('stage') ?? 'stages/kfm.def';
 const stage = await loadStage(vfs, stageParam);
