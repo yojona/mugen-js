@@ -129,9 +129,13 @@ export class World {
     this.players.forEach((p, i) => p.input.push(this.inputLocked ? 0 : (inputs[i] ?? 0)));
     const active = this.allPlayers().filter((p) => !this.frozen(p));
     for (const p of active) p.advanceAnim();
-    for (const p of active) p.runStates();
-    if (this.inputLocked) for (const p of this.players) p.ctrl = false;
-    for (const p of active) p.physicsStep();
+    // Each player runs its states and then moves before the next player is
+    // processed: P2 sees P1's new position within the same tick (measured).
+    for (const p of active) {
+      p.runStates();
+      if (this.inputLocked && !p.isHelper) p.ctrl = false;
+      p.physicsStep();
+    }
     applyHits(detectHits(active));
     if (!this.superPause && !this.pause) {
       for (const pr of this.projectiles) updateProjectile(pr);
