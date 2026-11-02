@@ -10,6 +10,7 @@ import { parseAir } from '../formats/air';
 import { parseSff } from '../formats/sff';
 import { parseSnd } from '../formats/snd';
 import { Renderer } from '../render/renderer';
+import { drawScene } from '../render/scene';
 
 const KEYS: Record<string, number> = {
   ArrowUp: IN_U, ArrowDown: IN_D, ArrowLeft: IN_L, ArrowRight: IN_R,
@@ -55,51 +56,6 @@ const commonSnd = parseSnd(await vfs.read('data/common.snd'));
 p1.changeState(0);
 p2.changeState(0);
 
-function drawPlayer(p: Player): void {
-  const v = p.anim.view();
-  if (!v || v.element.group < 0) return;
-  const sprite = p.prog.data.sff.get(v.element.group, v.element.number);
-  if (!sprite) return;
-  const sx = p.pos.x - (world.camera.x - world.screenWidth / 2);
-  const sy = world.groundY + p.pos.y;
-  renderer.draw({
-    sprite,
-    palette: p.prog.data.paletteFor(sprite, p.palNo),
-    x: sx + p.facing * v.x,
-    y: sy + v.y,
-    scaleX: p.facing * (v.element.flipH ? -1 : 1) * v.scaleX,
-    scaleY: (v.element.flipV ? -1 : 1) * v.scaleY,
-    angle: p.facing * v.angle,
-    blend: v.blend,
-  });
-  if (clsn.checked) {
-    for (const [list, color] of [[v.element.clsn2, [60, 120, 255, 90]], [v.element.clsn1, [255, 60, 60, 110]]] as const) {
-      for (const b of list ?? []) renderer.rect(sx + p.facing * b.x1, sy + b.y1, sx + p.facing * b.x2, sy + b.y2, [...color]);
-    }
-  }
-}
-
-function drawEffects(): void {
-  for (const e of world.effects) {
-    const v = e.anim.view();
-    if (!v || v.element.group < 0) continue;
-    const sff = e.owner ? e.owner.prog.data.sff : world.fightFx?.sff;
-    const sprite = sff?.get(v.element.group, v.element.number);
-    if (!sprite || !sff) continue;
-    const palette = e.owner ? e.owner.prog.data.paletteFor(sprite, e.owner.palNo) : sff.palettes[sprite.palette];
-    renderer.draw({
-      sprite,
-      palette,
-      x: e.x - (world.camera.x - world.screenWidth / 2) + e.facing * v.x,
-      y: world.groundY + e.y + v.y,
-      scaleX: e.facing * (v.element.flipH ? -1 : 1) * v.scaleX,
-      scaleY: (v.element.flipV ? -1 : 1) * v.scaleY,
-      angle: e.facing * v.angle,
-      blend: v.blend,
-    });
-  }
-}
-
 function drawLifebars(): void {
   const w = 120;
   for (const [i, p] of world.players.entries()) {
@@ -121,10 +77,10 @@ function playSounds(): void {
 
 function draw(): void {
   renderer.clear(0.24, 0.3, 0.42);
-  renderer.rect(0, world.groundY, 320, 240, [70, 64, 58, 255]);
-  const order = [...world.players].sort((a, b) => a.sprPriority - b.sprPriority);
-  for (const p of order) drawPlayer(p);
-  drawEffects();
+  drawScene(renderer, world, {
+    clsn: clsn.checked,
+    background: () => renderer.rect(0, world.groundY, 320, 240, [70, 64, 58, 255]),
+  });
   drawLifebars();
   playSounds();
   const f = (n: number) => n.toFixed(2);
@@ -141,12 +97,18 @@ function draw(): void {
   ].join('\n');
 }
 
-// ?demo=<ticks>: scripted inputs for headless checks (walk, then QCF + x).
-const demo = new URLSearchParams(location.search).get('demo');
-if (demo) {
-  const script = [...Array(40).fill(IN_R), 0, IN_D, IN_D | IN_R, IN_R, IN_R | IN_X, ...Array(9).fill(0)];
-  const stop = parseInt(demo, 10);
-  for (let i = 0; i < stop; i++) world.tick([script[i] ?? 0, 0]);
+// ?demo=<script>:<ticks>: scripted inputs for headless checks.
+const demoParam = new URLSearchParams(location.search).get('demo');
+if (demoParam) {
+  const [name, ticks] = demoParam.includes(':') ? demoParam.split(':') : ['palm', demoParam];
+  const scripts: Record<string, number[]> = {
+    palm: [...Array(40).fill(IN_R), 0, IN_D, IN_D | IN_R, IN_R, IN_R | IN_X],
+    super: [...Array(40).fill(IN_R), 0, IN_D, IN_D | IN_R, IN_R, 0, IN_D, IN_D | IN_R, IN_R, IN_R | IN_X],
+    throw: [...Array(48).fill(IN_R), IN_R | IN_Y],
+  };
+  if (name === 'super') p1.power = 3000;
+  const script = scripts[name!] ?? [];
+  for (let i = 0; i < parseInt(ticks!, 10); i++) world.tick([script[i] ?? 0, 0]);
   draw();
   throw new Error('demo');
 }
