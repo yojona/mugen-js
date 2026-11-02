@@ -168,6 +168,9 @@ export class StoryboardScreen implements Screen {
     if (this.t >= s.endTime) {
       this.scene++;
       this.enterScene();
+      // The storyboard ends on its last scene's end.time frame (measured:
+      // KFM's intro takes 1800 frames in mugen.exe).
+      if (!this.cur) this.result = true;
     }
   }
 
