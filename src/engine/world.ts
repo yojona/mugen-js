@@ -311,7 +311,6 @@ export class World {
       const b = p.bind;
       if (!b) continue;
       if (this.frozen(p)) this.placeBound(p);
-      if (b.time !== 0) p.boundTick = this.gameTime;
       // The bind (and GetHitVar(isbound)) lasts the whole tick.
       if (b.time === 0 || (b.time > 0 && --b.time === 0)) p.bind = undefined;
     }

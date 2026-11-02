@@ -640,8 +640,6 @@ export class Player {
   guardFlag = false;
   /** Hit this tick: the next input's key event does not shorten the get-up wait. */
   recoverFresh = false;
-  /** gameTime of the last tick this player was bound (Bind controllers). */
-  boundTick = -1;
   private updateGuardFlag(): void {
     this.guardFlag = false;
     if (this.isHelper) return;
@@ -871,10 +869,7 @@ export class Player {
     this.shakeFresh = false;
     // Like the attacker's pause, the shake starts counting next tick.
     if (g.hitshaketime > 0 && !shakeFresh) g.hitshaketime--;
-    // It stands still while bound (measured: a KFM throw's HitOver turns 1
-    // right after its last TargetBind).
-    const bound = this.boundTick === this.world.gameTime;
-    if (g.hitshaketime <= 0 && !shakeFresh && g.hittime >= 0 && !bound) g.hittime--;
+    if (g.hitshaketime <= 0 && !shakeFresh && g.hittime >= 0) g.hittime--;
     // fall.recovertime also counts down during the hit shake (measured: a
     // CPU recovers from 5050 one tick earlier than counting after it).
     if (this.moveType === 'h' && g['fall.recovertime'] > 0) g['fall.recovertime']--;

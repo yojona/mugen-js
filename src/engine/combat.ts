@@ -320,7 +320,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.airtype = hd.airType;
     g.type = inAir ? hd.airType : hd.groundType;
     g.hitshaketime = hd.pause[1];
-    g.hittime = inAir || vel[1] !== 0 ? hd.airHitTime : hd.groundHitTime;
+    // Falling hits use air.hittime too (measured: KFM's throw, fall = 1 and
+    // no hittime given, sets 20).
+    g.hittime = inAir || vel[1] !== 0 || willFall ? hd.airHitTime : hd.groundHitTime;
     g.slidetime = hd.groundSlideTime;
     g.xvel = vel[0] * xdir * conv;
     g.yvel = vel[1] * conv;
