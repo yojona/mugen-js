@@ -66,6 +66,56 @@ triggerall = TeamSide = 1 && ctrl && statetype = S
 trigger1 = var(58) = [600, 610]
 value = 240
 
+; ---- Contact section: walk up to P2 and hit it --------------------------
+[State -2, p1 walk in]
+type = ChangeState
+triggerall = TeamSide = 1 && ctrl && statetype = S
+trigger1 = var(58) = 660
+value = 20
+
+[State -2, p1 walk in speed]
+type = VelSet
+triggerall = TeamSide = 1 && stateno = 20
+trigger1 = var(58) = [660, 715]
+x = const(velocity.walk.fwd.x)
+
+[State -2, p1 walk in stop]
+type = ChangeState
+triggerall = TeamSide = 1 && stateno = 20
+trigger1 = var(58) = 716
+value = 0
+ctrl = 1
+
+[State -2, p1 jab on P2]
+type = ChangeState
+triggerall = TeamSide = 1 && ctrl && statetype = S
+trigger1 = var(58) = [730, 740]
+value = 200
+
+[State -2, p1 strong punch on P2]
+type = ChangeState
+triggerall = TeamSide = 1 && ctrl && statetype = S
+trigger1 = var(58) = [800, 810]
+value = 210
+
+[State -2, p1 crouch kick on P2]
+type = ChangeState
+triggerall = TeamSide = 1 && ctrl && statetype = S
+trigger1 = var(58) = [870, 880]
+value = 430
+
+[State -2, p1 palm on P2]
+type = ChangeState
+triggerall = TeamSide = 1 && ctrl && statetype = S
+trigger1 = var(58) = [960, 970]
+value = 1000
+
+[State -2, p1 sweep on P2]
+type = ChangeState
+triggerall = TeamSide = 1 && ctrl && statetype = S
+trigger1 = var(58) = [1200, 1210]
+value = 440
+
 ; ---- State capture (both engines run this exact code) ----------------
 ; Markers let the harness find this player's var array in MUGEN's memory.
 ; var(56/57): 1297434964 / 1297434965 + TeamSide;  fvar(39) = 4242.5
