@@ -17,6 +17,8 @@ export interface ElementDef {
   anim?: number;
   spr?: [number, number];
   font?: [number, number, number];
+  /** Tint for TrueType fonts (font = f, bank, align, r, g, b). */
+  fontColor?: [number, number, number];
   text?: string;
   offset: [number, number];
   facing: number;
@@ -44,6 +46,7 @@ export function parseElement(sec: Section | undefined, prefix: string): ElementD
     anim: anim?.[0],
     spr: spr ? [spr[0] ?? 0, spr[1] ?? 0] : undefined,
     font: font ? [font[0] ?? 0, font[1] ?? 0, font[2] ?? 0] : undefined,
+    fontColor: font && font.length >= 6 ? [font[3]!, font[4]!, font[5]!] : undefined,
     text: text !== undefined ? unquote(text) : undefined,
     offset: [off[0] ?? 0, off[1] ?? 0],
     facing: (numList(g('facing'))?.[0] ?? 1) < 0 ? -1 : 1,
@@ -75,6 +78,12 @@ export class ElementInstance {
 
   reset(): void {
     if (this.anim) this.anim.set(this.anim.anim);
+  }
+
+  /** An animation without displaytime is shown for one pass of its looptime. */
+  get finished(): boolean {
+    const a = this.anim;
+    return !!a && a.totalTime >= 0 && a.time >= a.totalTime;
   }
 
   tick(): void {
@@ -110,7 +119,7 @@ export class ElementInstance {
     const t = text ?? d.text;
     if (d.font && t !== undefined) {
       const font = this.assets.fonts[d.font[0]];
-      if (font) drawText(r, font, t, px, py, d.font[1], d.font[2], d.scale);
+      if (font) drawText(r, font, t, px, py, d.font[1], d.font[2], d.scale, d.fontColor);
     }
   }
 }
@@ -119,14 +128,15 @@ export class ElementInstance {
  * Draw a string; (x, y) is the baseline anchor. align: 1 = left edge at x,
  * 0 = centered on x, -1 = right edge at x.
  */
-export function drawText(r: Renderer, font: Font, text: string, x: number, y: number, bank: number, align: number, scale: [number, number] = [1, 1]): void {
+export function drawText(r: Renderer, font: Font, text: string, x: number, y: number, bank: number, align: number, scale: [number, number] = [1, 1], color?: [number, number, number]): void {
+  const tint = color ? { add: [0, 0, 0] as [number, number, number], mul: [color[0] / 255, color[1] / 255, color[2] / 255] as [number, number, number], color: 1, invertAll: false } : undefined;
   const w = textWidth(font, text) * scale[0];
   let cx = align > 0 ? x : align < 0 ? x - w : x - Math.floor(w / 2);
   const top = y - font.height * scale[1] + font.offset[1];
   const palette = font.palette(bank);
   for (const ch of text) {
     const g = font.glyph(ch);
-    if (g) r.draw({ sprite: g.sprite, palette, x: cx + font.offset[0], y: top, scaleX: scale[0], scaleY: scale[1] });
+    if (g) r.draw({ sprite: g.sprite, palette, x: cx + font.offset[0], y: top, scaleX: scale[0], scaleY: scale[1], palfx: tint });
     cx += ((g?.width ?? font.spaceWidth) + font.spacing[0]) * scale[0];
   }
 }

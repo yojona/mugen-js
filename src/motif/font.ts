@@ -117,6 +117,12 @@ export function parseFntV1(bytes: Uint8Array): Font {
 async function loadFontV2(vfs: Vfs, path: string): Promise<Font> {
   const doc = parseIni(await vfs.text(path));
   const def = findSection(doc, 'Def');
+  if ((getValue(def, 'type') ?? '').toLowerCase() === 'truetype') {
+    const size = (getValue(def, 'size') ?? '8,16').split(',').map((x) => parseInt(x, 10));
+    const spacing = (getValue(def, 'spacing') ?? '0,0').split(',').map((x) => parseInt(x, 10));
+    const offset = (getValue(def, 'offset') ?? '0,0').split(',').map((x) => parseInt(x, 10));
+    return trueTypeFont(getValue(def, 'file') ?? '', size[1] ?? 16, size[0] ?? 8, [spacing[0] ?? 0, spacing[1] ?? 0], [offset[0] ?? 0, offset[1] ?? 0]);
+  }
   const n2 = (k: string, d: [number, number]): [number, number] => {
     const v = getValue(def, k);
     if (!v) return d;
@@ -140,6 +146,53 @@ async function loadFontV2(vfs: Vfs, path: string): Promise<Font> {
       const i = palIndex(bank);
       return sff.palettes[i >= 0 ? i : (sff.sprites[0]?.palette ?? 0)];
     },
+  };
+}
+
+/** Windows font files referenced by motifs, mapped to browser font stacks. */
+const TT_FAMILIES: Record<string, string> = {
+  'arial.ttf': 'Arial, Helvetica, sans-serif',
+  'msgothic.ttc': '"MS Gothic", "Hiragino Kaku Gothic ProN", sans-serif',
+};
+
+/**
+ * TrueType fonts: MUGEN rasterises the system font; we let the browser do it.
+ * Glyphs become white RGBA sprites, tinted per element (font r,g,b).
+ */
+function trueTypeFont(file: string, height: number, spaceWidth: number, spacing: [number, number], offset: [number, number]): Font {
+  const family = TT_FAMILIES[file.toLowerCase()] ?? 'sans-serif';
+  const glyphs = new Map<string, Glyph>();
+  const font = `${height}px ${family}`;
+  const make = (ch: string): Glyph | undefined => {
+    if (typeof OffscreenCanvas === 'undefined') return undefined;
+    const probe = new OffscreenCanvas(1, 1).getContext('2d')!;
+    probe.font = font;
+    const w = Math.max(1, Math.ceil(probe.measureText(ch).width));
+    const h = Math.ceil(height * 1.25);
+    const c = new OffscreenCanvas(w, h);
+    const ctx = c.getContext('2d')!;
+    ctx.font = font;
+    ctx.fillStyle = '#fff';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(ch, 0, height);
+    const rgba = new Uint8Array(ctx.getImageData(0, 0, w, h).data.buffer);
+    return { width: w, sprite: { group: 0, number: ch.charCodeAt(0), width: w, height: h, axisX: 0, axisY: 0, palette: -1, rgba } };
+  };
+  return {
+    height,
+    spaceWidth,
+    spacing,
+    offset,
+    glyph(ch) {
+      if (ch === ' ') return undefined;
+      let g = glyphs.get(ch);
+      if (!g) {
+        g = make(ch);
+        if (g) glyphs.set(ch, g);
+      }
+      return g;
+    },
+    palette: () => undefined,
   };
 }
 
