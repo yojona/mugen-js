@@ -479,7 +479,10 @@ export class World {
       const [lo, hi] = this.screenLimits(p);
       x = Math.max(lo, Math.min(hi, x));
     }
-    if (x !== p.wx) p.setWorldPos(x);
+    // The clamped position is stored as a float (measured: x at a screen
+    // edge reads back as an exact float32 in internal units).
+    const k = this.gameWidth / this.screenWidth;
+    if (x !== p.wx) p.setWorldPos(Math.fround(x * k) / k);
   }
 
   /** Where the camera centre wants to be: keep players out of the tension zones. */
@@ -532,7 +535,9 @@ export class World {
     // Snap once what is left is smaller than the step just taken (0x4169b1).
     if (d > 0 ? x > target : x < target) x = target;
     if (Math.abs(target - x) < Math.abs(speed)) x = target;
-    this.camera.x = x;
+    // mugen.exe keeps the camera edges as floats (G+0x11f08/0c).
+    const k = this.gameWidth / this.screenWidth;
+    this.camera.x = Math.fround(x * k) / k;
   }
 
   /**
