@@ -22,6 +22,8 @@ export interface CharDef {
     /** pal1..pal12 (index 0 = pal1); undefined where not given. */
     pal: (string | undefined)[];
   };
+  /** [Arcade] storyboards. */
+  arcade: { intro?: string; ending?: string };
 }
 
 export function parseCharDef(text: string): CharDef {
@@ -39,6 +41,7 @@ export function parseCharDef(text: string): CharDef {
   const pal: (string | undefined)[] = [];
   for (let i = 1; i <= 12; i++) pal.push(getValue(files, `pal${i}`) || undefined);
   const name = unquote(getValue(info, 'name') ?? '');
+  const arcade = findSection(doc, 'Arcade');
   return {
     name,
     displayName: unquote(getValue(info, 'displayname') ?? name),
@@ -59,5 +62,6 @@ export function parseCharDef(text: string): CharDef {
       ai: getValue(files, 'ai') || undefined,
       pal,
     },
+    arcade: { intro: getValue(arcade, 'intro.storyboard') || undefined, ending: getValue(arcade, 'ending.storyboard') || undefined },
   };
 }
