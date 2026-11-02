@@ -43,6 +43,7 @@ export class World {
   /** Feed this tick's raw inputs (one bitmask per player) and advance one tick. */
   tick(inputs: number[]): void {
     this.players.forEach((p, i) => p.input.push(inputs[i] ?? 0));
+    for (const p of this.players) p.advanceAnim();
     for (const p of this.players) p.runStates();
     for (const p of this.players) p.physicsStep();
     this.pushPlayers();

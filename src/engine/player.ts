@@ -336,13 +336,22 @@ export class Player {
     }
   }
 
-  /** End of tick: advance animation and state time. */
+  /**
+   * Start of tick: advance the animation shown last tick. Doing this before
+   * state processing (instead of after) means a newly set action is displayed
+   * for exactly its element times, and `AnimTime = 0` fires on the tick the
+   * action would wrap, so the wrapped frame is never drawn.
+   */
+  advanceAnim(): void {
+    this.anim.tick();
+  }
+
+  /** End of tick: advance state time. */
   advance(): void {
     if (this.freshState) {
       this.freshState = false;
       return;
     }
-    this.anim.tick();
     this.time++;
   }
   private freshState = false;
