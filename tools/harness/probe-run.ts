@@ -33,6 +33,11 @@ export interface ProbeOptions {
   char2?: string;
   /** Input script under tools/harness/inputs (e.g. "basic"). */
   inputs?: string;
+  /**
+   * MUGEN's RNG state right before the first tick of RoundState 2 (it depends
+   * on how many numbers MUGEN drew while loading; read from the capture).
+   */
+  seed?: number;
 }
 
 export async function runProbe(ticks: number, opts: ProbeOptions = {}): Promise<string[]> {
@@ -56,10 +61,15 @@ export async function runProbe(ticks: number, opts: ProbeOptions = {}): Promise<
     { x: stage.info.p2.x, y: stage.info.p2.y, facing: stage.info.p2.facing },
   ]);
   const lines: string[] = [];
+  let seeded = false;
   for (let i = 1; i <= ticks; i++) {
     // Same rule as drive.py: keys for the next tick of the script clock.
     const clock = p1.vars[58]!;
     const keys = script && clock > 0 ? script.at(clock + 1) : [0, 0];
+    if (opts.seed !== undefined && !seeded && w.roundState === 2) {
+      w.seed = opts.seed;
+      seeded = true;
+    }
     if (m.tick()) w.tick(keys);
     w.players.forEach((p) => {
       const v = Array.from(p.vars).join(',');

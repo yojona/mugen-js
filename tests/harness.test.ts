@@ -36,6 +36,16 @@ describe('MUGEN 1.1 reference (KFM probe)', () => {
     expect(r.reports).toEqual([]);
   }, 60_000);
 
+  it('matches the original Random sequence, a projectile and a helper', async () => {
+    // Scripted probefx scenario (overlay/chars/probe/fxscript.st, fxstates.st).
+    // The seed is MUGEN's RNG state at round start in that capture.
+    const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kfm-fx.mugen.log.gz'))).toString('latin1');
+    const ours = (await runProbe(500, { char: 'probefx', seed: 937167434 })).join('\n');
+    const r = compareLogs(ref, ours, 10);
+    expect(r.compared).toBeGreaterThan(600);
+    expect(r.reports).toEqual([]);
+  }, 60_000);
+
   // Keyboard scenarios (tools/harness/inputs/*.txt), captured with MUGEN
   // running slowly while the harness types the keys.
   for (const [name, ticks, min] of [
