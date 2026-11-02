@@ -80,9 +80,11 @@ def main():
         # Keys for the next tick (clock + 1), applied as key state changes.
         want = wanted(spans, clock + 1) if clock > 0 else [set(), set()]
         for i in (0, 1):
-            for k in held[i] - want[i]:
+            # Sorted, so simultaneous key changes reach MUGEN in a fixed order
+            # (it consumes one key event per tick); mugen-web replays the same.
+            for k in sorted(held[i] - want[i]):
                 xdo('keyup', KEYS[i][k])
-            for k in want[i] - held[i]:
+            for k in sorted(want[i] - held[i]):
                 xdo('keydown', KEYS[i][k])
             held[i] = set(want[i])
 
