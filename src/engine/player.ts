@@ -793,13 +793,13 @@ export class Player {
       if (Math.abs(this.cornerPushVel) < 0.5) this.cornerPushVel = 0;
     }
     if (!this.posFreeze) {
-      this.pos.x = Math.fround(this.pos.x + this.vel.x * this.facing);
-      this.pos.y = Math.fround(this.pos.y + this.vel.y);
+      this.pos.x = this.pos.x + this.vel.x * this.facing;
+      this.pos.y = this.pos.y + this.vel.y;
     }
     this.posFreeze = false;
     switch (this.physics) {
       case 's':
-        this.vel.x = Math.fround(this.vel.x * this.const('movement.stand.friction'));
+        this.vel.x = this.vel.x * Math.fround(this.const('movement.stand.friction'));
         // Standing friction stops the player once the speed drops below 1
         // (measured: KFM's 200/210/240/400 hit slides end at 0.905, 0.920,
         // 0.853 and 0.543 while 1.004 and 1.065 still slide; the Triple Kung
@@ -807,10 +807,10 @@ export class Player {
         if (Math.abs(this.vel.x) < 1) this.vel.x = 0;
         break;
       case 'c':
-        this.vel.x = Math.fround(this.vel.x * this.const('movement.crouch.friction'));
+        this.vel.x = this.vel.x * Math.fround(this.const('movement.crouch.friction'));
         break;
       case 'a':
-        this.vel.y = Math.fround(this.vel.y + this.const('movement.yaccel'));
+        this.vel.y = this.vel.y + Math.fround(this.const('movement.yaccel'));
         // State 105 (hop back) is exempt: it lands through its own
         // ChangeState (mugen.exe 0x43cd63 compares stateno with 105).
         if (this.pos.y >= 0 && this.vel.y > 0 && this.stateNo !== 105) {

@@ -117,14 +117,14 @@ const IMPLS: Record<string, Impl> = {
   veladd: (_c, prm) => (p) => {
     const x = prm.num(p, 'x');
     const y = prm.num(p, 'y');
-    if (x !== undefined) p.vel.x = Math.fround(p.vel.x + x);
-    if (y !== undefined) p.vel.y = Math.fround(p.vel.y + y);
+    if (x !== undefined) p.vel.x = p.vel.x + Math.fround(x);
+    if (y !== undefined) p.vel.y = p.vel.y + Math.fround(y);
   },
   velmul: (_c, prm) => (p) => {
     const x = prm.num(p, 'x');
     const y = prm.num(p, 'y');
-    if (x !== undefined) p.vel.x = Math.fround(p.vel.x * x);
-    if (y !== undefined) p.vel.y = Math.fround(p.vel.y * y);
+    if (x !== undefined) p.vel.x = p.vel.x * Math.fround(x);
+    if (y !== undefined) p.vel.y = p.vel.y * Math.fround(y);
   },
   posset: (_c, prm) => (p) => {
     const x = prm.num(p, 'x');
