@@ -4,7 +4,7 @@
 // widened to the display aspect (a 4:3 stage shows more width on 16:9); the
 // HUD is drawn in the motif's (fight.def's) coordinate space.
 
-import { MugenAI } from '../engine/ai';
+import { MugenAI, type DummySettings } from '../engine/ai';
 import { Match } from '../engine/match';
 import { Player, type CharacterProgram } from '../engine/player';
 import { World, type FightFx } from '../engine/world';
@@ -41,6 +41,8 @@ export class FightScreen implements Screen {
   readonly match: Match;
   private bg: StageRuntime;
   private fade = new Fader(10, 10);
+  /** Training dummy settings, changed with keys 1-5. */
+  private dummy: DummySettings = { stance: 0, guard: false, distance: 0, jumpDistance: 0, button: 0 };
   private idle = [0, 0];
 
   constructor(
@@ -67,10 +69,13 @@ export class FightScreen implements Screen {
     ]);
     this.match.autoRematch = false;
     this.bg = new StageRuntime(s.stage);
-    // CPU sides run MUGEN's own AI (training mode leaves the dummy idle).
+    // CPU sides run MUGEN's own AI; in training it is MUGEN's dummy.
     [p1, p2].forEach((p, i) => {
-      if (!s.human[i] && !s.training) p.ai = new MugenAI(p, ctx.aiLevel);
+      if (s.human[i]) return;
+      p.ai = new MugenAI(p, ctx.aiLevel);
+      if (s.training) p.ai.dummy = this.dummy;
     });
+    if (s.training) this.showDummy();
   }
 
   tick(): void {
@@ -86,6 +91,7 @@ export class FightScreen implements Screen {
       this.fade.fadeOut();
       return;
     }
+    if (this.s.training) this.dummyKeys();
     const m = this.match;
     const w = this.world;
     const inputs = w.players.map((_, i) => (this.s.human[i] ? this.ctx.keys.pads[i === 1 && !this.s.human[0] ? 0 : i]!.bits : 0));
@@ -106,8 +112,42 @@ export class FightScreen implements Screen {
   }
   private pendingResult: FightResult | undefined;
 
+  /** Keys 1-5 cycle the dummy's stance, guard, distance, back-off distance and button. */
+  private dummyKeys(): void {
+    const d = this.dummy;
+    for (const code of this.ctx.keys.pressed) {
+      let changed = true;
+      if (code === 'Digit1') d.stance = (d.stance + 1) % 4;
+      else if (code === 'Digit2') d.guard = !d.guard;
+      else if (code === 'Digit3') d.distance = d.distance === 0 ? 50 : d.distance === 50 ? 150 : 0;
+      else if (code === 'Digit4') d.jumpDistance = d.jumpDistance === 0 ? 50 : d.jumpDistance === 50 ? 150 : 0;
+      else if (code === 'Digit5') d.button = (d.button + 1) % 8;
+      else changed = false;
+      if (changed) this.showDummy();
+    }
+  }
+
+  private helpText: string | undefined;
+
+  /** Put the normal key help back when the fight ends. */
+  private restoreHelp(): void {
+    const el = typeof document !== 'undefined' ? document.getElementById('help') : null;
+    if (el && this.helpText !== undefined) el.textContent = this.helpText;
+  }
+
+  private showDummy(): void {
+    const el = typeof document !== 'undefined' ? document.getElementById('help') : null;
+    if (!el) return;
+    this.helpText ??= el.textContent ?? '';
+    const d = this.dummy;
+    const stance = ['de pie', 'agachado', 'salta', 'salta seguido'][d.stance];
+    const button = d.button ? 'abcxyzs'[d.button - 1] : 'ninguno';
+    el.textContent = `Entrenamiento: 1 postura (${stance}) / 2 bloqueo (${d.guard ? 'sí' : 'no'}) / 3 distancia (${d.distance || 'libre'}) / 4 alejarse (${d.jumpDistance || 'no'}) / 5 botón (${button}) / Esc volver`;
+  }
+
   /** The players leave: their AI move records stay with the characters. */
   private saveRecords(): void {
+    this.restoreHelp();
     for (const p of this.world.players) p.recorder?.saveToCharacter();
   }
 

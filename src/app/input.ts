@@ -25,6 +25,9 @@ export class Keyboard {
   readonly pads = [new Pad(), new Pad()];
   private down = [0, 0];
   escape = false;
+  /** Keys first pressed this tick (KeyboardEvent.code), for menus. */
+  pressed: string[] = [];
+  private pressQueue: string[] = [];
   private escapeDown = false;
   private escapePrev = false;
   /** Called on the first key press (audio unlock). */
@@ -35,6 +38,7 @@ export class Keyboard {
       const e = ev as KeyboardEvent;
       this.onFirstInput?.();
       if (e.code === 'Escape') this.escapeDown = true;
+      if (!e.repeat) this.pressQueue.push(e.code);
       MAPS.forEach((m, i) => {
         const b = m[e.code];
         if (b) {
@@ -63,6 +67,8 @@ export class Keyboard {
       p.latch();
       p.bits = this.down[i]!;
     });
+    this.pressed = this.pressQueue;
+    this.pressQueue = [];
     this.escape = this.escapeDown && !this.escapePrev;
     this.escapePrev = this.escapeDown;
   }
