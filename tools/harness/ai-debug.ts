@@ -11,6 +11,6 @@ MugenAI.prototype.tick = function (this: MugenAI, f: boolean) {
   const held = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((k) => this.p.cmdInput!.heldAt(k)).join('');
   const st0 = this.state;
   orig.call(this, f);
-  if (on) console.log('clock', c, 'state', st0, '->', this.state, 'held', held, 'st', this.p.stateNo, this.p.moveType, 'ctrl', this.p.ctrl, 't', this.p.time, log.join(' '));
+  if (on) console.log('clock', c, 'state', st0, '->', this.state, 'held', held, 'st', this.p.stateNo, this.p.moveType, 'ctrl', this.p.ctrl, 't', this.p.time, 'cmds', this.cmds.join(','), log.join(' '));
 };
 await runProbe(1000, { char: 'probeai', seed: 937167434, ai: [undefined, 4] });

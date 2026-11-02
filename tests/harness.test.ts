@@ -55,6 +55,16 @@ describe('MUGEN 1.1 reference (KFM probe)', () => {
     expect(r.reports).toEqual([]);
   }, 60_000);
 
+  it('matches the original CPU AI (level 4) against an idle opponent', async () => {
+    // P2 is MUGEN's AI (-p2.ai 4); P1 (probeai) only records Random. The AI
+    // draws from the shared generator, so this checks its whole decision flow.
+    const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kfm-ai4.mugen.log.gz'))).toString('latin1');
+    const ours = (await runProbe(1000, { char: 'probeai', seed: 937167434, ai: [undefined, 4] })).join('\n');
+    const r = compareLogs(ref, ours, 10);
+    expect(r.compared).toBeGreaterThan(1400);
+    expect(r.reports).toEqual([]);
+  }, 60_000);
+
   // Keyboard scenarios (tools/harness/inputs/*.txt), captured with MUGEN
   // running slowly while the harness types the keys.
   for (const [name, ticks, min] of [

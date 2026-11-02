@@ -70,12 +70,13 @@ export class MugenAI {
   }
 
   private push(code: number): void {
+    if (DEBUG) DEBUG.push(`key:${code.toString(16)}`);
     this.p.cmdInput?.pushKey(code);
   }
 
   private rand(n: number): number {
     const v = this.p.world.random(n);
-    if (DEBUG) DEBUG.push(`%${n}=${v}`);
+    if (DEBUG) DEBUG.push(n === this.p.cmdInput?.commandCount ? `%${n}=${v}(raw ${this.p.world.seed})` : `%${n}=${v}`);
     return v;
   }
 
