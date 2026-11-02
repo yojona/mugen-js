@@ -23,6 +23,10 @@ Env:
                flow and RoundState (RS_ADDR) is 2, press key on frames where
                frame % every == 0
   FLOW_ADDR    default [0x5040c4]
+  LOCKSTEP     1 = virtual clock: QueryPerformanceCounter and timeGetTime
+               are redirected (IAT) to stubs reading a time the driver
+               advances, so mugen.exe runs exactly when allowed and keys go
+               in between frames (deterministic, menus included)
 Output: /out/flow.log lines "C|ms|v1,v2,..." on change, K|ms|keys, and
 /out/mugen.log."""
 import os, struct, subprocess, sys, time
@@ -36,6 +40,47 @@ def ms():
     return int((time.time() - T0) * 1000)
 
 
+# Lockstep: stubs in the zero padding after .text, the clock after .data.
+CAVE = 0x4dda00
+VT = 0x505f00          # int64 QPC ticks (10 MHz), then int32 ms at VT + 8
+IAT_QPC = 0x4de058
+IAT_TGT = 0x4de510
+
+
+def install_lockstep(mem, vt0):
+    def w(addr, data):
+        mem.seek(addr)
+        mem.write(data)
+    w(VT, struct.pack('<qI', vt0, vt0 // 10000))
+    inc = b'\xff\x05' + struct.pack('<I', VT + 12)   # count clock reads
+    qpc = inc + (b'\x8b\x44\x24\x04' + b'\x8b\x0d' + struct.pack('<I', VT) + b'\x89\x08' +
+           b'\x8b\x0d' + struct.pack('<I', VT + 4) + b'\x89\x48\x04' + b'\xb8\x01\x00\x00\x00' + b'\xc2\x04\x00')
+    tgt = inc + b'\xa1' + struct.pack('<I', VT + 8) + b'\xc3'
+    w(CAVE, qpc)
+    w(CAVE + 0x40, tgt)
+    w(IAT_QPC, struct.pack('<I', CAVE))
+    w(IAT_TGT, struct.pack('<I', CAVE + 0x40))
+
+
+def clock_reads(mem):
+    mem.seek(VT + 12)
+    return struct.unpack('<I', mem.read(4))[0]
+
+
+def wait_idle(mem, n=3, timeout=1.0):
+    """Wait until the game has read the frozen clock n more times: it is
+    then spinning in its frame wait, between frames."""
+    c0 = clock_reads(mem)
+    end = time.time() + timeout
+    while time.time() < end and (clock_reads(mem) - c0) & 0xffffffff < n:
+        time.sleep(0.0005)
+
+
+def set_vt(mem, vt):
+    mem.seek(VT)
+    mem.write(struct.pack('<qI', vt, (vt // 10000) & 0xffffffff))
+
+
 def main():
     os.chdir('/mugen')
     for f in ('mugen.log', '/out/flow.log'):
@@ -44,26 +89,55 @@ def main():
     subprocess.Popen(['Xvfb', ':99', '-screen', '0', '1280x720x24'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(1)
     subprocess.Popen(['wine', 'mugen.exe', '-nosound', '-sessionseed', SEED], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    win = ''
-    for _ in range(240):
-        r = subprocess.run(['xdotool', 'search', '--name', 'M.U.G.E.N'], capture_output=True, text=True)
-        win = r.stdout.split('\n')[0].strip()
-        if win:
-            break
-        time.sleep(0.25)
-    if not win:
-        print('MUGEN window not found'); sys.exit(1)
-    subprocess.run(['xdotool', 'windowfocus', win])
+    lock = os.environ.get('LOCKSTEP') == '1'
     pid = None
     while pid is None and time.time() - T0 < 60:
         for p in os.listdir('/proc'):
             if p.isdigit():
                 try:
-                    if 'mugen.exe' in open(f'/proc/{p}/maps').read():
+                    # The game process itself (not the wine launcher).
+                    if open(f'/proc/{p}/comm').read().strip() == 'mugen.exe' and 'mugen.exe' in open(f'/proc/{p}/maps').read():
                         pid = int(p); break
                 except OSError:
                     pass
-        time.sleep(0.05)
+        time.sleep(0.005)
+    early_vt = None
+    if lock:
+        # Take over the clock as soon as the image is mapped, before the
+        # game reads it: every run then starts from the same frame.
+        with open(f'/proc/{pid}/mem', 'r+b', 0) as m0:
+            # Wait for the loader to bind the imports: unbound, a slot holds
+            # a small hint/name RVA; bound, a DLL address outside the image.
+            while time.time() - T0 < 60:
+                try:
+                    m0.seek(IAT_QPC)
+                    q = struct.unpack('<I', m0.read(4))[0]
+                    m0.seek(IAT_TGT)
+                    t = struct.unpack('<I', m0.read(4))[0]
+                    bound = lambda v: v >= 0x200000 and not 0x400000 <= v < 0x520000
+                    if bound(q) and bound(t):
+                        break
+                except OSError as e:
+                    q = t = repr(e)
+                time.sleep(0.0002)
+            early_vt = time.monotonic_ns() // 100
+            install_lockstep(m0, early_vt)
+    win = ''
+    with open(f'/proc/{pid}/mem', 'r+b', 0) as m0:
+        vt_boot = early_vt
+        for _ in range(1200):
+            r = subprocess.run(['xdotool', 'search', '--name', 'M.U.G.E.N'], capture_output=True, text=True)
+            win = r.stdout.split('\n')[0].strip()
+            if win:
+                break
+            if lock:
+                # Real time while the game starts up (before the title).
+                vt_boot = early_vt + (time.monotonic_ns() // 100 - early_vt)
+                set_vt(m0, vt_boot)
+            time.sleep(0.05 if lock else 0.25)
+    if not win:
+        print('MUGEN window not found'); sys.exit(1)
+    subprocess.run(['xdotool', 'windowfocus', win])
     print('pid', pid)
     items = [i for i in os.environ.get('PEEKALL', '').split(';') if i]
     keys = []
@@ -109,7 +183,29 @@ def main():
                 return base + (int(rest.lstrip('+'), 16) if rest else 0)
             return int(e, 16)
 
+        vt = None
+        if lock:
+            mem.seek(VT)
+            vt = struct.unpack('<q', mem.read(8))[0]
+            out.write(f"LOCK|{ms()}|{vt}\n")
+        frame_done = False
+        keys_sent = False
+        last_bump = 0.0
         while time.time() - T0 < SECONDS_MAX:
+            if lock:
+                # One frame period per frame, only once the last frame is
+                # done (no catch-up frames); again if nothing happens (loading).
+                if frame_done or time.time() - last_bump > 0.5:
+                    if frame_done and keys_sent:
+                        # Let the keys reach the game while it waits.
+                        time.sleep(float(os.environ.get('KEY_SETTLE', '0.04')))
+                        wait_idle(mem)
+                    frame_done = False
+                    keys_sent = False
+                    vt += int(os.environ.get('VT_PERIOD', '166667'))
+                    set_vt(mem, vt)
+                    last_bump = time.time()
+                time.sleep(0.0005)
             vals = []
             for item in items:
                 addr, fmt = item.rsplit(':', 1)
@@ -128,7 +224,23 @@ def main():
                 gt = None
             if gt is not None and gt != last_gt:
                 last_gt = gt
+                if lock:
+                    # The clock stopped: let the frame finish, then read it.
+                    wait_idle(mem)
+                    vals = []
+                    for item in items:
+                        addr, fmt = item.rsplit(':', 1)
+                        try:
+                            code = {'d': '<d', 'f': '<f'}.get(fmt, '<i')
+                            raw = rd(ev(addr), 8)
+                            vals.append(str(struct.unpack(code, raw[:struct.calcsize(code)])[0]))
+                        except (OSError, struct.error, ValueError):
+                            vals.append('ERR')
+                    if vals != last:
+                        out.write(f"C|{ms()}|" + ",".join(vals) + "\n")
+                        last = vals
                 out.write(f"F|{ms()}|{gt}\n")
+                frame_done = True
                 # Let the frame finish before touching the keyboard.
                 time.sleep(float(os.environ.get('KEY_DELAY', '0.02')))
                 try:
@@ -165,10 +277,12 @@ def main():
                 for _, ks in ups:
                     subprocess.run(['xdotool', 'keyup', *ks])
                     out.write(f"KU|{gt}|{'+'.join(ks)}\n")
+                    keys_sent = True
                 while fkeys and fkeys[0][0] <= gt:
                     _, ks, hold = fkeys.pop(0)
                     subprocess.run(['xdotool', 'keydown', *ks])
                     out.write(f"KD|{gt}|{'+'.join(ks)}\n")
+                    keys_sent = True
                     releases.append((gt + hold, ks))
             now = time.time() - T0
             while keys and keys[0][0] <= now:
