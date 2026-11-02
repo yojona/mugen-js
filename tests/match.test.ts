@@ -108,3 +108,31 @@ describe('stage loading', () => {
     }
   });
 });
+
+describe('mixed coordinate spaces (kfm 320 vs kfm720 1280)', () => {
+  it('walks the same world distance and collides at the same distance', async () => {
+    const hd = await loadProgram(vfs, await loadCharacter(vfs, 'chars/kfm720/kfm720.def'));
+    const w = new World();
+    const a = new Player(prog, w, 0);
+    const b = new Player(hd, w, 1);
+    w.players.push(a, b);
+    expect(a.scale).toBe(1);
+    expect(b.scale).toBe(0.25);
+    a.setWorldPos(-100, 0);
+    b.setWorldPos(100, 0);
+    b.facing = -1;
+    a.changeState(0);
+    b.changeState(0);
+    // Hold forward for both (P2 faces left, so forward is left).
+    for (let i = 0; i < 20; i++) w.tick([8, 4]);
+    const da = a.wx + 100;
+    const db = 100 - b.wx;
+    expect(da).toBeGreaterThan(20);
+    expect(Math.abs(da - db)).toBeLessThan(da * 0.25);
+    // Walk into each other: the push keeps world bodies apart by ~ both widths.
+    for (let i = 0; i < 120; i++) w.tick([8, 4]);
+    const gap = b.wx - a.wx;
+    expect(gap).toBeGreaterThan(20);
+    expect(gap).toBeLessThan(40);
+  });
+});
