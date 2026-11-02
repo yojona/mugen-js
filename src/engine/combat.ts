@@ -333,9 +333,17 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
       d.changeState(hd.p2StateNo);
     } else {
       d.returnToOwnStates();
+      const oldType = d.stateType;
       if (override && override.stateNo >= 0) d.changeState(override.stateNo);
+      // A grounded defender hit by ground.type = Trip goes to 5070 (HITTRIP).
+      else if (!inAir && hd.groundType === 3) d.changeState(5070);
       // By statetype only: common1's 5000/5010 switch to air themselves when yvel != 0.
       else d.changeState(inAir ? 5020 : d.stateType === 'c' ? 5010 : 5000);
+      // The new statetype shows once the hit state first runs (measured: 5070).
+      if (d.stateType !== oldType) {
+        d.pendingStateType = d.stateType;
+        d.stateType = oldType;
+      }
     }
     d.moveType = 'h';
     if (!proj && !inAir && vel[1] === 0) cornerPush(a, d, hd.groundCornerPush);

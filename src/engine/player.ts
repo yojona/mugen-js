@@ -513,6 +513,10 @@ export class Player {
   private pendingEntry = false;
 
   private runCurrent(): void {
+    if (this.pendingStateType) {
+      this.stateType = this.pendingStateType;
+      this.pendingStateType = undefined;
+    }
     if (this.pendingEntry) {
       this.pendingEntry = false;
       const cs = this.compiledState(this.stateNo);
