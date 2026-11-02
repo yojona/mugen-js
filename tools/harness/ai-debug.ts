@@ -2,6 +2,7 @@
 import { MugenAI, setAiDebug } from '../../src/engine/ai';
 import { runProbe } from './probe-run';
 const [from, to] = [Number(process.argv[2]), Number(process.argv[3])];
+const inputs = process.argv[4];
 const orig = MugenAI.prototype.tick;
 MugenAI.prototype.tick = function (this: MugenAI, f: boolean) {
   const c = this.p.world.players[0]!.vars[58]! + 1; // the clock this tick will show
@@ -13,4 +14,4 @@ MugenAI.prototype.tick = function (this: MugenAI, f: boolean) {
   orig.call(this, f);
   if (on) console.log('clock', c, 'state', st0, '->', this.state, 'held', held, 'st', this.p.stateNo, this.p.moveType, 'ctrl', this.p.ctrl, 't', this.p.time, 'cmds', this.cmds.join(','), log.join(' '));
 };
-await runProbe(1000, { char: 'probeai', seed: 937167434, ai: [undefined, 4] });
+await runProbe(1000, { char: 'probeai', inputs, seed: 937167434, ai: [undefined, 4] });

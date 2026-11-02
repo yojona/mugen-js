@@ -1,0 +1,26 @@
+# P1 (keyboard) attacks repeatedly so the CPU P2 learns and watches moves.
+# Each move appears several times: the AI only watches moves it has records for.
+
+40-70     1  r      ; walk in
+80        1  x      ; jab
+120       1  x
+160       1  y      ; strong punch
+200       1  x
+240       1  y
+280-282   1  d      ; crouch jab
+281       1  x
+320       1  x
+360       1  y
+400-401   1  d      ; QCF + x (palm)
+402-403   1  dr
+404-405   1  r
+406       1  rx
+460       1  x
+500       1  y
+540-541   1  d
+542-543   1  dr
+544-545   1  r
+546       1  rx
+600       1  x
+640       1  y
+680       1  x

@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { World } from '../../src/engine/world';
 import { runProbe } from './probe-run';
-const [refPath, char, seed, ai2] = process.argv.slice(2);
+const [refPath, char, seed, ai2, inputs] = process.argv.slice(2);
 const mugen = new Map<number, number>();
 let clock = 0;
 for (const line of readFileSync(refPath!, 'latin1').split('\n')) {
@@ -18,7 +18,7 @@ World.prototype.tick = function (this: World, inp: number[]) {
   const c = this.players[0]!.vars[58]!;
   if (c > 0) ours.set(c, this.seed);
 };
-await runProbe(1000, { char: char!, seed: Number(seed), ai: [undefined, ai2 ? Number(ai2) : undefined] });
+await runProbe(1000, { char: char!, inputs, seed: Number(seed), ai: [undefined, ai2 ? Number(ai2) : undefined] });
 for (const [c, s] of [...mugen].sort((a, b) => a[0] - b[0])) {
   if (ours.get(c) !== s) {
     console.log('first seed diff at clock', c, 'mugen', s, 'ours', ours.get(c), 'prev ok clock', c - 1);

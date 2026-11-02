@@ -215,6 +215,8 @@ def main():
             last_gt = gt
             step += 1
             clock = dump(step, rows)
+            if os.environ.get('PEEKALL'):
+                out.write(f"P|{step}|" + ",".join(peek(pid, step)) + "\n")
             # Change keys only once this frame has fully finished (so no part
             # of frame N sees tick N+1's keys) and well before the next one.
             time.sleep(float(os.environ.get('KEY_DELAY', '0.03')))
