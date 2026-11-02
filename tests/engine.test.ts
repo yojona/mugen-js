@@ -143,6 +143,9 @@ describe('kfm combat', () => {
     }
     expect(hitTick).toBeGreaterThanOrEqual(0);
     expect(p2.stateNo).toBe(5000);
+    // Damage lands one tick after the hit (measured against MUGEN 1.1).
+    expect(p2.life).toBe(1000);
+    run(w, 1);
     expect(p2.life).toBeLessThan(1000);
     expect(p1.moveHit).toBeGreaterThan(0);
     expect(p1.hitPause).toBeGreaterThan(0);
