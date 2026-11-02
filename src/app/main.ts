@@ -235,7 +235,9 @@ function stepOnce(): void {
   if (busy) return;
   keys.poll();
   if (script) feedScript();
+  if (flowHarness) flowHarness.before(screen);
   screen.tick();
+  if (flowHarness) flowHarness.after(screen);
   if (screen.result !== undefined && resolver) {
     const r = resolver;
     resolver = undefined;
@@ -265,6 +267,69 @@ function feedScript(): void {
   }
   keys.pads[0]!.bits = [...tok].reduce((b, ch) => b | (KEYMAP[ch] ?? 0), 0);
   scriptPos++;
+}
+
+// Flow harness (tools/harness/flow-ours.ts), compared with mugen.exe's whole
+// game flow: ?flowlog=1 logs every screen change with the frame number,
+// ?fkeys=f:keys[:hold];... presses P1 keys from frame f (frame = ticks run +
+// ?frame0), ?mash=Screen:keys:every:hold presses keys on frames where
+// frame % every == 0 while that screen runs, ?clamp=side:max caps a fighter's
+// life after every tick, ?shotevery=N logs the canvas every N frames and on
+// every screen change.
+const flowHarness = params.get('flowlog') ? makeFlowHarness() : undefined;
+
+function makeFlowHarness() {
+  let frame = parseInt(params.get('frame0') ?? '0', 10);
+  const parseKeys = (k: string) => [...k].reduce((b, ch) => b | (KEYMAP[ch] ?? 0), 0);
+  const fkeys = (params.get('fkeys') ?? '')
+    .split(';')
+    .filter(Boolean)
+    .map((p) => {
+      const [f, k, hold] = p.split(':');
+      return { from: parseInt(f!, 10), bits: parseKeys(k!), hold: parseInt(hold ?? '2', 10) };
+    });
+  const mash = params.get('mash')?.split(':');
+  const clamp = params
+    .get('clamp')
+    ?.split(';')
+    .filter(Boolean)
+    .map((c) => c.split(':').map(Number) as [number, number]);
+  const shotEvery = parseInt(params.get('shotevery') ?? '0', 10);
+  let lastName = '';
+  let lastRs = '';
+  const shot = () => {
+    screen.draw();
+    console.log(`SHOT|${frame}|${canvas.toDataURL('image/png')}`);
+  };
+  return {
+    before(s: Screen) {
+      let bits = 0;
+      for (const k of fkeys) if (frame >= k.from && frame < k.from + k.hold) bits |= k.bits;
+      const fighting = !(s instanceof FightScreen) || s.world.roundState === 2;
+      if (mash && fighting && s.constructor.name === mash[0] && frame % parseInt(mash[2]!, 10) < parseInt(mash[3]!, 10)) bits |= parseKeys(mash[1]!);
+      if (bits) keys.pads[0]!.bits |= bits;
+    },
+    after(s: Screen) {
+      const name = s.constructor.name;
+      if (clamp && s instanceof FightScreen) {
+        for (const [side, max] of clamp) {
+          const p = s.world.players[side];
+          if (p && p.life > max) p.life = max;
+        }
+      }
+      if (s instanceof FightScreen) {
+        const key = `${s.world.roundState}`;
+        if (key !== lastRs) console.log(`DBG|${frame}|rs ${s.world.roundState} seed ${s.world.seed} life ${s.world.players.map((p) => p.life).join(',')}`);
+        lastRs = key;
+      } else lastRs = '';
+      if (name !== lastName) {
+        console.log(`FLOW|${frame}|${name}`);
+        lastName = name;
+        if (shotEvery) shot();
+      } else if (shotEvery && frame % shotEvery === 0) shot();
+      frame++;
+    },
+  };
 }
 
 void mainLoop();
