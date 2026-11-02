@@ -6,6 +6,7 @@
 // alignment still need to be verified against the reference binary.
 
 import type { Clsn } from '../formats/air';
+import { clsnTouchInternal } from './ai-learn';
 import { attrMatches, type HitDefData } from './hitdef';
 import { endProjectile, projInfo, type Projectile } from './projectile';
 import type { Player } from './player';
@@ -93,13 +94,14 @@ export function detectHits(players: Player[]): PendingHit[] {
       if (a.hitTargets.has(d)) continue;
       // ReversalDef: the defender's Clsn1 against the attacker's Clsn1.
       if (d.reversal && attrMatches(d.reversal.attrs, a.hitDef.attrState, a.hitDef.attrType)) {
-        if (overlap(atk, worldBoxes(d, d.anim.current?.clsn1 ?? null))) {
+        if (clsnTouchInternal(d, 1, a, 1)) {
           applyReversal(d, a);
           continue;
         }
       }
-      const hurt = worldBoxes(d, d.anim.current?.clsn2 ?? null);
-      if (!overlap(atk, hurt)) continue;
+      // Whole internal units, distance truncated, as for push (measured: a
+      // KFM 1400 kick connecting at the edge of its reach).
+      if (!clsnTouchInternal(d, 2, a, 1)) continue;
       if (!canHit(a, a.hitDef, d)) continue;
       const guarded = isGuarding(d) && stanceOk(a.hitDef.guardFlag, d) && !a.special.has('unguardable');
       hits.push({ attacker: a, defender: d, hd: a.hitDef, guarded });

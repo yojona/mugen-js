@@ -524,8 +524,15 @@ export function boxListsOverlap(flipP: boolean, flipA: boolean, listP: readonly 
  * player 0.52 internal units above the other's box still pushes).
  */
 export function clsn2TouchInternal(p: Player, q: Player): boolean {
-  const lp = boxesOf(p, p.anim.current?.clsn2);
-  const lq = boxesOf(q, q.anim.current?.clsn2);
+  return clsnTouchInternal(p, 2, q, 2);
+}
+
+/** Clsn contact in whole internal units (push, hits, reversals). */
+export function clsnTouchInternal(p: Player, wp: 1 | 2, q: Player, wq: 1 | 2): boolean {
+  const fp = p.anim.current;
+  const fq = q.anim.current;
+  const lp = boxesOf(p, wp === 1 ? fp?.clsn1 : fp?.clsn2);
+  const lq = boxesOf(q, wq === 1 ? fq?.clsn1 : fq?.clsn2);
   if (!lp || !lq) return false;
   const k = internalScale(p);
   return boxListsOverlap(p.facing !== 1, q.facing !== 1, lp, lq, ftoi((q.wx - p.wx) * k), ftoi((q.wy - p.wy) * k));
