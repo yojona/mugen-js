@@ -679,7 +679,11 @@ export class Player {
         return;
       case 'airjump': {
         const n = this.const('movement.airjump.num');
-        if (n > 0 && this.airJumps < n && -this.pos.y >= this.const('movement.airjump.height')) {
+        // The height is compared with y in internal (GameWidth) units, the
+        // constant unscaled (mugen.exe 0x43539f; measured: KFM air-jumps 32
+        // units up with airjump.height = 35).
+        const yInternal = -this.wy * (this.world.gameWidth / this.world.screenWidth);
+        if (n > 0 && this.airJumps < n && yInternal > this.const('movement.airjump.height')) {
           this.airJumps++;
           this.enterLater(45);
         }
