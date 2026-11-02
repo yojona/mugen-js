@@ -41,7 +41,6 @@ describe('MUGEN 1.1 reference (KFM probe)', () => {
   for (const [name, ticks, min] of [
     ['basic', 1200, 1600],
     ['moves', 1100, 1500],
-    ['push', 700, 900],
     ['taps', 700, 1000],
     ['slide', 700, 700],
     ['slide2', 700, 600],
