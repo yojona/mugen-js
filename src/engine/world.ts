@@ -136,6 +136,12 @@ export class World {
       p.runStates();
       if (this.inputLocked && !p.isHelper) p.ctrl = false;
       p.physicsStep();
+      // Screen bounds apply as part of the player's movement, before the
+      // camera follows it.
+      if (!p.isHelper) this.clampPlayer(p);
+      // MUGEN moves the camera after every player's physics, then once more
+      // at the end of the tick (mugen.exe 0x43d43a / 0x413d95).
+      this.stepCameraX();
     }
     applyHits(detectHits(active));
     if (!this.superPause && !this.pause) {
@@ -274,43 +280,67 @@ export class World {
   }
 
   private clampToScreen(): void {
+    for (const p of this.players) this.clampPlayer(p);
+  }
+
+  private clampPlayer(p: Player): void {
     const left = this.camera.x - this.screenWidth / 2;
     const right = this.camera.x + this.screenWidth / 2;
-    for (const p of this.players) {
-      let x = Math.max(this.leftBound, Math.min(this.rightBound, p.wx));
-      if (p.screenBound) {
-        // Stage [Bound] screenleft/right plus any Width controller edge width.
-        const leftDist = this.screenLeft + p.bodyWidth(p.facing > 0 ? 'back' : 'front', 'edge') * p.scale;
-        const rightDist = this.screenRight + p.bodyWidth(p.facing > 0 ? 'front' : 'back', 'edge') * p.scale;
-        x = Math.max(left + leftDist, Math.min(right - rightDist, x));
-      }
-      if (x !== p.wx) p.setWorldPos(x);
+    let x = Math.max(this.leftBound, Math.min(this.rightBound, p.wx));
+    if (p.screenBound) {
+      // Stage [Bound] screenleft/right plus any Width controller edge width.
+      const leftDist = this.screenLeft + p.bodyWidth(p.facing > 0 ? 'back' : 'front', 'edge') * p.scale;
+      const rightDist = this.screenRight + p.bodyWidth(p.facing > 0 ? 'front' : 'back', 'edge') * p.scale;
+      x = Math.max(left + leftDist, Math.min(right - rightDist, x));
     }
+    if (x !== p.wx) p.setWorldPos(x);
+  }
+
+  /** Where the camera centre wants to be: keep players out of the tension zones. */
+  private cameraTargetX(ps: Player[]): number {
+    const half = this.screenWidth / 2;
+    const xs = ps.map((p) => p.wx);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const lo = maxX - half + this.tension;
+    const hi = minX + half - this.tension;
+    let cx = this.camera.x;
+    if (lo <= hi) cx = Math.min(Math.max(cx, lo), hi); // move the minimum needed
+    else cx = (minX + maxX) / 2; // too far apart: centre between them
+    // Never push a player off the opposite edge.
+    cx = Math.min(cx, minX - this.screenLeft + half);
+    cx = Math.max(cx, maxX + this.screenRight - half);
+    return Math.max(this.boundLeft, Math.min(this.boundRight, cx));
   }
 
   /**
-   * Horizontal: the camera scrolls when a player comes within `tension` of a
-   * screen edge, unless another player is already at the opposite edge.
+   * One horizontal camera step, as in mugen.exe (0x415ae0): the camera moves
+   * 5% of the way to its target plus a minimum of 0.1 (per 320 pixels of
+   * screen), never past the target. When the player on that side moves
+   * outwards faster, the camera keeps up with that player's velocity.
+   * MUGEN runs this after each player's physics and again at the end of the
+   * tick, which gives the 0.95^3-per-tick easing measured with the harness.
+   */
+  private stepCameraX(): void {
+    const ps = this.players.filter((p) => p.moveCamera[0]);
+    if (!ps.length) return;
+    const target = this.cameraTargetX(ps);
+    const d = target - this.camera.x;
+    if (d === 0) return;
+    let speed = 0.05 * d + Math.sign(d) * 0.1 * (this.screenWidth / 320);
+    const edge = d > 0 ? ps.reduce((a, b) => (b.wx > a.wx ? b : a)) : ps.reduce((a, b) => (b.wx < a.wx ? b : a));
+    const v = edge.vel.x * edge.facing * edge.scale;
+    if (d > 0 ? v > speed : v < speed) speed = v;
+    const x = this.camera.x + speed;
+    this.camera.x = d > 0 ? Math.min(x, target) : Math.max(x, target);
+  }
+
+  /**
+   * Horizontal: eased towards the tension/centering target (stepCameraX).
    * Vertical: follows the highest player above floortension (verticalfollow).
    */
   private updateCamera(): void {
-    const ps = this.players.filter((p) => p.moveCamera[0]);
-    if (ps.length) {
-      const half = this.screenWidth / 2;
-      const xs = ps.map((p) => p.wx);
-      const minX = Math.min(...xs);
-      const maxX = Math.max(...xs);
-      // Camera centres that keep every player out of the edge tension zones.
-      const lo = maxX - half + this.tension;
-      const hi = minX + half - this.tension;
-      let cx = this.camera.x;
-      if (lo <= hi) cx = Math.min(Math.max(cx, lo), hi); // move the minimum needed
-      else cx = (minX + maxX) / 2; // too far apart: centre between them
-      // Never push a player off the opposite edge.
-      cx = Math.min(cx, minX - this.screenLeft + half);
-      cx = Math.max(cx, maxX + this.screenRight - half);
-      this.camera.x = Math.max(this.boundLeft, Math.min(this.boundRight, cx));
-    }
+    this.stepCameraX();
     const vs = this.players.filter((p) => p.moveCamera[1] || p.moveCamera[0]);
     if (vs.length) {
       const highest = Math.min(...vs.map((p) => p.wy));
