@@ -36,6 +36,18 @@ export class World {
   /** Stage bounds for the camera center. */
   boundLeft = -150;
   boundRight = 150;
+  boundHigh = -25;
+  boundLow = 0;
+  /** Camera follows a player closer than this to a screen edge. */
+  tension = 50;
+  verticalFollow = 0.2;
+  floorTension = 0;
+  /** Players' x-range in the stage, and minimum distance to the screen edges. */
+  leftBound = -1000;
+  rightBound = 1000;
+  screenLeft = 15;
+  screenRight = 15;
+  shadow: { intensity: number; color: [number, number, number]; yscale: number; fadeRange: [number, number] } | undefined;
   private seed = 0x1234567;
   fightFx?: FightFx;
   explods: Explod[] = [];
@@ -253,20 +265,64 @@ export class World {
     const left = this.camera.x - this.screenWidth / 2;
     const right = this.camera.x + this.screenWidth / 2;
     for (const p of this.players) {
+      p.pos.x = Math.max(this.leftBound, Math.min(this.rightBound, p.pos.x));
       if (!p.screenBound) continue;
-      const minX = left + p.bodyWidth(p.facing > 0 ? 'back' : 'front', 'edge');
-      const maxX = right - p.bodyWidth(p.facing > 0 ? 'front' : 'back', 'edge');
-      if (p.pos.x < minX) p.pos.x = minX;
-      if (p.pos.x > maxX) p.pos.x = maxX;
+      // Stage [Bound] screenleft/right, unless the Width controller sets an edge width.
+      const leftDist = p.width.edge ? p.bodyWidth(p.facing > 0 ? 'back' : 'front', 'edge') : this.screenLeft;
+      const rightDist = p.width.edge ? p.bodyWidth(p.facing > 0 ? 'front' : 'back', 'edge') : this.screenRight;
+      if (p.pos.x < left + leftDist) p.pos.x = left + leftDist;
+      if (p.pos.x > right - rightDist) p.pos.x = right - rightDist;
     }
   }
 
+  /**
+   * Horizontal: the camera scrolls when a player comes within `tension` of a
+   * screen edge, unless another player is already at the opposite edge.
+   * Vertical: follows the highest player above floortension (verticalfollow).
+   */
   private updateCamera(): void {
     const ps = this.players.filter((p) => p.moveCamera[0]);
-    if (!ps.length) return;
-    const xs = ps.map((p) => p.pos.x);
-    const mid = (Math.min(...xs) + Math.max(...xs)) / 2;
-    // The camera can only move until a player reaches the opposite edge.
-    this.camera.x = Math.max(this.boundLeft, Math.min(this.boundRight, mid));
+    if (ps.length) {
+      const half = this.screenWidth / 2;
+      const xs = ps.map((p) => p.pos.x);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      let cx = this.camera.x;
+      const leftLimit = cx - half + this.tension;
+      const rightLimit = cx + half - this.tension;
+      if (minX < leftLimit) cx -= leftLimit - minX;
+      else if (maxX > rightLimit) cx += maxX - rightLimit;
+      // Never push a player off the opposite edge.
+      cx = Math.min(cx, minX - this.screenLeft + half);
+      cx = Math.max(cx, maxX + this.screenRight - half);
+      this.camera.x = Math.max(this.boundLeft, Math.min(this.boundRight, cx));
+    }
+    const vs = this.players.filter((p) => p.moveCamera[1] || p.moveCamera[0]);
+    if (vs.length) {
+      const highest = Math.min(...vs.map((p) => p.pos.y));
+      const target = highest < -this.floorTension ? (highest + this.floorTension) * this.verticalFollow : 0;
+      this.camera.y = Math.max(this.boundHigh, Math.min(this.boundLow, target));
+    }
+  }
+
+  /** Apply stage settings (stage .def) to the world. */
+  applyStage(info: import('../stage/stage').StageInfo): void {
+    const c = info.camera;
+    this.camera = { x: c.startX, y: c.startY };
+    this.boundLeft = c.boundLeft;
+    this.boundRight = c.boundRight;
+    this.boundHigh = c.boundHigh;
+    this.boundLow = c.boundLow;
+    this.tension = c.tension;
+    this.verticalFollow = c.verticalFollow;
+    this.floorTension = c.floorTension;
+    this.leftBound = info.leftBound;
+    this.rightBound = info.rightBound;
+    this.screenLeft = info.screenLeft;
+    this.screenRight = info.screenRight;
+    this.groundY = info.zoffset;
+    this.screenWidth = info.localCoord[0];
+    this.screenHeight = info.localCoord[1];
+    this.shadow = info.shadow;
   }
 }
