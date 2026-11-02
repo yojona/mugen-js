@@ -218,3 +218,9 @@ type = VarSet
 trigger1 = 1
 fvar(35) = p2dist x
 ignorehitpause = 1
+
+[State -2, cap roundstate]
+type = VarSet
+trigger1 = 1
+var(39) = roundstate
+ignorehitpause = 1
