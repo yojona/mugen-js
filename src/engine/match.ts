@@ -1,0 +1,252 @@
+// Round / match flow driven by fight.def [Round] timings.
+//
+// RoundState (trigger.html): 0 pre-intro, 1 intro, 2 fight, 3 pre-over (KO or
+// time over), 4 over (win poses). Timings mirror the [Round] parameters; the
+// exact tick alignment still has to be checked against the reference binary.
+
+import type { Player } from './player';
+import type { World } from './world';
+
+export interface RoundConfig {
+  matchWins: number;
+  maxDrawGames: number;
+  startWaitTime: number;
+  roundTime: number;
+  roundDisplayTime: number;
+  roundSndTime: number;
+  fightTime: number;
+  fightSndTime: number;
+  ctrlTime: number;
+  koTime: number;
+  koSndTime: number;
+  slowTime: number;
+  overWaitTime: number;
+  overHitTime: number;
+  overWinTime: number;
+  overTime: number;
+  winTime: number;
+  /** Round length in seconds (-1 = no timer). */
+  roundSeconds: number;
+  framesPerCount: number;
+}
+
+export const DEFAULT_ROUND: RoundConfig = {
+  matchWins: 2,
+  maxDrawGames: 1,
+  startWaitTime: 30,
+  roundTime: 0,
+  roundDisplayTime: 60,
+  roundSndTime: 0,
+  fightTime: 0,
+  fightSndTime: 0,
+  ctrlTime: 30,
+  koTime: 0,
+  koSndTime: 0,
+  slowTime: 60,
+  overWaitTime: 45,
+  overHitTime: 10,
+  overWinTime: 45,
+  overTime: 210,
+  winTime: 60,
+  roundSeconds: 99,
+  framesPerCount: 60,
+};
+
+/** HUD-visible announcements. */
+export type Announce =
+  | { kind: 'round'; round: number; age: number }
+  | { kind: 'fight'; age: number }
+  | { kind: 'ko' | 'dko' | 'to'; age: number }
+  | { kind: 'win'; winner: Player | null; age: number };
+
+export interface StartPos {
+  x: number;
+  y: number;
+  facing: number;
+}
+
+export class Match {
+  round = 1;
+  wins: [number, number] = [0, 0];
+  draws = 0;
+  /** Ticks remaining on the round clock (-1 = infinite). */
+  clock: number;
+  announce: Announce | undefined;
+  /** Sounds from fight.snd requested this tick ([group, number]). */
+  sounds: [number, number][] = [];
+  matchOver = false;
+  private phaseTime = 0;
+  private phase: 'wait' | 'intro' | 'announce' | 'fight' | 'ko' | 'over' | 'win' = 'wait';
+  private roundWinner: Player | null = null;
+  /** Slow-motion tick parity during the KO slowdown. */
+  private slowTick = 0;
+
+  constructor(
+    readonly world: World,
+    readonly cfg: RoundConfig,
+    readonly starts: [StartPos, StartPos],
+  ) {
+    this.clock = cfg.roundSeconds < 0 ? -1 : cfg.roundSeconds * cfg.framesPerCount;
+    this.startRound();
+  }
+
+  get players(): Player[] {
+    return this.world.players;
+  }
+
+  /** Seconds shown on the round clock. */
+  get clockSeconds(): number {
+    return this.clock < 0 ? -1 : Math.ceil(this.clock / this.cfg.framesPerCount);
+  }
+
+  private startRound(): void {
+    const w = this.world;
+    this.players.forEach((p, i) => {
+      const s = this.starts[i]!;
+      p.pos.x = s.x;
+      p.pos.y = s.y;
+      p.vel.x = p.vel.y = 0;
+      p.facing = s.facing;
+      p.life = p.const('data.life');
+      p.alive = true;
+      p.ctrl = false;
+      p.returnToOwnStates();
+      p.targets.clear();
+      p.hitDefActive = false;
+      // Round 1 plays intros (state 190) when the character has one.
+      p.changeState(this.round === 1 && p.compiledState(190) ? 190 : 0);
+      p.ctrl = false;
+    });
+    w.explods = [];
+    w.projectiles = [];
+    w.helpers = [];
+    w.camera.x = 0;
+    this.clock = this.cfg.roundSeconds < 0 ? -1 : this.cfg.roundSeconds * this.cfg.framesPerCount;
+    this.phase = 'wait';
+    this.phaseTime = 0;
+    this.announce = undefined;
+    this.roundWinner = null;
+    w.roundState = 0;
+    w.roundNo = this.round;
+  }
+
+  /** Advance one tick: returns true if the world should simulate this tick. */
+  tick(): boolean {
+    this.sounds = [];
+    if (this.announce) this.announce.age++;
+    const simulate = this.step();
+    this.phaseTime++;
+    return simulate;
+  }
+
+  private step(): boolean {
+    const w = this.world;
+    const c = this.cfg;
+    w.inputLocked = this.phase !== 'fight' && this.phase !== 'ko';
+    switch (this.phase) {
+      case 'wait':
+        if (this.phaseTime >= c.startWaitTime) this.enter('intro');
+        break;
+      case 'intro':
+        w.roundState = 1;
+        // Intros last while any player asserts "intro".
+        if (this.phaseTime > 1 && !this.players.some((p) => p.special.has('intro'))) {
+          for (const p of this.players) if (p.stateNo === 190 || p.stateNo === 191) p.changeState(0);
+          this.enter('announce');
+        }
+        break;
+      case 'announce': {
+        const t = this.phaseTime;
+        if (t === c.roundTime) this.announce = { kind: 'round', round: this.round, age: 0 };
+        if (t === c.roundTime + c.roundSndTime) this.sounds.push([0, Math.min(this.round, 9)]);
+        const fightAt = c.roundTime + c.roundDisplayTime + c.fightTime;
+        if (t === fightAt) this.announce = { kind: 'fight', age: 0 };
+        if (t === fightAt + c.fightSndTime) this.sounds.push([1, 0]);
+        if (t >= fightAt + c.ctrlTime) {
+          w.inputLocked = false;
+          for (const p of this.players) p.ctrl = true;
+          w.roundState = 2;
+          this.enter('fight');
+        }
+        break;
+      }
+      case 'fight': {
+        w.roundState = 2;
+        if (this.clock > 0) this.clock--;
+        const dead = this.players.filter((p) => p.life <= 0);
+        if (dead.length || this.clock === 0) {
+          if (dead.length === 2) this.announce = { kind: 'dko', age: 0 };
+          else if (dead.length) this.announce = { kind: 'ko', age: 0 };
+          else this.announce = { kind: 'to', age: 0 };
+          this.sounds.push([2, dead.length === 2 ? 1 : dead.length ? 0 : 2]);
+          this.roundWinner = this.decideWinner();
+          for (const p of this.players) if (p.life <= 0) p.alive = false;
+          w.roundState = 3;
+          this.enter('ko');
+        }
+        break;
+      }
+      case 'ko':
+        w.roundState = 3;
+        // KO slowdown: the world runs at half speed for slow.time ticks.
+        if (this.phaseTime <= c.slowTime) {
+          this.slowTick ^= 1;
+          if (this.slowTick) return false;
+        }
+        if (this.phaseTime >= c.slowTime + c.overWaitTime) {
+          for (const p of this.players) p.ctrl = false;
+          this.enter('over');
+        }
+        break;
+      case 'over':
+        w.roundState = 4;
+        // Winners go to their win pose once everyone has settled.
+        if (this.phaseTime === c.overWinTime) {
+          for (const p of this.players) {
+            if (p === this.roundWinner && p.compiledState(180)) p.changeState(180);
+          }
+          this.scoreRound();
+          if (this.matchOver) this.announce = { kind: 'win', winner: this.roundWinner, age: 0 };
+        }
+        if (this.phaseTime >= c.overTime) {
+          if (this.matchOver) this.enter('win');
+          else {
+            this.round++;
+            this.startRound();
+          }
+        }
+        break;
+      case 'win':
+        if (this.phaseTime >= c.winTime + 480) {
+          // Rematch from round 1 (no select screen yet).
+          this.round = 1;
+          this.wins = [0, 0];
+          this.draws = 0;
+          this.matchOver = false;
+          this.startRound();
+        }
+        break;
+    }
+    return true;
+  }
+
+  private enter(phase: Match['phase']): void {
+    this.phase = phase;
+    // tick() increments after this step, so the new phase starts at 0.
+    this.phaseTime = -1;
+  }
+
+  private decideWinner(): Player | null {
+    const [a, b] = this.players;
+    if (!a || !b) return null;
+    if (a.life === b.life) return null;
+    return a.life > b.life ? a : b;
+  }
+
+  private scoreRound(): void {
+    const w = this.roundWinner;
+    if (!w) this.draws++;
+    else this.wins[w.side]!++;
+    if (this.wins[0] >= this.cfg.matchWins || this.wins[1] >= this.cfg.matchWins || this.draws > this.cfg.maxDrawGames) this.matchOver = true;
+  }
+}
