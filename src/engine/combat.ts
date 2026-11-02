@@ -6,7 +6,7 @@
 // alignment still need to be verified against the reference binary.
 
 import type { Clsn } from '../formats/air';
-import type { HitDefData } from './hitdef';
+import { attrMatches, type HitDefData } from './hitdef';
 import type { Player } from './player';
 
 interface Box {
@@ -47,14 +47,17 @@ function stanceOk(flags: string, d: Player): boolean {
   return false;
 }
 
-function canHit(hd: HitDefData, d: Player): boolean {
+function canHit(a: Player, hd: HitDefData, d: Player): boolean {
   const f = hd.hitFlag;
   if (f.includes('+') && d.moveType !== 'h') return false;
   if (f.includes('-') && d.moveType === 'h') return false;
-  // Falling opponents (in the air or on the way down) need "F".
-  if (d.moveType === 'h' && d.ghv.fall && d.stateType === 'a') return f.includes('f') || f.includes('a');
-  if (!stanceOk(f, d)) return false;
-  return !d.immuneTo(hd);
+  if (d.world.superPause?.owner === d && d.world.superPause.unhittable) return false;
+  if (d.immuneTo(hd)) return false;
+  // Juggle limit for opponents being hit in the air (cns.html "Juggling").
+  if (d.moveType === 'h' && d.stateType === 'a' && !a.special.has('nojugglecheck') && hd.airJuggle > d.juggleLeft) return false;
+  // Falling opponents need "F".
+  if (d.moveType === 'h' && d.ghv.fall && d.stateType === 'a') return f.includes('f');
+  return stanceOk(f, d);
 }
 
 export function isGuarding(d: Player): boolean {
@@ -72,20 +75,69 @@ export function detectHits(players: Player[]): PendingHit[] {
   const hits: PendingHit[] = [];
   for (const a of players) {
     if (!a.hitDefActive || !a.hitDef || a.hitPause > 0) continue;
-    const el = a.anim.current;
-    const atk = worldBoxes(a, el?.clsn1 ?? null);
+    const atk = worldBoxes(a, a.anim.current?.clsn1 ?? null);
     if (!atk.length) continue;
     for (const d of players) {
       if (d === a || d.side === a.side || (!d.alive && d.stateType === 'l')) continue;
       if (a.hitTargets.has(d)) continue;
+      // ReversalDef: the defender's Clsn1 against the attacker's Clsn1.
+      if (d.reversal && attrMatches(d.reversal.attrs, a.hitDef.attrState, a.hitDef.attrType)) {
+        if (overlap(atk, worldBoxes(d, d.anim.current?.clsn1 ?? null))) {
+          applyReversal(d, a);
+          continue;
+        }
+      }
       const hurt = worldBoxes(d, d.anim.current?.clsn2 ?? null);
       if (!overlap(atk, hurt)) continue;
-      if (!canHit(a.hitDef, d)) continue;
-      const guarded = isGuarding(d) && stanceOk(a.hitDef.guardFlag, d);
+      if (!canHit(a, a.hitDef, d)) continue;
+      const guarded = isGuarding(d) && stanceOk(a.hitDef.guardFlag, d) && !a.special.has('unguardable');
       hits.push({ attacker: a, defender: d, hd: a.hitDef, guarded });
     }
   }
-  return hits;
+  return resolvePriority(hits);
+}
+
+const PRIO_CLASS = { hit: 0, miss: 1, dodge: 2 };
+
+/**
+ * Two players hitting each other on the same tick: higher priority wins; on a
+ * tie, Hit vs Hit trades, Hit vs Miss lets the Hit through, anything else misses
+ * (sctrls.html HitDef "priority"). Losing HitDefs stay active.
+ */
+function resolvePriority(hits: PendingHit[]): PendingHit[] {
+  const out: PendingHit[] = [];
+  for (const h of hits) {
+    const rev = hits.find((o) => o.attacker === h.defender && o.defender === h.attacker);
+    if (!rev || h.guarded || rev.guarded) {
+      out.push(h);
+      continue;
+    }
+    if (h.hd.priority !== rev.hd.priority) {
+      if (h.hd.priority > rev.hd.priority) out.push(h);
+      continue;
+    }
+    const mine = PRIO_CLASS[h.hd.priorityType];
+    const theirs = PRIO_CLASS[rev.hd.priorityType];
+    if (mine === 0 && theirs <= 1) out.push(h);
+  }
+  return out;
+}
+
+function applyReversal(r: Player, a: Player): void {
+  const rv = r.reversal!;
+  r.reversal = undefined;
+  a.hitDefActive = false;
+  r.moveContact = r.moveHit = 1;
+  r.hitPause = rv.hd.pause[0];
+  a.hitPause = rv.hd.pause[1];
+  r.targets.set(a, rv.hd.id);
+  r.world.spawnSpark(r, a, rv.hd.spark, [rv.hd.sparkXY[0] + (a.hitDef?.sparkXY[0] ?? 0), rv.hd.sparkXY[1] + (a.hitDef?.sparkXY[1] ?? 0)]);
+  r.world.playHitSound(r, rv.hd.hitSound);
+  if (rv.hd.p1StateNo >= 0) r.changeState(rv.hd.p1StateNo);
+  if (rv.hd.p2StateNo >= 0) {
+    if (rv.hd.p2GetP1State) a.stateOwner = r;
+    a.changeState(rv.hd.p2StateNo);
+  }
 }
 
 export function applyHits(hits: PendingHit[]): void {
@@ -95,6 +147,9 @@ export function applyHits(hits: PendingHit[]): void {
 function applyHit({ attacker: a, defender: d, hd, guarded }: PendingHit): void {
   const world = a.world;
   a.hitTargets.add(d);
+  a.targets.set(d, hd.id);
+  // Explods flagged removeongethit disappear when their owner is hit.
+  if (!guarded) world.explods = world.explods.filter((e) => !(e.owner === d && e.removeOnGetHit));
   // A HitDef is valid for a single hit; triggering it again re-arms it.
   a.hitDefActive = false;
   a.moveContact = 1;
@@ -121,7 +176,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded }: PendingHit): void {
     g.yaccel = hd.yaccel;
     a.addPower(hd.getPower[1]);
     d.addPower(hd.givePower[1]);
+    d.returnToOwnStates();
     d.changeState(d.stateType === 'a' ? 154 : d.stateType === 'c' ? 152 : 150);
+    cornerPush(a, d, airborne ? hd.airGuardCornerPush : hd.guardCornerPush);
     world.spawnSpark(a, d, hd.guardSpark, hd.sparkXY);
     world.playHitSound(a, hd.guardSound);
   } else {
@@ -129,7 +186,11 @@ function applyHit({ attacker: a, defender: d, hd, guarded }: PendingHit): void {
     d.life = Math.max(hd.kill ? 0 : Math.min(d.life, 1), d.life - dmg);
     if (d.stateType === 'c' && hd.forceStand) d.stateType = 's';
     const wasFalling = d.moveType === 'h' && g.fall !== 0;
-    const inAir = d.stateType === 'a';
+    const override = d.hitOverrides.find((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType) && hd.p1StateNo < 0 && !(hd.p2StateNo >= 0 && hd.p2GetP1State));
+    const inAir = d.stateType === 'a' || !!override?.forceAir;
+    // Juggle points: reset on a fresh hit, spent on air hits.
+    if (d.moveType !== 'h' || d.stateType !== 'a') d.juggleLeft = d.const('data.airjuggle');
+    else d.juggleLeft -= hd.airJuggle;
     const vel = inAir ? hd.airVel : hd.groundVel;
     g.guarded = 0;
     g.damage = dmg;
@@ -150,6 +211,14 @@ function applyHit({ attacker: a, defender: d, hd, guarded }: PendingHit): void {
     g['fall.recover'] = hd.fallRecover ? 1 : 0;
     g['fall.recovertime'] = hd.fallRecoverTime;
     g['fall.kill'] = hd.fallKill ? 1 : 0;
+    if (hd.fallEnvShake) {
+      g['fall.envshake.time'] = hd.fallEnvShake.time;
+      g['fall.envshake.freq'] = hd.fallEnvShake.freq;
+      g['fall.envshake.ampl'] = hd.fallEnvShake.ampl;
+      g['fall.envshake.phase'] = hd.fallEnvShake.phase;
+    }
+    if (hd.envShake) world.envShake = { ...hd.envShake };
+    if (hd.palFx) d.palFx = { time: hd.palFx.time, elapsed: 0, add: hd.palFx.add, mul: hd.palFx.mul, sinAdd: [0, 0, 0], sinPeriod: 0, invertAll: hd.palFx.invertAll, color: hd.palFx.color };
     g.chainid = hd.id;
     g.hitcount = d.moveType === 'h' ? g.hitcount + 1 : 1;
     if (d.life <= 0) {
@@ -162,9 +231,18 @@ function applyHit({ attacker: a, defender: d, hd, guarded }: PendingHit): void {
     if (hd.p2Facing === 1) d.facing = a.facing;
     else if (hd.p2Facing === -1) d.facing = -a.facing;
     d.ctrl = false;
-    if (hd.p2StateNo >= 0) d.changeState(hd.p2StateNo);
-    else d.changeState(d.stateType === 'a' || vel[1] !== 0 ? 5020 : d.stateType === 'c' ? 5010 : 5000);
+    if (hd.p2StateNo >= 0) {
+      if (hd.p2GetP1State) d.stateOwner = a;
+      else d.returnToOwnStates();
+      d.changeState(hd.p2StateNo);
+    } else {
+      d.returnToOwnStates();
+      if (override && override.stateNo >= 0) d.changeState(override.stateNo);
+      else d.changeState(inAir || vel[1] !== 0 ? 5020 : d.stateType === 'c' ? 5010 : 5000);
+    }
     d.moveType = 'h';
+    if (!inAir && vel[1] === 0) cornerPush(a, d, hd.groundCornerPush);
+    else if (inAir) cornerPush(a, d, hd.airCornerPush);
     world.spawnSpark(a, d, hd.spark, hd.sparkXY);
     world.playHitSound(a, hd.hitSound);
   }
@@ -173,6 +251,20 @@ function applyHit({ attacker: a, defender: d, hd, guarded }: PendingHit): void {
   if (hd.p1GetP2Facing) a.facing = hd.p1GetP2Facing > 0 ? d.facing : -d.facing;
   else if (hd.p1Facing === -1) a.facing = -a.facing;
   if (!guarded && hd.p1StateNo >= 0) a.changeState(hd.p1StateNo);
+}
+
+/**
+ * When the defender is pinned against a screen edge, the attacker is pushed
+ * back instead (cornerpush.veloff, negative = away from the defender).
+ */
+function cornerPush(a: Player, d: Player, veloff: number): void {
+  if (!veloff || a.stateType === 'a') return;
+  const w = a.world;
+  const awayFromA = d.pos.x >= a.pos.x ? 1 : -1;
+  const edge = awayFromA > 0 ? w.camera.x + w.screenWidth / 2 : w.camera.x - w.screenWidth / 2;
+  const room = Math.abs(edge - d.pos.x) - d.bodyWidth(awayFromA === d.facing ? 'front' : 'back', 'edge');
+  if (room > 1) return;
+  a.vel.x = Math.fround(veloff < 0 ? veloff : -veloff);
 }
 
 function scaleDamage(a: Player, d: Player, dmg: number): number {
