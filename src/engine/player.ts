@@ -8,6 +8,7 @@ import type { CharacterData } from './character';
 import { activeCommands, InputHistory, parseCmd, type CommandSet } from './cmd';
 import { parseConstants, parseStates, type Constants, type ControllerDef, type StateDef, type StateMap } from './cns';
 import { compileController, type CompiledController } from './controllers';
+import { emptyGetHitVars, type GetHitVars, type HitDefData } from './hitdef';
 import { playerEnv } from './triggers';
 import type { Vfs } from './vfs';
 import type { World } from './world';
@@ -92,6 +93,24 @@ export class Player {
 
   sprPriority = 0;
   palNo = 1;
+
+  // Attacking
+  hitDef: HitDefData | undefined;
+  hitDefActive = false;
+  /** Players already hit by the current HitDef. */
+  hitTargets = new Set<Player>();
+  /** P1 freeze after a hit (pausetime p1). */
+  hitPause = 0;
+  moveContact = 0;
+  moveHit = 0;
+  moveGuarded = 0;
+  hitCount = 0;
+
+  // Being hit
+  ghv: GetHitVars = emptyGetHitVars();
+  defenceMul = 1;
+  /** NotHitBy / HitBy slots: allowed or blocked attributes for a time. */
+  hitBy: { attrs: string[]; time: number; not: boolean }[] = [];
   posFreeze = false;
   alive = true;
 
@@ -182,6 +201,17 @@ export class Player {
     this.stateNo = no;
     this.time = 0;
     this.persist.clear();
+    // Entered from outside controller processing (landing, being hit): the new
+    // state's controllers first run next tick, still at Time = 0.
+    if (!this.inStates) this.freshState = true;
+    const d = cs.def.params;
+    const flag = (k: string) => (parseInt(d.get(k) ?? '0', 10) || 0) !== 0;
+    if (!flag('hitdefpersist')) {
+      this.hitDefActive = false;
+      this.hitTargets.clear();
+    }
+    if (!flag('movehitpersist')) this.moveContact = this.moveHit = this.moveGuarded = 0;
+    if (!flag('hitcountpersist')) this.hitCount = 0;
     this.stateChanged = true;
     this.applyStatedef(cs);
     if (ctrl !== undefined) this.ctrl = ctrl;
@@ -227,11 +257,28 @@ export class Player {
     this.power = Math.max(0, Math.min(this.const('data.power'), Math.trunc(this.power + v)));
   }
 
+  /** Is this player immune to the given HitDef (NotHitBy / HitBy)? */
+  immuneTo(hd: HitDefData): boolean {
+    const st = hd.attrState;
+    const ty = hd.attrType;
+    for (const slot of this.hitBy) {
+      if (slot.time <= 0) continue;
+      // An empty state field (", NT, ST") means every state.
+      const stateOk = slot.attrs[0] === '' || slot.attrs[0]!.includes(st);
+      const typeOk = slot.attrs.slice(1).some((a) => a === ty || (a[0] === 'a' && a[1] === ty[1]) || (a[1] === 'a' && a[0] === ty[0]) || a === 'aa');
+      const match = stateOk && (slot.attrs.length === 1 || typeOk);
+      if (slot.not ? match : !match) return true;
+    }
+    return false;
+  }
+
   /** Run one state's controllers. Returns true if the state was changed. */
   private runState(no: number): boolean {
     const cs = this.compiledState(no);
     if (!cs) return false;
+    const paused = this.hitPause > 0;
     for (const c of cs.controllers) {
+      if (paused && !c.ignoreHitPause) continue;
       if (!this.triggered(c)) continue;
       const isCurrent = no === this.stateNo;
       if (isCurrent && c.persistent !== 1) {
@@ -262,8 +309,25 @@ export class Player {
   }
 
   /** Process states for this tick: -3, -2, -1, engine transitions, then current state. */
+  private inStates = false;
+
   runStates(): void {
+    this.inStates = true;
+    try {
+      this.runStatesInner();
+    } finally {
+      this.inStates = false;
+    }
+  }
+
+  private runStatesInner(): void {
     this.commands = activeCommands(this.prog.cmd, this.input, this.facing);
+    if (this.hitPause > 0) {
+      // Frozen by hit pause: only ignorehitpause controllers run.
+      for (const special of [-3, -2, -1, this.stateNo]) this.runState(special);
+      return;
+    }
+    this.engineHitTransitions();
     for (const special of [-3, -2, -1]) {
       if (this.runState(special)) {
         this.runCurrent();
@@ -282,11 +346,28 @@ export class Player {
     this.warn(`Bucle de ChangeState en el estado ${this.stateNo}`);
   }
 
+  /**
+   * Engine rules for downed players: lying in state 5110 counts down
+   * data.liedown.time (faster when buttons are pressed), then gets up via 5120.
+   */
+  private engineHitTransitions(): void {
+    if (this.stateNo !== 5110 || !this.alive) return;
+    const g = this.ghv;
+    if (this.time === 0) g.recovertime = this.const('data.liedown.time');
+    const newly = this.input.at(0) & ~this.input.at(1) & ~0xf;
+    g.recovertime -= newly ? 2 : 1;
+    if (g.recovertime <= 0 && this.time > 0) this.changeState(5120);
+  }
+
   /** Hard-coded transitions MUGEN performs for players with control. */
   private engineTransitions(): void {
     if (!this.ctrl) return;
     const cmd = this.commands;
     const no = this.stateNo;
+    // Guard: holding back with an attacker in range.
+    if (cmd.has('holdback') && this.inGuardDist() && this.moveType === 'i' && (no < 120 || no > 155)) {
+      return this.changeState(120);
+    }
     if (this.stateType === 's' && (no === 0 || no === 20)) {
       if (cmd.has('holdup')) return this.changeState(40);
       if (cmd.has('holddown')) return this.changeState(10);
@@ -309,7 +390,19 @@ export class Player {
   // -------------------------------------------------------------------------
   // Physics, run after states each tick.
 
+  /** InGuardDist: an opponent is attacking within its guard distance. */
+  inGuardDist(): boolean {
+    for (const e of this.world.players) {
+      if (e.side === this.side || e.moveType !== 'a') continue;
+      const dist = e.hitDefActive && e.hitDef ? e.hitDef.guardDist : e.const('size.attack.dist');
+      const dx = (this.pos.x - e.pos.x) * e.facing;
+      if (dx >= 0 && dx <= dist) return true;
+    }
+    return false;
+  }
+
   physicsStep(): void {
+    if (this.hitPause > 0 || this.ghv.hitshaketime > 0) return;
     if (!this.posFreeze) {
       this.pos.x = Math.fround(this.pos.x + this.vel.x * this.facing);
       this.pos.y = Math.fround(this.pos.y + this.vel.y);
@@ -328,9 +421,6 @@ export class Player {
           this.pos.y = 0;
           this.airJumps = 0;
           this.changeState(52);
-          // Entered outside controller processing: the new state's Time = 0
-          // controllers must still run next tick.
-          this.freshState = true;
         }
         break;
     }
@@ -343,11 +433,26 @@ export class Player {
    * action would wrap, so the wrapped frame is never drawn.
    */
   advanceAnim(): void {
+    if (this.hitPause > 0 || (this.moveType === 'h' && this.ghv.hitshaketime > 0)) return;
     this.anim.tick();
   }
 
   /** End of tick: advance state time. */
   advance(): void {
+    for (const s of this.hitBy) if (s.time > 0) s.time--;
+    if (this.hitPause > 0) {
+      this.hitPause--;
+      return;
+    }
+    const g = this.ghv;
+    if (g.hitshaketime > 0) g.hitshaketime--;
+    else if (this.moveType === 'h') {
+      if (g.hittime > 0) g.hittime--;
+      if (g['fall.recovertime'] > 0) g['fall.recovertime']--;
+    }
+    if (this.moveContact) this.moveContact++;
+    if (this.moveHit) this.moveHit++;
+    if (this.moveGuarded) this.moveGuarded++;
     if (this.freshState) {
       this.freshState = false;
       return;
