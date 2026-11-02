@@ -447,17 +447,42 @@ export class Player {
     this.engineHitTransitions();
     // Helpers skip -3/-2, and -1 unless they read input (cns.html).
     const specials = this.isHelper ? (this.keyCtrl ? [-1] : []) : [-3, -2, -1];
+    let changed = false;
     for (const special of specials) {
       if (this.runState(special)) {
-        this.runCurrent();
-        return;
+        changed = true;
+        break;
       }
     }
-    this.engineTransitions();
     this.runCurrent();
+    // MUGEN applies its built-in transitions after the current state has run
+    // (measured with tools/harness: crouch 11 -> 12 shows Time = 0 and the old
+    // statetype on the next tick).
+    void changed;
+    this.engineTransitions();
   }
 
+  /**
+   * Built-in transitions: the state number changes now, but the statedef is
+   * applied (and its controllers run) on the next tick, starting at Time = 0.
+   */
+  private enterLater(no: number): void {
+    if (!this.compiledState(no)) return;
+    this.prevStateNo = this.stateNo;
+    this.stateNo = no;
+    this.time = 0;
+    this.persist.clear();
+    this.pendingEntry = true;
+    this.freshState = true;
+  }
+  private pendingEntry = false;
+
   private runCurrent(): void {
+    if (this.pendingEntry) {
+      this.pendingEntry = false;
+      const cs = this.compiledState(this.stateNo);
+      if (cs) this.applyStatedef(cs);
+    }
     // A ChangeState inside the new state restarts processing (bounded to avoid loops).
     for (let guard = 0; guard < 16; guard++) {
       if (!this.runState(this.stateNo)) return;
@@ -486,22 +511,22 @@ export class Player {
     // Guard: holding back with an attacker in range.
     const guardOk = !this.special.has(this.stateType === 'a' ? 'noairguard' : this.stateType === 'c' ? 'nocrouchguard' : 'nostandguard');
     if (guardOk && cmd.has('holdback') && this.inGuardDist() && this.moveType === 'i' && (no < 120 || no > 155)) {
-      return this.changeState(120);
+      return this.enterLater(120);
     }
     if (this.stateType === 's' && (no === 0 || no === 20)) {
-      if (cmd.has('holdup')) return this.changeState(40);
-      if (cmd.has('holddown')) return this.changeState(10);
+      if (cmd.has('holdup')) return this.enterLater(40);
+      if (cmd.has('holddown')) return this.enterLater(10);
       const walk = cmd.has('holdfwd') || cmd.has('holdback');
-      if (walk && no === 0 && !this.special.has('nowalk')) return this.changeState(20);
-      if (!walk && no === 20) return this.changeState(0);
+      if (walk && no === 0 && !this.special.has('nowalk')) return this.enterLater(20);
+      if (!walk && no === 20) return this.enterLater(0);
     } else if (this.stateType === 'c' && no === 11) {
-      if (!cmd.has('holddown')) return this.changeState(12);
+      if (!cmd.has('holddown')) return this.enterLater(12);
     } else if (this.stateType === 'a' && no === 50) {
       // Air jump.
       const n = this.const('movement.airjump.num');
       if (cmd.has('holdup') && n > 0 && this.airJumps < n && -this.pos.y >= this.const('movement.airjump.height') && this.input.at(1) !== this.input.at(0)) {
         this.airJumps++;
-        return this.changeState(45);
+        return this.enterLater(45);
       }
     }
   }
@@ -567,7 +592,15 @@ export class Player {
         if (this.pos.y >= 0 && this.vel.y > 0 && this.moveType !== 'h') {
           this.pos.y = 0;
           this.airJumps = 0;
-          this.changeState(52);
+          // Landing enters state 52 and runs it in the same tick (measured:
+          // MUGEN shows Time = 1 and vel y = 0 on the next tick).
+          this.inStates = true;
+          try {
+            this.changeState(52);
+            this.runCurrent();
+          } finally {
+            this.inStates = false;
+          }
         }
         break;
     }
