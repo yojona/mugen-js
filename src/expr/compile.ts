@@ -295,7 +295,7 @@ function assign<C>(target: CallNode, value: Fn<C>, env: TriggerEnv<C>): Fn<C> {
     if (R.t === BOTTOM) return 0;
     if (R.t === FLOAT) i = toInt(i);
     let v = value(c);
-    if (R.t === BOTTOM) return 0;
+    if ((R.t as Ty) === BOTTOM) return 0;
     if (isFloatVar) v = f32(v);
     else if (R.t === FLOAT) v = toInt(v);
     if (!env.setVar(c, kind, i, v)) return bottom();
