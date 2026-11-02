@@ -145,7 +145,10 @@ export class World {
     // Built-in transitions for everyone first, then each player runs its
     // states and moves before the next one (both measured against MUGEN 1.1).
     for (const p of active) p.startOfTick();
-    for (const p of active) {
+    // Attacking players update first (measured: an opponent's P2Dist already
+    // sees an attacking P2's movement of this tick).
+    const order = [...active.filter((p) => p.moveType === 'a'), ...active.filter((p) => p.moveType !== 'a')];
+    for (const p of order) {
       p.changedStateThisTick = false;
       p.runStates();
       if (this.inputLocked && !p.isHelper) p.ctrl = false;
