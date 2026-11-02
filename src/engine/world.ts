@@ -295,11 +295,12 @@ export class World {
       const xs = ps.map((p) => p.wx);
       const minX = Math.min(...xs);
       const maxX = Math.max(...xs);
+      // Camera centres that keep every player out of the edge tension zones.
+      const lo = maxX - half + this.tension;
+      const hi = minX + half - this.tension;
       let cx = this.camera.x;
-      const leftLimit = cx - half + this.tension;
-      const rightLimit = cx + half - this.tension;
-      if (minX < leftLimit) cx -= leftLimit - minX;
-      else if (maxX > rightLimit) cx += maxX - rightLimit;
+      if (lo <= hi) cx = Math.min(Math.max(cx, lo), hi); // move the minimum needed
+      else cx = (minX + maxX) / 2; // too far apart: centre between them
       // Never push a player off the opposite edge.
       cx = Math.min(cx, minX - this.screenLeft + half);
       cx = Math.max(cx, maxX + this.screenRight - half);

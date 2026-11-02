@@ -136,3 +136,28 @@ describe('mixed coordinate spaces (kfm 320 vs kfm720 1280)', () => {
     expect(gap).toBeLessThan(40);
   });
 });
+
+describe('camera', () => {
+  it('does not oscillate when players are far apart (jumping forward from the left edge)', async () => {
+    const st = await loadStage(vfs, 'stages/kfm.def');
+    const w = new World();
+    w.applyStage(st.info);
+    w.screenWidth = Math.round((240 * 16) / 9);
+    const p1 = new Player(prog, w, 0);
+    const p2 = new Player(prog, w, 1);
+    w.players.push(p1, p2);
+    p1.setWorldPos(-70, 0);
+    p2.setWorldPos(70, 0);
+    p2.facing = -1;
+    p1.changeState(0);
+    p2.changeState(0);
+    for (let i = 0; i < 200; i++) w.tick([4, 0]); // walk to the left edge
+    const xs: number[] = [];
+    for (let i = 0; i < 60; i++) {
+      w.tick([i < 2 ? 1 | 8 : 0, 0]); // up + forward
+      xs.push(w.camera.x);
+    }
+    // The camera may only move one way while P1 travels right.
+    for (let i = 1; i < xs.length; i++) expect(xs[i]!).toBeGreaterThanOrEqual(xs[i - 1]! - 1e-6);
+  });
+});
