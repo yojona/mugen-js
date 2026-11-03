@@ -225,20 +225,31 @@ export function compileModifyExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P
       if (e.owner !== p || e.system || (id !== -1 && e.id !== id)) continue;
       const sc = p.scale;
       const v2 = (k: string, unit = sc): [number, number] | undefined => (prm.has(k) ? [(prm.num(p, k, 0) ?? 0) * unit, (prm.num(p, k, 1) ?? 0) * unit] : undefined);
-      const pos = v2('pos');
-      if (pos) {
-        if (e.bindTo) e.bindOffset = pos;
-        else {
-          e.x = pos[0];
-          e.y = pos[1];
+      // explod.c: position, velocity, acceleration, facing and the random
+      // offset are only re-set when postype is given (two draws as for an
+      // Explod); scale, angle, times and the rest always apply.
+      const anchored = prm.has('postype');
+      if (anchored) {
+        const r0 = prm.int(p, 'random', 0) ?? 0;
+        const r1 = prm.int(p, 'random', 1) ?? 0;
+        p.world.random(r0 + 1);
+        p.world.random(r1 + 1);
+        const pos = v2('pos');
+        if (pos) {
+          if (e.bindTo) e.bindOffset = pos;
+          else {
+            e.x = pos[0];
+            e.y = pos[1];
+          }
         }
+        e.vel = v2('vel') ?? e.vel;
+        e.accel = v2('accel') ?? e.accel;
+        if (e.bindTime === 0) e.bindTime = 1;
       }
-      e.vel = v2('vel') ?? e.vel;
-      e.accel = v2('accel') ?? e.accel;
       e.scale = v2('scale', 1) ?? e.scale;
       if (prm.has('angle')) e.angle = prm.num(p, 'angle') ?? e.angle;
-      if (prm.has('facing')) e.facing = (prm.int(p, 'facing') ?? 1) < 0 ? -1 : 1;
-      if (prm.has('vfacing')) e.vfacing = (prm.int(p, 'vfacing') ?? 1) < 0 ? -1 : 1;
+      if (anchored && prm.has('facing')) e.facing = (prm.int(p, 'facing') ?? 1) < 0 ? -1 : 1;
+      if (anchored && prm.has('vfacing')) e.vfacing = (prm.int(p, 'vfacing') ?? 1) < 0 ? -1 : 1;
       if (prm.has('removetime')) {
         const v = prm.int(p, 'removetime') ?? e.removeTime;
         // -2: what is left of the animation, counted from the current age.
