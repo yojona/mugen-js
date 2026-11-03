@@ -104,7 +104,10 @@ const rosterChars: RosterChar[] = roster.chars.map((entry) => ({
   const worker = async () => {
     while (next < work.length) {
       const c = work[next++]!;
-      c.data = await loadCharacterPreview(vfs, c.defPath!, motifSprites).catch(() => undefined);
+      c.data = await loadCharacterPreview(vfs, c.defPath!, motifSprites).catch((e) => {
+        console.warn(`${c.defPath}: ${e}`);
+        return undefined;
+      });
       setStatus(`Cargando personajes… ${++done}/${work.length}`);
     }
   };
