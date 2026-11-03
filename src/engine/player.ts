@@ -769,6 +769,9 @@ export class Player {
     // engine returns to standing, crouching or falling, and the new state runs
     // this same tick (measured: Time = 1 on the next tick).
     if (this.stateNo === 140 && this.ctrl && this.anim.animTime() >= 0) {
+      // Player_Update raises the guard flag for 140 before leaving it, so a
+      // hit this tick is still guarded.
+      this.guardFlag = true;
       this.changeState(this.stateType === 'c' ? 11 : this.stateType === 'a' ? 51 : 0);
       return;
     }
