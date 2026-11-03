@@ -566,21 +566,31 @@ export class Player {
     }
     const paused = this.hitPause > 0;
     const rec = this.recorder;
+    const isCurrent = no === this.stateNo;
     for (const c of cs.controllers) {
       if (paused && !c.ignoreHitPause) continue;
+      // Player_RunState: a controller of the current state waits out its
+      // persistence timer (frames, not firings) without testing its
+      // triggers; the special states (-1/-2/-3) have no timers.
+      const wait = isCurrent && c.persistent !== 1 ? this.persist.get(c) ?? 0 : 0;
+      const tick = () => {
+        if (!isCurrent || c.persistent <= 0) return;
+        const t = ((this.persist.get(c) ?? 0) - 1) & 0xff;
+        this.persist.set(c, t & 0x80 ? 0 : t);
+      };
+      if (wait !== 0) {
+        tick();
+        continue;
+      }
       // mugen.exe 0x45c209: the command= triggers seen by this controller.
       rec?.beforeController();
       if (this.world.randomTrace) this.world.traceCtx = `${this.name}${this.isHelper ? ' helper' : ''} ${no} ${c.def.file}:${c.def.line}`;
       if (!this.triggered(c)) {
         this.world.traceCtx = '';
+        tick();
         continue;
       }
-      const isCurrent = no === this.stateNo;
-      if (isCurrent && c.persistent !== 1) {
-        const n = this.persist.get(c) ?? 0;
-        this.persist.set(c, n + 1);
-        if (c.persistent === 0 ? n > 0 : n % c.persistent !== 0) continue;
-      }
+      if (isCurrent && c.persistent !== 1) this.persist.set(c, c.persistent > 0 ? c.persistent & 0xff : 1);
       this.stateChanged = false;
       const custom = !!this.stateOwner;
       c.run(this);
@@ -594,6 +604,7 @@ export class Player {
         if (rec && !custom && !this.stateOwner) rec.afterStateChange();
         return true;
       }
+      tick();
     }
     return false;
   }
