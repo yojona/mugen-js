@@ -112,9 +112,12 @@ function canHit(a: Player, hd: HitDefData, d: Player, cost: number, proj = false
     if (!clear && hd.chainId !== -1 && (d.ghv.chainid !== hd.chainId || !by)) return false;
     if (!clear && n0 !== -1 && by && (d.ghv.chainid === n0 || (n1 !== -1 && d.ghv.chainid === n1))) return false;
   }
-  if (d.immuneTo(hd)) return false;
   if (!juggleOk(a, d, cost)) return false;
-  return hitFlagMatches(d, hd.hitFlag);
+  if (!hitFlagMatches(d, hd.hitFlag)) return false;
+  // HitDef_SetStateAttr: the attacker's HitDef takes its current state type
+  // (S/C/A bits) before the HitBy test.
+  if (!proj) hd.attrState = a.stateType === 's' || a.stateType === 'c' || a.stateType === 'a' ? a.stateType : '';
+  return !d.immuneTo(hd);
 }
 
 /**
