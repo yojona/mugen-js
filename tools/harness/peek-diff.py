@@ -12,7 +12,12 @@ def load(path):
         v = line.strip().split('|')[2].split(',')
         if 'ERR' in v:
             continue
-        rows[int(v[0])] = v[1:]
+        gt = int(v[0])
+        # Framestep reads can land before mugen.exe bumps its frame counter:
+        # a repeated gametime is then the next frame's data.
+        if gt in rows:
+            gt += 1
+        rows[gt] = v[1:]
     return rows
 m, o = load(sys.argv[1]), load(sys.argv[2])
 scale = float(sys.argv[3]) if len(sys.argv) > 3 else 2.0
@@ -26,8 +31,6 @@ for gt in sorted(set(m) & set(o)):
     compared += 1
     bad = []
     for i, n in enumerate(NAMES):
-        if n == 'rng' or n.endswith('.time') and False:
-            pass
         x, y = float(a[i]), float(b[i])
         if n.split('.')[-1] in ('x', 'y', 'vx', 'vy'):
             y *= scale

@@ -74,8 +74,14 @@ for (let i = 1; i <= ticks; i++) {
   }
   const f = (x: number) => x.toFixed(4);
   const row = [w.gameTime, w.roundState, w.seed];
-  const pl = [p1, p2].flatMap((p: Player) => [p.stateNo, p.time, p.life, f(p.pos.x), f(p.pos.y), f(p.vel.x), f(p.vel.y)]);
-  lines.push(`P|${i}|${[...row, ...pl].join(',')}`);
+  const pl = [p1, p2].flatMap((p: Player) => [p.stateNo, p.time, p.life, f(p.pos.x), f(p.pos.y), f(p.vel.x * p.facing), f(p.vel.y)]);
+  if (process.env.VARS) {
+    // mugen.exe's enums: statetype S=1 C=2 A=3 L=4, movetype I=0 A=1 H=2.
+    const st = { s: 1, c: 2, a: 3, l: 4 }[p1.stateType as string] ?? 0;
+    const mt = { i: 0, a: 1, h: 2 }[p1.moveType as string] ?? 0;
+    const fv = Array.from(p1.fvars, (x) => x.toFixed(4));
+    lines.push(`P|${i}|${[w.gameTime, w.roundState, w.seed, p1.stateNo, p1.ctrl ? 1 : 0, st, mt, p1.power, ...p1.vars, ...fv].join(',')}`);
+  } else lines.push(`P|${i}|${[...row, ...pl].join(',')}`);
   if (m.finished) break;
 }
 writeFileSync(out, lines.join('\n') + '\n');
