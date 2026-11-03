@@ -92,6 +92,7 @@ export class World {
 
   addHelper(h: Player): void {
     this.helpers.push(h);
+    h.enemy = this.findEnemy(h) ?? null;
   }
 
   helpersOf(p: Player, id?: number): Player[] {
@@ -113,13 +114,39 @@ export class World {
     return n > 0 ? this.seed % n : 0;
   }
 
+  /** P2: the enemy picked at the start of the tick (Round_Tick), or now when there is none yet. */
   enemyOf(p: Player): Player | undefined {
-    let best: Player | undefined;
-    for (const q of this.players) {
-      if (q.side === p.side) continue;
-      if (!best || Math.abs(q.wx - p.wx) < Math.abs(best.wx - p.wx)) best = q;
-    }
-    return best;
+    return p.enemy === undefined ? this.findEnemy(p) : (p.enemy ?? undefined);
+  }
+
+  /**
+   * Player_FindEnemy: the nearest (BodyDistX) enemy, among its targets first
+   * while attacking. A player lying dead (state 5150 past its first tick) is
+   * nobody's enemy. Quirk kept: the best distance is never updated after the
+   * first candidate.
+   */
+  findEnemy(p: Player): Player | undefined {
+    const side = p.root.side;
+    let found: Player | undefined;
+    let best = 0;
+    const consider = (t: Player) => {
+      if (t === p || t.destroyed || t.isHelper || t.side === side) return;
+      if (t.stateNo === 5150 && t.time !== 0) return;
+      const d = Math.abs(bodyDistX(p, t));
+      if (!found) {
+        found = t;
+        best = d;
+      } else if (best > d) found = t;
+    };
+    if (p.moveType === 'a') for (const [t] of p.targets) consider(t);
+    if (found) return found;
+    for (const t of this.allPlayers()) consider(t);
+    return found;
+  }
+
+  /** Every player's enemy for this tick (Round_Tick, before the AI and the states). */
+  updateEnemies(): void {
+    for (const p of this.allPlayers()) p.enemy = this.findEnemy(p) ?? null;
   }
 
   /** Distance from the player to the front (or back) screen edge, in the player's units. */
@@ -180,6 +207,7 @@ export class World {
     // MUGEN picks the pause owner before the tick (mugen.exe 0x40cc73): a
     // pause that starts during this tick does not stop its floor dust.
     const pausedAtStart = !!(this.pause || this.superPause);
+    this.updateEnemies();
     // MUGEN's order (main tick 0x4130xx): facing sync and human key events,
     // then the CPU AI pass, then every player's input processing.
     this.players.forEach((p, i) => {
@@ -648,4 +676,19 @@ export class World {
     this.screenHeight = info.localCoord[1];
     this.shadow = info.shadow;
   }
+}
+
+/**
+ * Player_BodyDistX, in world units: from p's front edge to e's front edge
+ * when p is in front of it, else (level included) to its back edge.
+ */
+export function bodyDistX(p: Player, e: Player): number {
+  const f = Math.fround;
+  const front = f((p.stateType === 'a' ? p.const('size.air.front') : p.const('size.ground.front')) * p.scale * p.facing + p.wx);
+  const side = f((p.wx - e.wx) * e.facing);
+  const eEdge =
+    side > 0
+      ? f((e.stateType === 'a' ? e.const('size.air.front') : e.const('size.ground.front')) * e.scale * e.facing + e.wx)
+      : f(e.wx - (e.stateType === 'a' ? e.const('size.air.back') : e.const('size.ground.back')) * e.scale * e.facing);
+  return f((eEdge - front) * p.facing);
 }

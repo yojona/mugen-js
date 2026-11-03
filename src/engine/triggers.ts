@@ -1,5 +1,6 @@
 // Function-type triggers (trigger.html) bound to the Player runtime.
 
+import { bodyDistX } from './world';
 import { hitDefAttrBits } from './hitdef';
 import { BOTTOM, CompileError, compileNode, FLOAT, INT, R, relFn, toInt, type Fn, type TriggerEnv, type VarKind } from '../expr/compile';
 import type { CallNode, ClauseNode } from '../expr/parser';
@@ -62,10 +63,10 @@ const NULLARY: Record<string, Fn<P>> = {
   ailevel: int((p) => p.root.ai?.level ?? 0),
   ticksperSecond: int(() => 60),
   tickspersecond: int(() => 60),
-  numenemy: int((p) => (p.world.enemyOf(p) ? 1 : 0)),
+  numenemy: int((p) => p.world.players.filter((q) => q.side !== p.root.side).length),
   numpartner: int(() => 0),
   numtarget: int((p) => (p.hitTargets.size > 0 && p.hitCount > 0 ? p.hitTargets.size : 0)),
-  numexplod: int((p) => p.world.explods.filter((e) => e.owner === p).length),
+  numexplod: int((p) => p.world.explods.filter((e) => e.owner === p && !e.system).length),
   // Only live projectiles (state 1), not ones playing their hit/remove anim.
   numproj: int((p) => p.world.projectiles.filter((pr) => pr.owner === p && pr.phase === 'active').length),
   numhelper: int((p) => p.world.helpersOf(p).length),
@@ -132,16 +133,7 @@ const AXIS: Record<string, (p: P, axis: 'x' | 'y' | 'z') => number | undefined> 
     const e = p.world.enemyOf(p);
     if (!e) return undefined;
     if (a !== 'x') return a === 'y' ? (e.wy - p.wy) / p.scale : 0;
-    // Player_BodyDistX (0x4346xx): from p's front edge to the opponent's
-    // front edge when p is in front of it, else (level included) its back edge.
-    const f = Math.fround;
-    const front = f((p.stateType === 'a' ? p.const('size.air.front') : p.const('size.ground.front')) * p.scale * p.facing + p.wx);
-    const side = f((p.wx - e.wx) * e.facing);
-    const eEdge =
-      side > 0
-        ? f((e.stateType === 'a' ? e.const('size.air.front') : e.const('size.ground.front')) * e.scale * e.facing + e.wx)
-        : f(e.wx - (e.stateType === 'a' ? e.const('size.air.back') : e.const('size.ground.back')) * e.scale * e.facing);
-    return f((eEdge - front) * p.facing) / p.scale;
+    return bodyDistX(p, e) / p.scale;
   },
   parentdist: (p, a) => (p.parent ? (a === 'x' ? ((p.parent.wx - p.wx) * p.facing) / p.scale : a === 'y' ? (p.parent.wy - p.wy) / p.scale : 0) : undefined),
   rootdist: (p, a) => (p.isHelper ? (a === 'x' ? ((p.root.wx - p.wx) * p.facing) / p.scale : a === 'y' ? (p.root.wy - p.wy) / p.scale : 0) : undefined),
@@ -236,7 +228,7 @@ function call(node: CallNode, args: Fn<P>[]): Fn<P> | undefined {
     case 'numexplod':
       return (p) => {
         const id = argInt(a, p);
-        return id === undefined ? bottom() : ((R.t = INT), p.world.explods.filter((e) => e.owner === p && (id === -1 || e.id === id)).length);
+        return id === undefined ? bottom() : ((R.t = INT), p.world.explods.filter((e) => e.owner === p && !e.system && (id === -1 || e.id === id)).length);
       };
     case 'numproj':
     case 'numprojid':
@@ -460,8 +452,17 @@ function redirect(p: P, to: string, _id: number | undefined): P | undefined {
     case 'partner':
       return undefined;
     case 'enemy':
-    case 'enemynear':
-      return p.world.enemyOf(p);
+      // Player_GetEnemy: the n-th player of the other team, dead or not.
+      return p.world.players.filter((q) => q.side !== p.root.side)[Math.max(0, _id ?? 0)];
+    case 'enemynear': {
+      // Player_GetNearEnemy: the nearest (0) or second nearest (1) by |DistX|.
+      const n = Math.max(0, _id ?? 0);
+      if (n >= 2) return undefined;
+      const es = p.world.players.filter((q) => q.side !== p.root.side);
+      if (es.length < 2) return n === 0 ? es[0] : undefined;
+      const sorted = [...es].sort((a, b) => Math.abs(a.wx - p.wx) - Math.abs(b.wx - p.wx));
+      return sorted[n];
+    }
     case 'playerid':
       return p.world.players.find((q) => q.id === _id);
   }

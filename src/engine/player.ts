@@ -259,6 +259,8 @@ export class Player {
 
   // Targets (players hit by this player's attacks), with the HitDef id.
   targets = new Map<Player, number>();
+  /** P2 for this tick (World.updateEnemies); null: none, undefined: not picked yet. */
+  enemy: Player | null | undefined = undefined;
   /** TargetBind / BindTo*: position lock applied after physics. */
   bind: { to: Player; offset: [number, number]; time: number; byTarget?: boolean } | undefined;
   reversal: { attrs: string[]; hd: HitDefData } | undefined;
