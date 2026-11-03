@@ -520,16 +520,27 @@ export class Player {
   }
 
   private triggered(c: CompiledController): boolean {
-    for (const t of c.triggerAll) if (!truthy(t, this)) return false;
-    for (const group of c.triggers) {
+    const w = this.world;
+    const tr = w.randomTrace !== undefined;
+    const base = tr ? w.traceCtx : '';
+    for (let i = 0; i < c.triggerAll.length; i++) {
+      if (tr) w.traceCtx = `${base} ta${i}`;
+      if (!truthy(c.triggerAll[i]!, this)) return false;
+    }
+    for (let g = 0; g < c.triggers.length; g++) {
+      const group = c.triggers[g]!;
       let ok = true;
-      for (const t of group) {
-        if (!truthy(t, this)) {
+      for (let j = 0; j < group.length; j++) {
+        if (tr) w.traceCtx = `${base} t${g + 1}.${j}`;
+        if (!truthy(group[j]!, this)) {
           ok = false;
           break;
         }
       }
-      if (ok) return true;
+      if (ok) {
+        if (tr) w.traceCtx = `${base} run`;
+        return true;
+      }
     }
     return false;
   }
