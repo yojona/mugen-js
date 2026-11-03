@@ -264,6 +264,9 @@ export class World {
         update(h);
       }
     }
+    // BindToTarget/Parent/Root place before the hits (round.c: Player_UpdateBind
+    // then Players_CheckHits).
+    this.applyBinds();
     // Every player takes part, paused ones too (Players_CheckHits only skips
     // inactive players; a Pause stops updates, not hits).
     applyHits(detectHits(this.allPlayers().filter((p) => !p.destroyed)));
@@ -272,7 +275,6 @@ export class World {
     }
     applyHits(detectProjectileHits(this.projectiles, active));
     this.projectiles = this.projectiles.filter((pr) => pr.phase !== 'dead');
-    this.applyBinds();
     // MUGEN resolves player push in two passes per tick, clamping to the
     // screen after each (mugen.exe 0x43da66 / 0x43de16; measured: walking
     // into a cornered opponent closes 3/4 of the overlap per tick).
@@ -298,6 +300,9 @@ export class World {
       p.events.length = 0;
       if (p.superMoveTime > 0 && this.superPause) p.superMoveTime--;
       if (p.pauseMoveTime > 0 && this.pause) p.pauseMoveTime--;
+      // Outside any pause a player being hit loses what a hit during a pause
+      // gave it (Player_Update: pause_movetime reset when movetype = H).
+      if (!this.pause && !this.superPause && p.moveType === 'h') p.superMoveTime = p.pauseMoveTime = 0;
     }
     if (this.helpers.some((h) => h.destroyed)) this.helpers = this.helpers.filter((h) => !h.destroyed);
     this.updateExplods();
@@ -325,6 +330,12 @@ export class World {
       return;
     }
     const pz = this.pause;
+    // A Pause starts counting at the next frame (gameloop: pauses[k][6] is
+    // decremented at the start of each frame), so time = 1 freezes one frame.
+    if (pz?.fresh) {
+      pz.fresh = false;
+      return;
+    }
     if (pz) {
       if (pz.moveTime > 0) pz.moveTime--;
       if (--pz.time <= 0) this.pause = undefined;
