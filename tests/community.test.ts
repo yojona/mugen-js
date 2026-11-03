@@ -109,4 +109,14 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('heidern-kofa', 'geese-kofa'))(
+    'Heidern vs Geese, CPU level 4: 9000 frames (mid -1 animation elements, deferred hit facings, BindToTarget, projscale)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'heidern-vs-geese.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['heidern-kofa', 'geese-kofa'], frames: 9000, seed: 16808 });
+      expect(ours.length).toBe(9000);
+      expect(peekDiff(ref, ours, 14, 9000)).toEqual([]);
+    },
+    120_000,
+  );
 });
