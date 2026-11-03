@@ -101,10 +101,26 @@ export class World {
     return this.helpers.length ? [...this.players, ...this.helpers] : this.players;
   }
 
-  addHelper(h: Player): void {
-    this.helpers.push(h);
+  /**
+   * Helper player slots (index 5 up to HelperMax + 4 in mugen.exe): a new
+   * helper takes the first free slot, so the update and hit order follows
+   * the slots, not the creation order. `helpers` lists them in slot order.
+   */
+  helperSlots: (Player | null)[] = [];
+  helperMax = 56;
+
+  /** Returns false when every slot is taken (no helper is created). */
+  addHelper(h: Player): boolean {
+    let i = this.helperSlots.findIndex((x) => x === null || x.destroyed);
+    if (i < 0) {
+      if (this.helperSlots.length >= this.helperMax) return false;
+      i = this.helperSlots.length;
+    }
+    this.helperSlots[i] = h;
+    this.helpers = this.helperSlots.filter((x): x is Player => !!x && !x.destroyed);
     if (h.keyCtrl && h.root.cmdInput) h.cmdInput = h.root.cmdInput.clone();
     h.enemy = this.findEnemy(h) ?? null;
+    return true;
   }
 
   helpersOf(p: Player, id?: number): Player[] {
@@ -416,7 +432,10 @@ export class World {
         if (p.pauseMoveTime > 0 && active.includes(p)) p.pauseMoveTime--;
       } else if (p.moveType === 'h') p.superMoveTime = p.pauseMoveTime = 0;
     }
-    if (this.helpers.some((h) => h.destroyed)) this.helpers = this.helpers.filter((h) => !h.destroyed);
+    if (this.helperSlots.some((h) => h?.destroyed)) {
+      this.helperSlots = this.helperSlots.map((h) => (h && !h.destroyed ? h : null));
+      this.helpers = this.helperSlots.filter((x): x is Player => !!x);
+    }
     this.updateExplods();
     this.tickPauses();
     tickPalFx(this.bgPalFx);

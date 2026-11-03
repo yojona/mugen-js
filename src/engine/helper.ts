@@ -89,7 +89,7 @@ export function compileHelper(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
         h.pos.x = p.pos.x + off[0] * p.facing;
         h.facing = facingParam * p.facing;
     }
-    w.addHelper(h);
+    if (!w.addHelper(h)) return;
     h.changeState(prm.int(p, 'stateno') ?? 0);
   };
 }

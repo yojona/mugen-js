@@ -176,6 +176,7 @@ export class Match {
     w.explods = [];
     w.projectiles = [];
     w.helpers = [];
+    w.helperSlots = [];
     // The floor-dust cadence counts from each round's start (G+0x12760).
     w.fightTime = 0;
     w.camera.x = 0;
