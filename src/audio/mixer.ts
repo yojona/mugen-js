@@ -13,23 +13,87 @@ export class Mixer {
     if (this.ctx.state === 'suspended') void this.ctx.resume();
   }
 
-  play(sound: Sound | undefined): void {
+  /** Sounds playing on a named channel (PlaySnd channel per player). */
+  private channels = new Map<string, { src: AudioBufferSourceNode; pan: StereoPannerNode; ended: boolean }>();
+  /** Every source still playing (StopSnd -1 stops them all). */
+  private live = new Set<AudioBufferSourceNode>();
+
+  /**
+   * Start a sound. `key`: its channel (the sound there is cut; with
+   * lowPriority nothing starts while one is playing). volume 0..100
+   * (Sound_SetSlotVolume clamps), pan -127..127, loop.
+   */
+  play(sound: Sound | undefined, o: { key?: string; lowPriority?: boolean; volume?: number; loop?: boolean; pan?: number } = {}): void {
     const ctx = this.ctx;
     if (!ctx || !sound) return;
+    if (o.key !== undefined) {
+      const cur = this.channels.get(o.key);
+      if (cur && !cur.ended) {
+        if (o.lowPriority) return;
+        cur.ended = true;
+        cur.src.stop();
+      }
+    }
     let buf = this.cache.get(sound);
     if (!buf) {
       // decodeAudioData detaches its input, so give it a copy.
       buf = ctx.decodeAudioData(sound.wav.slice().buffer).catch(() => undefined);
       this.cache.set(sound, buf);
     }
+    const src = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    const pan = ctx.createStereoPanner();
+    gain.gain.value = this.volume * Math.max(0, Math.min(100, o.volume ?? 100)) / 100;
+    pan.pan.value = (o.pan ?? 0) / 127;
+    src.loop = !!o.loop;
+    src.connect(gain).connect(pan).connect(ctx.destination);
+    const entry = { src, pan, ended: false };
+    if (o.key !== undefined) this.channels.set(o.key, entry);
+    this.live.add(src);
+    src.onended = () => {
+      entry.ended = true;
+      this.live.delete(src);
+    };
     void buf.then((b) => {
-      if (!b) return;
-      const src = ctx.createBufferSource();
-      const gain = ctx.createGain();
-      gain.gain.value = this.volume;
+      if (!b || entry.ended) return;
       src.buffer = b;
-      src.connect(gain).connect(ctx.destination);
       src.start();
     });
+  }
+
+  /** StopSnd: one channel, or every sound (undefined). */
+  stop(key?: string): void {
+    const stopOne = (e: { src: AudioBufferSourceNode; ended: boolean }) => {
+      if (e.ended) return;
+      e.ended = true;
+      try {
+        e.src.stop();
+      } catch {
+        /* not started yet */
+      }
+    };
+    if (key === undefined) {
+      for (const e of this.channels.values()) stopOne(e);
+      for (const src of this.live) stopOne({ src, ended: false });
+      this.live.clear();
+      return;
+    }
+    const e = this.channels.get(key);
+    if (e) stopOne(e);
+  }
+
+  /** SndPan: re-pan the sound on a channel. */
+  setPan(key: string, pan: number): void {
+    const e = this.channels.get(key);
+    if (e && !e.ended) e.pan.pan.value = pan / 127;
+  }
+
+  /** Run a tick's sound commands; `resolve` finds the sound of a play. */
+  run(cmds: readonly import('../engine/world').SoundCmd[], resolve: (owner: import('../engine/player').Player | null, group: number, number: number) => Sound | undefined): void {
+    for (const c of cmds) {
+      if (c.kind === 'stop') this.stop(c.key);
+      else if (c.kind === 'pan') this.setPan(c.key, c.pan);
+      else this.play(resolve(c.owner, c.group, c.number), c);
+    }
   }
 }

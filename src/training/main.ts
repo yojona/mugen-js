@@ -119,10 +119,7 @@ function drawLifebars(): void {
 }
 
 function playSounds(): void {
-  for (const s of world.sounds) {
-    const snd = s.owner ? s.owner.prog.data.snd : commonSnd;
-    mixer.play(snd?.get(s.group, s.number));
-  }
+  mixer.run(world.sounds, (owner, g, n) => (owner ? owner.prog.data.snd : commonSnd)?.get(g, n));
   world.sounds.length = 0;
 }
 

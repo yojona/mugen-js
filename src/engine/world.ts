@@ -90,8 +90,18 @@ export class World {
   helpers: Player[] = [];
   projectiles: Projectile[] = [];
   /** Sounds requested this tick (common or player-owned), drained by the host. */
-  sounds: { owner: Player | null; group: number; number: number }[] = [];
+  /**
+   * Sound commands of the tick, in order: plays (owner null = common.snd)
+   * and the PlaySnd channel controls (StopSnd, SndPan). `key` names a
+   * player's channel; plays without one never cut another sound.
+   */
+  sounds: SoundCmd[] = [];
   envShake: EnvShake | undefined;
+  /**
+   * EnvColor: the screen filled with a colour (time -1 = until replaced,
+   * counted down once per game tick; the stage is not drawn while time != 0).
+   */
+  envColor: { rgb: [number, number, number]; time: number; under: boolean } | undefined;
   bgPalFx: PalFxState = newPalFx();
   pause: PauseState | undefined;
   superPause: PauseState | undefined;
@@ -102,6 +112,7 @@ export class World {
   resetRoundFx(): void {
     this.pause = this.superPause = this.queuedPause = undefined;
     this.envShake = undefined;
+    this.envColor = undefined;
     this.bgPalFx = newPalFx();
   }
 
@@ -257,6 +268,8 @@ export class World {
 
   /** Feed this tick's raw inputs (one bitmask per player) and advance one tick. */
   tick(inputs: number[]): void {
+    // gameloop.c: envcolor_time counts down before the tick.
+    if (this.envColor && this.envColor.time > 0 && --this.envColor.time === 0) this.envColor = undefined;
     // Before the round starts (and after it ends) input is ignored and nobody has control.
     if (this.roundState === 2) this.fightTime++;
     const active = this.allPlayers().filter((p) => !this.frozen(p));
@@ -438,7 +451,7 @@ export class World {
     // pause from its next update on: nothing of this tick is left to run.
     for (const p of this.allPlayers()) if (!active.includes(p)) p.hitPauseFresh = false;
     for (const p of this.allPlayers()) {
-      for (const e of p.events) this.sounds.push({ owner: e.common ? null : p, group: e.group, number: e.number });
+      for (const e of p.events) this.sounds.push(e);
       p.events.length = 0;
       // Player_Update's end: with a pause running (not one starting this
       // tick) the player's movetime for it counts down; with none, a player
@@ -942,6 +955,26 @@ export class World {
  * Player_BodyDistX, in world units: from p's front edge to e's front edge
  * when p is in front of it, else (level included) to its back edge.
  */
+/** A sound to start (PlaySnd and engine sounds) or a channel control. */
+export type SoundCmd =
+  | { kind?: 'play'; owner: Player | null; group: number; number: number; key?: string; lowPriority?: boolean; volume?: number; loop?: boolean; pan?: number }
+  | { kind: 'stop'; key: string | undefined }
+  | { kind: 'pan'; key: string; pan: number };
+
+/**
+ * Sound_Pan (sctrl.c): -127..127 from x, the internal-unit distance to the
+ * camera centre; a dead zone of 40 (per 320) in the middle, full pan
+ * panning width - 20 further out (PanningWidth 160 by default).
+ */
+export function soundPan(w: World, x: number, panningWidth = 160): number {
+  let pos = Math.trunc((x * 320) / Math.trunc(w.gameWidth));
+  pos = pos < -40 ? pos + 40 : pos > 40 ? pos - 40 : 0;
+  const range = panningWidth - 20;
+  if (range <= 0) return 0;
+  const pan = Math.trunc((pos * 128) / range);
+  return Math.max(-127, Math.min(127, pan));
+}
+
 export function bodyDistX(p: Player, e: Player): number {
   const f = Math.fround;
   const front = f((p.stateType === 'a' ? p.const('size.air.front') : p.const('size.ground.front')) * p.scale * p.facing + p.wx);

@@ -2,6 +2,7 @@
 // when the controller fires, left to right, as MUGEN does.
 
 import { checkControllerParams, specKeys } from './sctrl-params';
+import { soundPan } from './world';
 import { varTarget } from './var-line';
 import { parseHitDefAttr } from '../expr/mugen-parse';
 import { BOTTOM, compileExpr, compileExprList, R, toInt, type Fn, type TriggerEnv } from '../expr/compile';
@@ -305,13 +306,52 @@ const IMPLS: Record<string, Impl> = {
     const [groupFn, numFn] = fns;
     return (p) => {
       if (!groupFn) return;
-      const g = groupFn(p);
+      let g = groupFn(p);
       if (R.t === BOTTOM) return;
       // "S5" alone: number 0.
-      const n = numFn ? numFn(p) : 0;
+      let n = numFn ? numFn(p) : 0;
       if ((R.t as number) === BOTTOM) return;
-      p.events.push({ kind: 'sound', group: g | 0, number: n | 0, common, channel: prm.int(p, 'channel') ?? -1 });
+      // PlaySnd_Run: channel -1..31 (else no channel), groups/numbers below
+      // -1 are -1 and group -1 plays nothing; volumescale (and the
+      // character's [Data] volumescale for its own sounds) sets the volume;
+      // pan is relative to the player unless abspan. freqmul is ignored.
+      const ch = prm.int(p, 'channel') ?? -1;
+      g = Math.max(-1, g | 0);
+      n = Math.max(-1, n | 0);
+      if (g === -1) return;
+      let volume = prm.num(p, 'volumescale') ?? 100;
+      if (!common) volume *= (p.prog.consts.get('data.volumescale') ?? 100) / 100;
+      const abs = prm.has('abspan');
+      let x = p.facing * (abs ? (prm.int(p, 'abspan') ?? 0) : (prm.int(p, 'pan') ?? 0));
+      const k = p.world.gameWidth / p.world.screenWidth;
+      if (!abs) x = Math.trunc(p.wx * k - p.world.camera.x * k + x);
+      p.events.push({
+        owner: common ? null : p,
+        group: g,
+        number: n,
+        key: ch >= 0 && ch <= 31 ? soundKey(p, ch) : undefined,
+        lowPriority: (prm.int(p, 'lowpriority') ?? 0) !== 0,
+        volume,
+        loop: (prm.int(p, 'loop') ?? 0) !== 0,
+        pan: soundPan(p.world, x),
+      });
     };
+  },
+  stopsnd: (_c, prm) => (p) => {
+    // SCTRL_STOPSND: channel -1 stops every sound.
+    const ch = prm.int(p, 'channel') ?? -1;
+    if (ch < -1 || ch > 31) return;
+    p.events.push({ kind: 'stop', key: ch === -1 ? undefined : soundKey(p, ch) });
+  },
+  sndpan: (_c, prm) => (p) => {
+    const ch = prm.int(p, 'channel') ?? 0;
+    if (ch < 0 || ch > 31) return;
+    const k = p.world.gameWidth / p.world.screenWidth;
+    const abs = prm.has('abspan');
+    // pan wins over abspan for the value; abspan still makes it absolute.
+    let x = Math.trunc((prm.int(p, 'pan') ?? prm.int(p, 'abspan') ?? 0) * p.scale * k * p.facing);
+    if (!abs) x = Math.trunc(p.wx * k - p.world.camera.x * k + x);
+    p.events.push({ kind: 'pan', key: soundKey(p, ch), pan: soundPan(p.world, x) });
   },
 };
 
@@ -355,6 +395,15 @@ const EXTRA: Record<string, Impl> = {
   allpalfx: (_c, prm) => (p) => {
     for (const q of p.world.players) q.palFx = palFxFrom(prm, p);
     p.world.bgPalFx = palFxFrom(prm, p);
+  },
+  envcolor: (_c, prm) => (p) => {
+    // SCTRL_ENVCOLOR: value r,g,b (default white), time +1 unless -1
+    // (below -1 is 1), under.
+    const rgb: [number, number, number] = [prm.int(p, 'value', 0) ?? 255, prm.int(p, 'value', 1) ?? 255, prm.int(p, 'value', 2) ?? 255];
+    let time = prm.int(p, 'time') ?? 1;
+    if (time !== -1) time += 1;
+    if (time < -1) time = 1;
+    p.world.envColor = { rgb, time, under: (prm.int(p, 'under') ?? 0) !== 0 };
   },
   bgpalfx: (_c, prm) => (p) => {
     p.world.bgPalFx = palFxFrom(prm, p);
@@ -725,4 +774,9 @@ function ctrlAnim(p: P, prm: Params): [boolean | undefined, number | undefined] 
   if (a === -1) a = undefined;
   else if (a !== undefined && a < 0) a = 0;
   return [c === undefined || c === -1 ? undefined : c !== 0, a];
+}
+
+/** Sound_PlayerChannel: one sound channel per player slot and channel number. */
+function soundKey(p: P, ch: number): string {
+  return `${p.id}:${ch}`;
 }

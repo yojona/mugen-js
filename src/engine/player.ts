@@ -330,7 +330,8 @@ export class Player {
   palRemap: number | undefined;
 
   /** Events for the audio/visual layers (PlaySnd etc.), drained by the host. */
-  events: { kind: 'sound'; group: number; number: number; common: boolean; channel: number }[] = [];
+  /** Sound commands from this player's controllers, flushed in order at the end of the tick. */
+  events: import('./world').SoundCmd[] = [];
   warnings: string[] = [];
 
   /** Persistence counters for controllers of the current state. */

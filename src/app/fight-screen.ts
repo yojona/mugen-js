@@ -107,7 +107,7 @@ export class FightScreen implements Screen {
     }
     this.s.hud.tick(m);
     for (const [g, n] of m.sounds) this.ctx.mixer.play(this.s.hud.snd?.get(g, n));
-    for (const snd of w.sounds) this.ctx.mixer.play((snd.owner ? snd.owner.prog.data.snd : this.s.commonSnd)?.get(snd.group, snd.number));
+    this.ctx.mixer.run(w.sounds, (owner, g, n) => (owner ? owner.prog.data.snd : this.s.commonSnd)?.get(g, n));
     w.sounds.length = 0;
     if (this.s.training) this.refillLife();
     if (m.finished && !this.fade.fadingOut) {
