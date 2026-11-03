@@ -962,7 +962,7 @@ export class Player {
       this.pendingPlacement();
       this.pendingPlacement = undefined;
     }
-    if (this.hitPause > 0 || (this.ghv.hitshaketime > 1 && this.moveType === 'h')) return;
+    if (this.hitPause > 0) return;
     // Player_Update after the states: defence_mul goes back to 100 / defence
     // out of a hit (so a DefenceMulSet in -2 only counts while being hit) and
     // in the guard states; falls multiply it by fall.defence_mul.
@@ -972,6 +972,7 @@ export class Player {
       if (st === 5070 || st === 5100) this.defMul = Math.fround(Math.fround(this.const('data.fall.defence_mul')) * this.defenceFactor);
       if (st === 5120 || st === 5200 || st === 5210) this.defMul = undefined;
     }
+    if (this.ghv.hitshaketime > 1 && this.moveType === 'h') return;
     // The corner push waits out a SuperPause (mugen.exe: pause_kind != 1,
     // from the frame after the one that starts it).
     if (this.cornerPushVel && !(this.world.superPause && !this.world.superPause.fresh)) {
