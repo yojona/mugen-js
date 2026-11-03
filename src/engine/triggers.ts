@@ -98,16 +98,16 @@ const NULLARY: Record<string, Fn<P>> = {
     return e ? ((R.t = INT), e.stateNo) : bottom();
   },
   // Screen / stage geometry, converted from world units to the player's units.
-  gamewidth: flt((p) => p.world.screenWidth / p.scale),
-  gameheight: flt((p) => p.world.screenHeight / p.scale),
-  screenwidth: flt((p) => p.world.screenWidth / p.scale),
-  screenheight: flt((p) => p.world.screenHeight / p.scale),
-  leftedge: flt((p) => (p.world.camera.x - p.world.screenWidth / 2) / p.scale),
-  rightedge: flt((p) => (p.world.camera.x + p.world.screenWidth / 2) / p.scale),
-  topedge: flt((p) => p.world.camera.y / p.scale),
-  bottomedge: flt((p) => (p.world.camera.y + p.world.screenHeight) / p.scale),
-  frontedge: flt((p) => (p.facing > 0 ? p.world.camera.x + p.world.screenWidth / 2 : p.world.camera.x - p.world.screenWidth / 2) / p.scale),
-  backedge: flt((p) => (p.facing > 0 ? p.world.camera.x - p.world.screenWidth / 2 : p.world.camera.x + p.world.screenWidth / 2) / p.scale),
+  gamewidth: flt((p) => p.world.screenWidth / us(p)),
+  gameheight: flt((p) => p.world.screenHeight / us(p)),
+  screenwidth: flt((p) => p.world.screenWidth / us(p)),
+  screenheight: flt((p) => p.world.screenHeight / us(p)),
+  leftedge: flt((p) => (p.world.camera.x - p.world.screenWidth / 2) / us(p)),
+  rightedge: flt((p) => (p.world.camera.x + p.world.screenWidth / 2) / us(p)),
+  topedge: flt((p) => p.world.camera.y / us(p)),
+  bottomedge: flt((p) => (p.world.camera.y + p.world.screenHeight) / us(p)),
+  frontedge: flt((p) => (p.facing > 0 ? p.world.camera.x + p.world.screenWidth / 2 : p.world.camera.x - p.world.screenWidth / 2) / us(p)),
+  backedge: flt((p) => (p.facing > 0 ? p.world.camera.x - p.world.screenWidth / 2 : p.world.camera.x + p.world.screenWidth / 2) / us(p)),
   frontedgedist: int((p) => Math.trunc(p.world.edgeDist(p, true))),
   backedgedist: int((p) => Math.trunc(p.world.edgeDist(p, false))),
   // mugen.exe 0x4343d0: measured to the player's screen limit (stage
@@ -127,21 +127,21 @@ const AXIS: Record<string, (p: P, axis: 'x' | 'y' | 'z') => number | undefined> 
   },
   vel: (p, a) => (a === 'x' ? p.vel.x : a === 'y' ? p.vel.y : 0),
   hitvel: (p, a) => (a === 'x' ? p.ghv.xvel * p.facing : a === 'y' ? p.ghv.yvel : 0),
-  screenpos: (p, a) => (a === 'x' ? (p.wx - (p.world.camera.x - p.world.screenWidth / 2)) / p.scale : a === 'y' ? (p.wy - p.world.camera.y + p.world.groundY) / p.scale : 0),
-  camerapos: (p, a) => (a === 'x' ? p.world.camera.x / p.scale : a === 'y' ? p.world.camera.y / p.scale : 0),
+  screenpos: (p, a) => (a === 'x' ? (p.wx - (p.world.camera.x - p.world.screenWidth / 2)) / us(p) : a === 'y' ? (p.wy - p.world.camera.y + p.world.groundY) / us(p) : 0),
+  camerapos: (p, a) => (a === 'x' ? p.world.camera.x / us(p) : a === 'y' ? p.world.camera.y / us(p) : 0),
   p2dist: (p, a) => {
     const e = p.world.enemyOf(p);
     if (!e) return undefined;
-    return a === 'x' ? ((e.wx - p.wx) * p.facing) / p.scale : a === 'y' ? (e.wy - p.wy) / p.scale : 0;
+    return a === 'x' ? ((e.wx - p.wx) * p.facing) / us(p) : a === 'y' ? (e.wy - p.wy) / us(p) : 0;
   },
   p2bodydist: (p, a) => {
     const e = p.world.enemyOf(p);
     if (!e) return undefined;
-    if (a !== 'x') return a === 'y' ? (e.wy - p.wy) / p.scale : 0;
-    return bodyDistX(p, e) / p.scale;
+    if (a !== 'x') return a === 'y' ? (e.wy - p.wy) / us(p) : 0;
+    return bodyDistX(p, e) / us(p);
   },
-  parentdist: (p, a) => (p.parent ? (a === 'x' ? ((p.parent.wx - p.wx) * p.facing) / p.scale : a === 'y' ? (p.parent.wy - p.wy) / p.scale : 0) : undefined),
-  rootdist: (p, a) => (p.isHelper ? (a === 'x' ? ((p.root.wx - p.wx) * p.facing) / p.scale : a === 'y' ? (p.root.wy - p.wy) / p.scale : 0) : undefined),
+  parentdist: (p, a) => (p.parent ? (a === 'x' ? ((p.parent.wx - p.wx) * p.facing) / us(p) : a === 'y' ? (p.parent.wy - p.wy) / us(p) : 0) : undefined),
+  rootdist: (p, a) => (p.isHelper ? (a === 'x' ? ((p.root.wx - p.wx) * p.facing) / us(p) : a === 'y' ? (p.root.wy - p.wy) / us(p) : 0) : undefined),
 };
 
 /** Axis triggers whose result is an int (trigger.html). */
@@ -529,3 +529,8 @@ export const playerEnv: TriggerEnv<P> = {
 };
 
 export { CompileError };
+
+/** Units of the player evaluating the expression (Player_ToLocalCoord(p, ...) in trigger.c), not of a redirect target. */
+function us(p: P): number {
+  return ((R.from as P | undefined) ?? p).scale;
+}
