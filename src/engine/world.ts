@@ -327,6 +327,10 @@ export class World {
     // BindToTarget/Parent/Root place before the hits (round.c: Player_UpdateBind
     // then Players_CheckHits).
     this.applyBinds();
+    // Players_CheckHits pushes the players apart before the hits (and once
+    // more after them), clamping to the screen each time.
+    this.pushPlayers();
+    this.clampToScreen();
     // Every player takes part, paused ones too (Players_CheckHits only skips
     // inactive players; a Pause stops updates, not hits).
     applyHits(detectHits(this.allPlayers().filter((p) => !p.destroyed)));
@@ -335,11 +339,8 @@ export class World {
     }
     applyHits(detectProjectileHits(this.projectiles, active));
     this.projectiles = this.projectiles.filter((pr) => pr.phase !== 'dead');
-    // MUGEN resolves player push in two passes per tick, clamping to the
-    // screen after each (mugen.exe 0x43da66 / 0x43de16; measured: walking
-    // into a cornered opponent closes 3/4 of the overlap per tick).
-    this.pushPlayers();
-    this.clampToScreen();
+    // The second push pass (mugen.exe 0x43de16; measured: walking into a
+    // cornered opponent closes 3/4 of the overlap per tick).
     this.pushPlayers();
     this.clampToScreen();
     this.spawnDust(dustX, pausedAtStart);
