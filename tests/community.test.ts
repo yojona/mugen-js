@@ -119,4 +119,14 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('d-yashiro-kofa', 'evil-robert-kofa'))(
+    'D-Yashiro vs Evil Robert, CPU level 4: 9000 frames (.def ai file, missing states, chain IDs, kill = 0, KO timing, nokoslow)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'yashiro-vs-robert.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['d-yashiro-kofa', 'evil-robert-kofa'], frames: 9000, seed: 16808 });
+      expect(ours.length).toBe(9000);
+      expect(peekDiff(ref, ours, 14, 9000)).toEqual([]);
+    },
+    120_000,
+  );
 });
