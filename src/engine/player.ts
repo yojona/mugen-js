@@ -179,6 +179,8 @@ export class Player {
   anim: AnimPlayer;
 
   life: number;
+  /** life_max: data.life scaled by the team's life multiplier (Team_ResetLife). */
+  lifeMax = 0;
   private ownPower = 0;
   /**
    * A simul partner shares its team leader's power (power_ref points at the
@@ -194,8 +196,10 @@ export class Player {
   }
   /** Player slot (mugen.exe players[1..4]: P1, P2, P3 = P1's partner, P4 = P2's), 0 for helpers. */
   get slotNo(): number {
-    return this.isHelper ? 0 : this.world.players.indexOf(this) + 1;
+    return this.isHelper ? 0 : (this.slotNoSet ?? this.world.players.indexOf(this) + 1);
   }
+  /** Slot given by the match (a team without its P3 still has P4). */
+  slotNoSet: number | undefined;
   vars = new Int32Array(60);
   fvars = new Float32Array(40);
   sysVars = new Int32Array(5);
@@ -278,7 +282,7 @@ export class Player {
     }
     d += this.life;
     if (d < 1 && !kill) d = 1;
-    this.life = Math.min(this.const('data.life'), Math.max(0, d));
+    this.life = Math.min(this.lifeMax, Math.max(0, d));
   }
   get attackFactor(): number {
     return this.attackMul ?? this.const('data.attack') / 100;
@@ -367,7 +371,8 @@ export class Player {
     readonly world: World,
     readonly side: number,
   ) {
-    this.life = this.const('data.life');
+    this.lifeMax = this.const('data.life');
+    this.life = this.lifeMax;
     this.guardDist = this.const('size.attack.dist');
     const first = prog.data.anims.get(0) ?? prog.data.anims.values().next().value;
     if (!first) throw new Error(`${prog.data.def.name}: sin animaciones`);
@@ -615,7 +620,7 @@ export class Player {
     const w = this.world;
     if (w.roundState === 3 && this.alive && (w.roundClock ?? 0) >= w.overHitTime) return;
     // The kill = 0 limit was applied when the hit landed (Player_HitDamage).
-    this.life = Math.max(0, Math.min(this.const('data.life'), this.life - d.amount));
+    this.life = Math.max(0, Math.min(this.lifeMax, this.life - d.amount));
     if (this.life <= 0) this.ghv.fall = 1;
   }
 

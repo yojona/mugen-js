@@ -130,7 +130,7 @@ export class FightHud {
     for (const b of [...this.life, ...this.power]) for (const e of [b.bg0, b.bg1, b.mid, b.front]) e?.tick();
     for (const e of this.round.values()) e.tick();
     m.players.forEach((p, i) => {
-      const frac = Math.max(0, p.life / p.const('data.life'));
+      const frac = Math.max(0, p.life / p.lifeMax);
       // The red "mid" bar waits while the player is in hitstun, then drains.
       if (frac < this.lastLife[i]!) this.midDelay[i] = 30;
       this.lastLife[i] = frac;
@@ -153,7 +153,7 @@ export class FightHud {
   draw(r: Renderer, m: Match): void {
     const ps = m.players;
     ps.forEach((p, i) => {
-      this.drawBar(r, this.life[i]!, Math.max(0, p.life / p.const('data.life')), this.midLife[i]!);
+      this.drawBar(r, this.life[i]!, Math.max(0, p.life / p.lifeMax), this.midLife[i]!);
       const pmax = p.const('data.power');
       const pb = this.power[i]!;
       this.drawBar(r, pb, Math.max(0, p.power / pmax), undefined);

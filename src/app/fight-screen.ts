@@ -163,7 +163,7 @@ export class FightScreen implements Screen {
   private refillLife(): void {
     this.world.players.forEach((p, i) => {
       this.idle[i] = p.moveType === 'h' ? 0 : this.idle[i]! + 1;
-      if (this.idle[i] === 60) p.life = p.const('data.life');
+      if (this.idle[i] === 60) p.life = p.lifeMax;
       p.power = p.const('data.power');
     });
   }

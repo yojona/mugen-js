@@ -181,8 +181,7 @@ export class World {
 
   /** players[n] of mugen.exe (1..4): P1, P2, P3 (P1's partner), P4 (P2's). */
   slot(n: number): Player | undefined {
-    const p = this.players[n - 1];
-    return p && !p.destroyed ? p : undefined;
+    return this.players.find((p) => p.slotNo === n && !p.destroyed);
   }
 
   /** Player_GetPartner / CountPartners: the other root players of p's side, in slot order. */

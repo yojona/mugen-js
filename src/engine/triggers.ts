@@ -36,7 +36,7 @@ const NULLARY: Record<string, Fn<P>> = {
   prevstateno: int((p) => p.prevStateNo),
   facing: int((p) => p.facing),
   life: int((p) => p.life),
-  lifemax: int((p) => p.const('data.life')),
+  lifemax: int((p) => p.lifeMax),
   power: int((p) => p.power),
   powermax: int((p) => p.const('data.power')),
   palno: int((p) => p.palNo),
@@ -57,7 +57,7 @@ const NULLARY: Record<string, Fn<P>> = {
   lose: int((p) => (p.world.winType !== 0 && p.world.roundWinnerSide !== 0 && p.world.roundWinnerSide !== p.root.side + 1 ? 1 : 0)),
   loseko: int((p) => (p.world.winType === 1 && p.world.roundWinnerSide !== 0 && p.world.roundWinnerSide !== p.root.side + 1 ? 1 : 0)),
   losetime: int((p) => (p.world.winType === 2 && p.world.roundWinnerSide !== 0 && p.world.roundWinnerSide !== p.root.side + 1 ? 1 : 0)),
-  winperfect: int((p) => (p.world.winType !== 0 && p.world.roundWinnerSide === p.root.side + 1 && p.world.players.every((q) => q.side !== p.root.side || q.life >= q.const('data.life')) ? 1 : 0)),
+  winperfect: int((p) => (p.world.winType !== 0 && p.world.roundWinnerSide === p.root.side + 1 && p.world.players.every((q) => q.side !== p.root.side || q.life >= q.lifeMax) ? 1 : 0)),
   drawgame: int((p) => (p.world.winType !== 0 && p.world.roundWinnerSide === 0 ? 1 : 0)),
   // CPU players report their AI level, humans 0 (mugen.exe 0x456dc8).
   ailevel: int((p) => p.root.ai?.level ?? 0),
