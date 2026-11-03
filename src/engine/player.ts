@@ -250,8 +250,6 @@ export class Player {
   hitBy: { mask: number; time: number }[] = [];
   /** HitOverride slots (0..7). */
   hitOverrides: ({ attrs: string[]; stateNo: number; time: number; forceAir: boolean } | undefined)[] = [];
-  /** Juggle points left while airborne in a hit state. */
-  juggleLeft = 0;
   /** Juggle cost of the current attack state (statedef `juggle`). */
   juggleCost = 0;
   posFreeze = false;
@@ -512,7 +510,10 @@ export class Player {
   /** Drop targets that are no longer being hit. */
   pruneTargets(): void {
     for (const [t] of this.targets) if (t.moveType !== 'h' || t.world !== this.world) this.targets.delete(t);
+    for (const [t] of this.targetJuggle) if (!this.targets.has(t)) this.targetJuggle.delete(t);
   }
+  /** Juggle points left per target (the target entries of mugen.exe). */
+  targetJuggle = new Map<Player, number>();
 
   /** Apply damage held back during the hit shake. */
   applyPendingDamage(): void {

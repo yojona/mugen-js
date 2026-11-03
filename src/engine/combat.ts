@@ -57,17 +57,68 @@ function stanceOk(flags: string, d: Player): boolean {
   return false;
 }
 
-function canHit(a: Player, hd: HitDefData, d: Player): boolean {
-  const f = hd.hitFlag;
-  if (f.includes('+') && d.moveType !== 'h') return false;
-  if (f.includes('-') && d.moveType === 'h') return false;
+/** HitFlags_Parse: hitflag / guardflag letters to mugen.exe's bits. */
+function hitFlagBits(flags: string): number {
+  let b = 2;
+  for (const ch of flags.toLowerCase()) {
+    if (ch === '+') b |= 0x100;
+    else if (ch === '-') b &= ~2;
+    else if (ch === 'a') b |= 0x10;
+    else if (ch === 'd') b |= 0x40;
+    else if (ch === 'f') b |= 0x20;
+    else if (ch === 'h') b |= 4;
+    else if (ch === 'l') b |= 8;
+    else if (ch === 'm') b |= 0xc;
+    else if (ch === 'p') b |= 0x80;
+  }
+  return b;
+}
+
+/**
+ * Player_HitFlagMatches: lying down needs D; in a get-hit state the flag
+ * must allow it (not "-"), and "+" only matches players in one (unless
+ * guarding); a falling player needs F; then H, L or A by state type.
+ */
+function hitFlagMatches(d: Player, flags: string): boolean {
+  const b = hitFlagBits(flags);
+  const st = d.stateType;
+  if (st === 'l' && !(b & 0x40)) return false;
+  let checkPlus = true;
+  if (d.moveType === 'h') {
+    if (!(b & 2)) return false;
+    if (!d.guardFlag) checkPlus = false;
+  }
+  if (checkPlus && b & 0x100) return false;
+  if (d.moveType === 'h' && d.ghv.fall && !(b & 0x20)) return false;
+  switch (st) {
+    case 's':
+      return (b & 4) !== 0;
+    case 'c':
+      return (b & 8) !== 0;
+    case 'a':
+      return (b & 0x10) !== 0;
+    case 'l':
+      return (b & 0x40) !== 0;
+  }
+  return false;
+}
+
+/**
+ * Player_CanHit's juggle test: the attacker's target entry keeps the juggle
+ * points left (its airjuggle when first hit); a HitDef costing more than
+ * that does not hit. `cost` -1: no test.
+ */
+function juggleOk(a: Player, d: Player, cost: number): boolean {
+  if (a.special.has('nojugglecheck') || cost === -1) return true;
+  const left = a.targetJuggle.get(d);
+  return left === undefined || left - cost >= 0;
+}
+
+function canHit(a: Player, hd: HitDefData, d: Player, cost: number): boolean {
   if (d.world.superPause?.owner === d && d.world.superPause.unhittable) return false;
   if (d.immuneTo(hd)) return false;
-  // Juggle limit for opponents being hit in the air (cns.html "Juggling").
-  if (d.moveType === 'h' && d.stateType === 'a' && !a.special.has('nojugglecheck') && hd.airJuggle > d.juggleLeft) return false;
-  // Falling opponents need "F".
-  if (d.moveType === 'h' && d.ghv.fall && d.stateType === 'a') return f.includes('f');
-  return stanceOk(f, d);
+  if (!juggleOk(a, d, cost)) return false;
+  return hitFlagMatches(d, hd.hitFlag);
 }
 
 /**
@@ -108,7 +159,7 @@ export function detectHits(players: Player[]): PendingHit[] {
       // Whole internal units, distance truncated, as for push (measured: a
       // KFM 1400 kick connecting at the edge of its reach).
       if (!clsnTouchInternal(d, 2, a, 1)) continue;
-      if (!canHit(a, a.hitDef, d)) continue;
+      if (!canHit(a, a.hitDef, d, a.juggleCost)) continue;
       const guarded = isGuarding(d) && stanceOk(a.hitDef.guardFlag, d) && !a.special.has('unguardable');
       hits.push({ attacker: a, defender: d, hd: a.hitDef, guarded });
     }
@@ -249,7 +300,7 @@ export function detectProjectileHits(projs: Projectile[], players: Player[]): Pe
         k,
       );
       if (!hitBox) continue;
-      if (!canHit(pr.owner, pr.hd, d)) continue;
+      if (!canHit(pr.owner, pr.hd, d, pr.hd.airJuggle)) continue;
       const guarded = isGuarding(d) && stanceOk(pr.hd.guardFlag, d);
       hits.push({ attacker: pr.owner, defender: d, hd: pr.hd, guarded, proj: pr });
       break;
@@ -266,6 +317,8 @@ function cancel(pr: Projectile): void {
 function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): void {
   const world = a.world;
   a.targets.set(d, hd.id);
+  // Player_AddTarget: a new entry starts with the attacker's airjuggle.
+  if (!a.targetJuggle.has(d)) a.targetJuggle.set(d, a.const('data.airjuggle'));
   // Explods flagged removeongethit disappear when their owner is hit.
   if (!guarded) world.explods = world.explods.filter((e) => !(e.owner === d && !e.system && e.removeOnGetHit));
   if (proj) {
@@ -356,9 +409,14 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     const wasFalling = d.moveType === 'h' && g.fall !== 0;
     const override = d.hitOverrides.find((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType) && hd.p1StateNo < 0 && !(hd.p2StateNo >= 0 && hd.p2GetP1State));
     const inAir = d.stateType === 'a' || !!override?.forceAir;
-    // Juggle points: reset on a fresh hit, spent on air hits.
-    if (d.moveType !== 'h' || d.stateType !== 'a') d.juggleLeft = d.const('data.airjuggle');
-    else d.juggleLeft -= hd.airJuggle;
+    // Juggle points (Player_Hit): a hit on a falling target, or an air.fall
+    // hit in the air, spends the HitDef's juggle from the attacker's target
+    // entry; the HitDef then costs nothing more until a state sets it.
+    const cost = proj ? hd.airJuggle : a.juggleCost;
+    if (!override && (wasFalling || (hd.airFall && d.stateType === 'a'))) {
+      a.targetJuggle.set(d, (a.targetJuggle.get(d) ?? a.const('data.airjuggle')) - Math.max(0, cost));
+      if (!proj) a.juggleCost = 0;
+    }
     const vel = inAir ? hd.airVel : hd.groundVel;
     g.guarded = 0;
     g.damage = dmg;

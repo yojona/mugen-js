@@ -304,7 +304,8 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
       palFx: palTime !== 0 ? { time: palTime, mul: local3('palfx.mul', [256, 256, 256]), add: local3('palfx.add', [0, 0, 0]), color: n('palfx.color') ?? 256, invertAll: (ni('palfx.invertall') ?? 0) !== 0 } : undefined,
       envShake: shake('envshake'),
       fallEnvShake: shake('fall.envshake'),
-      airJuggle: (ni('air.juggle') ?? 0) + p.juggleCost,
+      // A projectile's juggle cost (players use their statedef juggle).
+      airJuggle: ni('air.juggle') ?? -1,
       groundCornerPush,
       airCornerPush: n('air.cornerpush.veloff') ?? groundCornerPush,
       downCornerPush: n('down.cornerpush.veloff') ?? groundCornerPush,
