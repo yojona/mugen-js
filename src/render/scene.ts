@@ -30,9 +30,16 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
   // Stage-space y to screen: ground line, minus the camera's vertical follow.
   const sy = (y: number) => w.groundY + y - w.camera.y + shakeY;
 
-  opts.background?.();
-  if (w.darkened) r.rect(0, 0, w.screenWidth, w.screenHeight, [0, 0, 0, 110]);
-  drawShadows(r, w, sx, sy);
+  // Game_Draw: with an EnvColor running neither the stage background nor
+  // the shadows are drawn; the colour goes under the sprites (under = 1) or
+  // over everything but the on-top layer.
+  const env = w.envColor;
+  const envFill = () => env && r.rect(0, 0, w.screenWidth, w.screenHeight, [env.rgb[0], env.rgb[1], env.rgb[2], 255]);
+  if (!env) {
+    opts.background?.();
+    if (w.darkened) r.rect(0, 0, w.screenWidth, w.screenHeight, [0, 0, 0, 110]);
+    drawShadows(r, w, sx, sy);
+  } else if (env.time > 0 && env.under) envFill();
 
   const list: Drawable[] = [];
   const top: Drawable[] = [];
@@ -80,6 +87,7 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
   list.sort((a, b) => a.priority - b.priority || a.order - b.order);
   for (const d of list) d.draw();
   opts.foreground?.();
+  if (env && env.time > 0 && !env.under) envFill();
   for (const d of top) d.draw();
 
   function drawPlayer(p: Player): void {
