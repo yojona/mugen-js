@@ -16,7 +16,8 @@ import { nodeSource } from '../../src/engine/node-source';
 import { loadProgram, Player } from '../../src/engine/player';
 import { Vfs } from '../../src/engine/vfs';
 import { World } from '../../src/engine/world';
-import { MugenAI } from '../../src/engine/ai';
+import { MugenAI, setAiDebug } from '../../src/engine/ai';
+import * as aiMod from '../../src/engine/ai';
 import { parseAir } from '../../src/formats/air';
 import { parseSff } from '../../src/formats/sff';
 import { FightHud } from '../../src/motif/fight';
@@ -60,7 +61,14 @@ for (let i = 1; i <= ticks; i++) {
   }
   const tr = process.env.TRACE?.split(',').map(Number);
   if (tr && w.gameTime + 1 >= tr[0]! && w.gameTime + 1 <= tr[1]!) w.randomTrace = [];
+  const ad = process.env.AIDBG?.split(',').map(Number);
+  const dbgOn = ad && w.gameTime + 1 >= ad[0]! && w.gameTime + 1 <= ad[1]!;
+  if (dbgOn) setAiDebug([]);
   if (go) w.tick([0, 0]);
+  if (dbgOn) {
+    console.log(`AI gt ${w.gameTime}: ${aiMod.DEBUG!.join(' ')}`);
+    setAiDebug(null);
+  }
   if (w.randomTrace) {
     const counts = new Map<string, number>();
     for (const k of w.randomTrace) counts.set(k, (counts.get(k) ?? 0) + 1);
