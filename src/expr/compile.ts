@@ -145,39 +145,43 @@ export function compileNode<C>(n: Node, env: TriggerEnv<C>): Fn<C> {
 
 function unary<C>(op: '!' | '~' | '-', a: Fn<C>): Fn<C> {
   switch (op) {
+    // A bottom operand counts as the int it carries (Expr_Eval).
     case '!':
       return (c) => {
         const v = a(c);
-        if (R.t === BOTTOM) return 0;
+        const t = R.t;
         R.t = INT;
-        return v === 0 ? 1 : 0;
+        return (t === BOTTOM ? v | 0 : v) === 0 ? 1 : 0;
       };
     case '~':
       return (c) => {
         const v = a(c);
-        if (R.t !== INT) return bottom();
+        if (R.t === FLOAT) return bottom();
+        R.t = INT;
         return ~v;
       };
     case '-':
       return (c) => {
         const v = a(c);
-        if (R.t === INT) return -v | 0;
         if (R.t === FLOAT) return f32(-v);
-        return 0;
+        R.t = INT;
+        return -v | 0;
       };
   }
 }
 
-/** Evaluate both operands; returns false (and sets bottom) if either is bottom. */
+/**
+ * Evaluate both operands. mugen.exe's postfix evaluator (Expr_Eval) does not
+ * propagate bottom through operators: a bottom operand is read as the int it
+ * carries (0), and the result is an ordinary value. Always true.
+ */
 function both<C>(a: Fn<C>, b: Fn<C>, c: C, out: { x: number; y: number; float: boolean }): boolean {
   out.x = a(c);
   const ta = R.t;
   out.y = b(c);
   const tb = R.t;
-  if (ta === BOTTOM || tb === BOTTOM) {
-    R.t = BOTTOM;
-    return false;
-  }
+  if (ta === BOTTOM) out.x |= 0;
+  if (tb === BOTTOM) out.y |= 0;
   out.float = ta === FLOAT || tb === FLOAT;
   return true;
 }
@@ -273,7 +277,10 @@ function interval<C>(negate: boolean, x: Fn<C>, lo: Fn<C>, hi: Fn<C>, loOpen: bo
     const tl = R.t;
     let h = hi(c);
     const th = R.t;
-    if (tx === BOTTOM || tl === BOTTOM || th === BOTTOM) return bottom();
+    // Only a bottom x makes the interval bottom (Expr_Eval); bounds count as ints.
+    if (tx === BOTTOM) return bottom();
+    if (tl === BOTTOM) l |= 0;
+    if (th === BOTTOM) h |= 0;
     if (tx === FLOAT || tl === FLOAT || th === FLOAT) {
       xv = f32(xv);
       l = f32(l);
@@ -291,11 +298,12 @@ function assign<C>(target: CallNode, value: Fn<C>, env: TriggerEnv<C>): Fn<C> {
   if (!idx || target.args.length !== 1) throw new CompileError(`${kind} necesita 1 argumento`);
   const isFloatVar = kind === 'fvar' || kind === 'sysfvar';
   return (c) => {
+    // Bottom index or value: read as the int it carries (Expr_Eval).
     let i = idx(c);
-    if (R.t === BOTTOM) return 0;
     if (R.t === FLOAT) i = toInt(i);
+    else i |= 0;
     let v = value(c);
-    if ((R.t as Ty) === BOTTOM) return 0;
+    if ((R.t as Ty) === BOTTOM) v |= 0;
     if (isFloatVar) v = f32(v);
     else if (R.t === FLOAT) v = toInt(v);
     if (!env.setVar(c, kind, i, v)) return bottom();

@@ -95,10 +95,13 @@ describe('arithmetic (cns.html examples)', () => {
   });
   it('bottom', () => {
     expect(ev('1/0')).toEqual(B);
-    expect(ev('5 + 1/0')).toEqual(B);
+    // mugen.exe does not propagate bottom through operators: a bottom
+    // operand reads as 0 and the result is an ordinary value (Expr_Eval).
+    expect(ev('5 + 1/0')).toEqual(I(5));
+    expect(ev('!(1/0)')).toEqual(I(1));
     expect(ev('5.0 % 2')).toEqual(B);
     expect(ev('1.5 & 1')).toEqual(B);
-    expect(ev('0 && 1/0')).toEqual(B);
+    expect(ev('0 && 1/0')).toEqual(I(0));
     expect(truthy(compileExpr('1/0', env), mock())).toBe(false);
   });
   it('logic and comparisons', () => {
