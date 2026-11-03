@@ -93,6 +93,7 @@ export class FightHud {
       startWaitTime: n('start.waittime', D.startWaitTime),
       roundTime: n('round.time', D.roundTime),
       roundDisplayTime: n('round.default.displaytime', D.roundDisplayTime),
+      introTime: n('intro.time', D.introTime),
       roundSndTime: n('round.sndtime', D.roundSndTime),
       fightTime: n('fight.time', D.fightTime),
       fightSndTime: n('fight.sndtime', D.fightSndTime),

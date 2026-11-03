@@ -14,6 +14,8 @@ export interface RoundConfig {
   startWaitTime: number;
   roundTime: number;
   roundDisplayTime: number;
+  /** intro.time: ticks from the end of the intros to RoundState 2. */
+  introTime: number;
   roundSndTime: number;
   fightTime: number;
   fightSndTime: number;
@@ -45,6 +47,7 @@ export const DEFAULT_ROUND: RoundConfig = {
   startWaitTime: 30,
   roundTime: 0,
   roundDisplayTime: 60,
+  introTime: 70,
   roundSndTime: 0,
   fightTime: 0,
   fightSndTime: 0,
@@ -241,7 +244,9 @@ export class Match {
         const roundAt = ROUND_LEAD + c.roundTime;
         if (t === roundAt) this.announce = { kind: 'round', round: this.round, age: 0 };
         if (t === roundAt + c.roundSndTime) this.sounds.push([0, Math.min(this.round, 9)]);
-        const fightAt = roundAt + c.roundDisplayTime + c.fightTime;
+        // Round_RunState case 1: RoundState 2 once intro_time reaches
+        // intro.time (the intro end is seen 2 ticks into this phase count).
+        const fightAt = c.introTime - 2;
         if (t >= fightAt) {
           this.announce = { kind: 'fight', age: 0 };
           w.inputLocked = false;
