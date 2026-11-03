@@ -55,6 +55,7 @@ variable on the leaving screen's last frame). Comparisons use `?pristine=1`
 | Chang vs Choi (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical: TargetBind placed by the binder, custom states use the owner's command list, command labels across characters, hits disabled in RoundState 4 |
 | Chin vs Kensou (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical: HitDef and ReversalDef share one slot (the AI learns a counter move without its reversal attr) |
 | Heidern vs Geese (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical: actions with a -1 element in the middle, hit facings applied next update, BindToTarget binding the target back, projscale not in collisions |
+| D-Yashiro vs Evil Robert (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical: learned AI from the .def's ai file, built-in transitions into missing states, full guardflag bits in AI records, -0.001 y velocity on falling ground hits, kill = 0 against pending damage, chainID/nochainID, KO seen the tick after the player's update, nokoslow |
 
 The parser, the parameter readers and several rules now come from the
 decompilation of the same mugen.exe (`ref/mugen-unleashed`, used only as a
@@ -75,7 +76,7 @@ documentation but not yet compared against the original.
 
 | # | Stage | Goal | State |
 |---|---|---|---|
-| 1 | Community characters | CPU vs CPU with real characters until whole matches match | Ten KOF pairs match (Iori/Kyo, Kim/Benimaru, Clark/Kula, Athena/Leona, Andy/Chris, Billy/Daimon, King/Joe, Chang/Choi, Chin/Kensou, Heidern/Geese); next: more characters |
+| 1 | Community characters | CPU vs CPU with real characters until whole matches match | Eleven KOF pairs match (Iori/Kyo, Kim/Benimaru, Clark/Kula, Athena/Leona, Andy/Chris, Billy/Daimon, King/Joe, Chang/Choi, Chin/Kensou, Heidern/Geese, D-Yashiro/Evil Robert); next: more characters |
 | 2 | AI coverage | Whole matches at levels 1, 3, 5, 6 and 8; time-over round; draw | Ready to start |
 | 3 | Exact camera | Reproduce the float math at `0x4167xx` (tiny drifts left in round 1) | Optional hardening |
 | 4 | Game modes | Team (simul/turns), Survival, Arcade with AI ramp; demo mode (title idle 600 frames); continue "Yes" path verified | Pending |
