@@ -947,7 +947,9 @@ export class Player {
       this.pendingPlacement = undefined;
     }
     if (this.hitPause > 0 || (this.ghv.hitshaketime > 1 && this.moveType === 'h')) return;
-    if (this.cornerPushVel) {
+    // The corner push waits out a SuperPause (mugen.exe: pause_kind != 1,
+    // from the frame after the one that starts it).
+    if (this.cornerPushVel && !(this.world.superPause && !this.world.superPause.fresh)) {
       this.pos.x = this.pos.x + this.cornerPushVel * this.facing;
       this.cornerPushVel *= 0.7;
       if (Math.abs(this.cornerPushVel) < 0.5) this.cornerPushVel = 0;
