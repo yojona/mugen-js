@@ -40,15 +40,29 @@ Screen boundaries agree within one frame (mugen.exe switches its gameflow
 variable on the leaving screen's last frame). Comparisons use `?pristine=1`
 (no content fixes).
 
-**Limit:** everything above is verified with KFM (and kfm720) only.
-Controllers and triggers KFM does not use are implemented from the Elecbyte
+### Community characters
+
+| Check | Result |
+|---|---|
+| Load (`tools/corpus-check.ts`, 285 KOF characters from a public pack) | 283 compile with no error; the other 2 lost an apostrophe in a file name when the pack was extracted |
+| Iori (ikaruga) vs EX-Kyo, CPU vs CPU, level 4 (`tools/harness/peek-ours.ts` against a NOPROBE capture) | Intro and fight identical frame by frame (states, positions, velocities, life, RNG) up to tick 496 of the round |
+
+The parser, the parameter readers and several rules now come from the
+decompilation of the same mugen.exe (`ref/mugen-unleashed`, used only as a
+reference): expressions and triggers (Expr_Parse, Trigger_Parse), every
+controller's parameters (`src/engine/sctrl-spec.ts`), INI key matching,
+statedef sections, command labels, missing states, helper updates, hit
+direction and damage rounding.
+
+**Limit:** controllers and triggers that neither KFM nor these two
+characters use are implemented from the decompilation or the Elecbyte
 documentation but not yet compared against the original.
 
 ## Roadmap
 
 | # | Stage | Goal | State |
 |---|---|---|---|
-| 1 | Community characters | CPU vs CPU with 2-3 real characters; fix the controllers and triggers KFM does not use | Needs the characters |
+| 1 | Community characters | CPU vs CPU with real characters until a whole match matches | Iori vs Kyo matches to tick 496; next: an AI draw-order difference at 497 |
 | 2 | AI coverage | Whole matches at levels 1, 3, 5, 6 and 8; time-over round; draw | Ready to start |
 | 3 | Exact camera | Reproduce the float math at `0x4167xx` (tiny drifts left in round 1) | Optional hardening |
 | 4 | Game modes | Team (simul/turns), Survival, Arcade with AI ramp; demo mode (title idle 600 frames); continue "Yes" path verified | Pending |
