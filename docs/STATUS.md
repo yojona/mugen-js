@@ -45,7 +45,7 @@ variable on the leaving screen's last frame). Comparisons use `?pristine=1`
 | Check | Result |
 |---|---|
 | Load (`tools/corpus-check.ts`, 285 KOF characters from a public pack) | 283 compile with no error; the other 2 lost an apostrophe in a file name when the pack was extracted |
-| Iori (ikaruga) vs EX-Kyo, CPU vs CPU, level 4 (`tests/community.test.ts`) | The whole first round identical frame by frame (states, positions, velocities, life, RNG): intro, fight with throws, custom states, supers, helpers, projectiles, Pause slowdowns, KO slowdown and win pose (2343 frames) |
+| Iori (ikaruga) vs EX-Kyo, CPU vs CPU, level 4 (`tests/community.test.ts`) | The whole match identical frame by frame (states, positions, velocities, life, RNG): two rounds with intros, throws, custom states, supers and SuperPauses, helpers, projectiles, explods, corner pushes, KO slowdowns and win poses, to the frame mugen.exe starts the next match (4721 frames) |
 
 The parser, the parameter readers and several rules now come from the
 decompilation of the same mugen.exe (`ref/mugen-unleashed`, used only as a
@@ -66,7 +66,7 @@ documentation but not yet compared against the original.
 
 | # | Stage | Goal | State |
 |---|---|---|---|
-| 1 | Community characters | CPU vs CPU with real characters until whole matches match | Iori vs Kyo round 1 matches; next: rounds 2+ and more characters |
+| 1 | Community characters | CPU vs CPU with real characters until whole matches match | Iori vs Kyo whole match matches; next: more characters |
 | 2 | AI coverage | Whole matches at levels 1, 3, 5, 6 and 8; time-over round; draw | Ready to start |
 | 3 | Exact camera | Reproduce the float math at `0x4167xx` (tiny drifts left in round 1) | Optional hardening |
 | 4 | Game modes | Team (simul/turns), Survival, Arcade with AI ramp; demo mode (title idle 600 frames); continue "Yes" path verified | Pending |
