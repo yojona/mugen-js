@@ -284,6 +284,7 @@ export class World {
     const order = [...active.filter((p) => p.moveType === 'a'), ...active.filter((p) => p.moveType !== 'a')];
     const update = (p: Player) => {
       p.changedStateThisTick = false;
+      p.projHitBlock = false;
       // Player_Update: a player shaking from a hit has no hit pause of its
       // own (a trade's attacker pause is dropped).
       if (p.ghv.hitshaketime > 0) {

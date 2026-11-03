@@ -252,6 +252,8 @@ export class Player {
   hitOverrides: ({ attrs: string[]; stateNo: number; time: number; forceAir: boolean } | undefined)[] = [];
   /** Player_Reset's action 0 holds its first step (Match.startRound). */
   skipAnimTick = false;
+  /** Hit by a projectile this tick: no other projectile until its next update (nothitby 0x1FF). */
+  projHitBlock = false;
   /** Round over (no_input_states): no commands and no built-in transitions. */
   noInputStates = false;
   /** Juggle cost of the current attack state (statedef `juggle`). */

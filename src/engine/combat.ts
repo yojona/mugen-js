@@ -7,7 +7,7 @@
 
 import type { Clsn } from '../formats/air';
 import { clsnTouchInternal } from './ai-learn';
-import { attrMatches, type HitDefData } from './hitdef';
+import { attrMatches, hitDefAttrBits, type HitDefData } from './hitdef';
 import { endProjectile, noteProjContact, type Projectile } from './projectile';
 import type { Player } from './player';
 
@@ -221,7 +221,16 @@ export function applyHits(hits: PendingHit[], order?: Player[], frame = 1): void
     const dir = frame & 1 ? 1 : -1;
     hits = [...hits].sort((x, y) => dir * (idx(x.defender) - idx(y.defender)) || idx(x.attacker) - idx(y.attacker));
   }
-  for (const h of hits) applyHit(h);
+  for (const h of hits) {
+    if (h.proj) {
+      // Projectiles_HitPlayer checks and applies projectile hits one by one:
+      // the juggle points left now, and a target just hit by a projectile
+      // takes no other projectile this tick (nothitby 0x1FF).
+      if (h.defender.projHitBlock && hitDefAttrBits(h.hd.attrState, h.hd.attrType) & ~0x1ff) continue;
+      if (!juggleOk(h.attacker, h.defender, h.hd.airJuggle)) continue;
+    }
+    applyHit(h);
+  }
 }
 
 function projBoxes(pr: Projectile, which: 1 | 2): Box[] {
@@ -416,10 +425,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     // Juggle points (Player_Hit): a hit on a falling target, a fall = 1 hit or an air.fall
     // hit in the air, spends the HitDef's juggle from the attacker's target
     // entry; the HitDef then costs nothing more until a state sets it.
-    const cost = proj ? hd.airJuggle : a.juggleCost;
-    if (!override && (wasFalling || hd.fall || (hd.airFall && d.stateType === 'a'))) {
-      a.targetJuggle.set(d, (a.targetJuggle.get(d) ?? a.const('data.airjuggle')) - Math.max(0, cost));
-      if (!proj) a.juggleCost = 0;
+    if (!proj && !override && (wasFalling || hd.fall || (hd.airFall && d.stateType === 'a'))) {
+      a.targetJuggle.set(d, (a.targetJuggle.get(d) ?? a.const('data.airjuggle')) - Math.max(0, a.juggleCost));
+      a.juggleCost = 0;
     }
     const vel = inAir ? hd.airVel : hd.groundVel;
     g.guarded = 0;
@@ -455,7 +463,14 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.yvel = vy * conv;
     g.yaccel = hd.yaccel * conv;
     g.fall = willFall ? 1 : 0;
-    d.airJumpsLeft = 0;
+    if (proj) {
+      // A projectile spends its juggle on a target it leaves falling.
+      if (!override && g.fall && hd.airJuggle !== -1) {
+        a.targetJuggle.set(d, (a.targetJuggle.get(d) ?? a.const('data.airjuggle')) - hd.airJuggle);
+        hd.airJuggle = 0;
+      }
+      d.projHitBlock = true;
+    }    d.airJumpsLeft = 0;
     d.recoverFresh = true;
     g['fall.damage'] = hd.fallDamage;
     g['fall.xvel'] = hd.fallXVel === undefined ? Number.NaN : hd.fallXVel * conv;
