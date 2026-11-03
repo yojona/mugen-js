@@ -752,13 +752,12 @@ export class Player {
     // A ChangeState ends only the pass of its own special state; the next
     // one still runs (mugen.exe Player_Update: -3, -2 and -1 are separate
     // Player_RunSpecialState calls).
-    let changed = false;
-    for (const special of specials) if (this.runState(special)) changed = true;
+    for (const special of specials) this.runState(special);
     // Get-up from lying down happens after the special states and before the
     // current state runs (measured: 5110 Time = 60 is visible in -2).
     this.runCurrent();
     this.guardEnd();
-    if (!changed) this.engineHitTransitions();
+    this.engineHitTransitions();
   }
 
   /**
