@@ -199,8 +199,10 @@ function applyReversal(r: Player, a: Player): void {
   a.hitDefActive = false;
   a.hitDefSet = false;
   r.moveContact = r.moveHit = 1;
+  // hitpause_next on both sides: the pause starts counting next tick.
   r.hitPause = rv.hd.pause[0];
   a.hitPause = rv.hd.pause[1];
+  r.hitPauseFresh = a.hitPauseFresh = true;
   r.targets.set(a, rv.hd.id);
   r.world.spawnSpark(r, a, rv.hd.spark, [(rv.hd.sparkXY[0] + (a.hitDef?.sparkXY[0] ?? 0)) * r.scale, (rv.hd.sparkXY[1] + (a.hitDef?.sparkXY[1] ?? 0)) * r.scale], { x: r.wx, y: r.wy });
   r.world.playHitSound(r, rv.hd.hitSound);
