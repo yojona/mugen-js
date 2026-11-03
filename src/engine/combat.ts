@@ -471,7 +471,7 @@ function placeDefender(a: Player, d: Player, hd: HitDefData): void {
 }
 
 function scaleDamage(a: Player, d: Player, dmg: number): number {
-  const att = a.const('data.attack') / 100;
+  const att = a.attackFactor;
   const def = 100 / Math.max(1, d.const('data.defence'));
   return Math.trunc((dmg * att * def * d.defenceMul) / d.superDefMul);
 }

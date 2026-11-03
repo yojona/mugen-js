@@ -188,6 +188,11 @@ export class Player {
   // Being hit
   ghv: GetHitVars = emptyGetHitVars();
   defenceMul = 1;
+  /** AttackMulSet's multiplier (value * data.attack / 100); unset = data.attack / 100. */
+  attackMul: number | undefined;
+  get attackFactor(): number {
+    return this.attackMul ?? this.const('data.attack') / 100;
+  }
   /** SuperPause p2defmul on a target, until it recovers from the hit. */
   superDefMul = 1;
   /** NotHitBy / HitBy slots: allowed or blocked attributes for a time. */

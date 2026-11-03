@@ -185,6 +185,22 @@ const IMPLS: Record<string, Impl> = {
 
   varset: (c, prm, env) => varController(c, prm, env, 'set'),
   varadd: (c, prm, env) => varController(c, prm, env, 'add'),
+  // VarRandom (mugen.exe SCTRL_VARRANDOM): var(v) = Match_Random() % (hi - lo + 1) + lo;
+  // range = hi alone means 0..hi; the default is 0..1000.
+  varrandom: (_c, prm) => (p) => {
+    const idx = prm.int(p, 'v');
+    if (idx === undefined || idx < 0 || idx >= p.vars.length) return;
+    const r = prm.list('range');
+    let lo = 0;
+    let hi = 1000;
+    if (r && r.length === 1) hi = prm.int(p, 'range', 0) ?? 0;
+    else if (r) {
+      lo = prm.int(p, 'range', 0) ?? 0;
+      hi = prm.int(p, 'range', 1) ?? 0;
+    }
+    if (hi < lo) [lo, hi] = [hi, lo];
+    p.vars[idx] = (p.world.random(hi - lo + 1) + lo) | 0;
+  },
   varrangeset: (_c, prm) => (p) => {
     const iv = prm.int(p, 'value');
     const fv = prm.num(p, 'fvalue');
@@ -234,6 +250,22 @@ const IMPLS: Record<string, Impl> = {
     p.life = Math.max(p.ghv['fall.kill'] ? 0 : Math.min(p.life, 1), p.life - dmg);
     p.ghv['fall.damage'] = 0;
     if (p.life <= 0) p.alive = false;
+  },
+  // mugen.exe: attack_mul = value * data.attack / 100.
+  attackmulset: (_c, prm) => (p) => {
+    const v = prm.num(p, 'value');
+    if (v !== undefined) p.attackMul = Math.fround((v * p.const('data.attack')) / 100);
+  },
+  gravity: () => (p) => {
+    p.vel.y = p.vel.y + Math.fround(p.const('movement.yaccel'));
+  },
+  attackdist: (_c, prm) => (p) => {
+    const v = prm.int(p, 'value');
+    if (v !== undefined && p.hitDef) p.hitDef.guardDist = v;
+  },
+  hitadd: (_c, prm) => (p) => {
+    const v = prm.int(p, 'value');
+    if (v !== undefined) p.hitCount += v;
   },
   defencemulset: (_c, prm) => (p) => {
     const v = prm.num(p, 'value');
@@ -474,7 +506,7 @@ const EXTRA: Record<string, Impl> = {
     const kill = (prm.int(p, 'kill') ?? 1) !== 0;
     const abs = (prm.int(p, 'absolute') ?? 0) !== 0;
     eachTarget(p, prm, (t) => {
-      const amt = abs ? v : Math.trunc(v * (p.const('data.attack') / 100) * (100 / Math.max(1, t.const('data.defence'))) * t.defenceMul);
+      const amt = abs ? v : Math.trunc(v * p.attackFactor * (100 / Math.max(1, t.const('data.defence'))) * t.defenceMul);
       t.life = Math.min(t.const('data.life'), Math.max(kill ? 0 : Math.min(t.life, 1), t.life + amt));
       if (t.life <= 0) t.alive = false;
     });
@@ -541,9 +573,8 @@ let playerEnvRef: TriggerEnv<P> | undefined;
 
 /** Controllers accepted but not simulated yet (no effect). */
 const PENDING = [
-  'attackmulset',
   'envcolor', 'forcefeedback', 'stopsnd', 'sndpan',
-  'displaytoclipboard', 'appendtoclipboard', 'clearclipboard', 'hitadd', 'attackdist', 'victoryquote', 'zoom', 'gravity',
+  'displaytoclipboard', 'appendtoclipboard', 'clearclipboard', 'victoryquote', 'zoom',
 ];
 
 /** NotHitBy / HitBy: value = SCA, NA, SA (value2 uses the second slot). */
