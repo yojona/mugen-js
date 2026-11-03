@@ -107,7 +107,13 @@ export class Player {
   /** Set by DestroySelf; the world removes the helper at end of tick. */
   destroyed = false;
   /** Projectile bookkeeping per ProjID (ticks since last hit/contact/guard/cancel). */
-  projInfo = new Map<number, { hit: number; contact: number; guarded: number; cancel: number }>();
+  /**
+   * The last projectile contact (mugen.exe keeps one): 0 none, 1 guarded,
+   * 2 hit, 3 cancelled; the projectile's ID and the ticks since.
+   */
+  projContact = 0;
+  projContactId = 0;
+  projContactTime = 0;
   commands = new Set<string>();
 
   /** Position and velocity in the character's own coordinate space (localcoord). */
@@ -884,9 +890,6 @@ export class Player {
     // fall.recovertime also counts down during the hit shake (measured: a
     // CPU recovers from 5050 one tick earlier than counting after it).
     if (this.moveType === 'h' && g['fall.recovertime'] > 0) g['fall.recovertime']--;
-    for (const info of this.projInfo.values()) {
-      for (const k of ['hit', 'contact', 'guarded', 'cancel'] as const) if (info[k] >= 0) info[k]++;
-    }
     if (!fresh) {
       if (this.moveContact) this.moveContact++;
       if (this.moveHit) this.moveHit++;

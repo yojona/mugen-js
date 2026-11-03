@@ -8,7 +8,7 @@
 import type { Clsn } from '../formats/air';
 import { clsnTouchInternal } from './ai-learn';
 import { attrMatches, type HitDefData } from './hitdef';
-import { endProjectile, projInfo, type Projectile } from './projectile';
+import { endProjectile, noteProjContact, type Projectile } from './projectile';
 import type { Player } from './player';
 
 interface Box {
@@ -217,7 +217,7 @@ export function detectProjectileHits(projs: Projectile[], players: Player[]): Pe
 }
 
 function cancel(pr: Projectile): void {
-  projInfo(pr.owner, pr.projId).cancel = 0;
+  noteProjContact(pr.owner, 3, pr.projId);
   endProjectile(pr, pr.cancelAnim);
 }
 
@@ -232,10 +232,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     proj.hitPause = guarded ? hd.guardPause[0] : hd.pause[0];
     proj.hitsLeft--;
     proj.missTimer = proj.missTime;
-    const info = projInfo(a, proj.projId);
-    info.contact = 0;
-    if (guarded) info.guarded = 0;
-    else info.hit = 0;
+    noteProjContact(a, guarded ? 1 : 2, proj.projId);
     if (proj.hitsLeft <= 0 && proj.removeOnHit) endProjectile(proj, proj.hitAnim);
   } else {
     a.hitTargets.add(d);

@@ -170,7 +170,8 @@ describe('redirection and clauses', () => {
     const c = mock({ time: 1, parent });
     expect(ev('parent, time', c)).toEqual(I(50));
     expect(ev('5 + (parent, time)', c)).toEqual(I(55));
-    expect(ev('parent, time + time', c)).toEqual(I(100));
+    // mugen.exe binds a redirection to the one trigger after it.
+    expect(ev('parent, time + time', c)).toEqual(I(51));
     expect(ev('helper(3), time', c)).toEqual(B);
     c.helpers.set(3, mock({ time: 9 }));
     expect(ev('helper(3), time', c)).toEqual(I(9));
@@ -188,7 +189,7 @@ describe('redirection and clauses', () => {
     const a = parseExpr('animelem = 2, >= 3');
     expect(a).toMatchObject({ kind: 'clause', name: 'animelem', op: '=', second: { op: '>=' } });
     expect(parseExpr('timemod = 4, 2')).toMatchObject({ kind: 'clause', name: 'timemod' });
-    expect(parseExpr('hitdefattr = SCA, NA, SA')).toMatchObject({ words: ['sca', 'na', 'sa'] });
+    expect(parseExpr('hitdefattr = SCA, NA, SA')).toMatchObject({ bits: 7 | 0x08 | 0x10 });
     expect(parseExpr('projhit1234 = 1, < 5')).toMatchObject({ name: 'projhit', id: 1234 });
     expect(parseExpr('animelem = 3, -1')).toMatchObject({ second: { op: '=' } });
     expect(parseExpr('animelem = 5 + 4')).toMatchObject({ kind: 'binary', op: '+' });

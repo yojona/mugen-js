@@ -135,19 +135,16 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
       pauseMoveTime: int(p, 'pausemovetime') ?? 0,
       hitTargets: new Set(),
     });
-    projInfo(p, projId);
     // mugen.exe 0x44a2bd: the move being recorded fired this projectile.
     if (p.recorder) p.recorder.projPending = projId;
   };
 }
 
-export function projInfo(p: P, id: number) {
-  let i = p.projInfo.get(id);
-  if (!i) {
-    i = { hit: -1, contact: -1, guarded: -1, cancel: -1 };
-    p.projInfo.set(id, i);
-  }
-  return i;
+/** Note a projectile contact on its owner (mugen.exe: one record per player). */
+export function noteProjContact(p: P, kind: 1 | 2 | 3, id: number): void {
+  p.projContact = kind;
+  if (kind !== 3) p.projContactId = id;
+  p.projContactTime = 0;
 }
 
 /** Switch to an ending animation (hit / remove / cancel); -1 removes immediately. */

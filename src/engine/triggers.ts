@@ -328,15 +328,18 @@ function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
     case 'teammode':
       return boolOut(() => word === 'single');
     case 'hitdefattr': {
-      // HitDefAttr = SCA, NA, SA: state letters, then attack attributes.
-      const states = node.words[0] ?? '';
-      const types = node.words.slice(1);
+      // mugen.exe: attack only, and the HitDef's attr must share a state bit
+      // and a type bit with the trigger's (bits from HitDefAttr_Parse).
+      const want = node.bits ?? 0;
       return (p) => {
         R.t = INT;
         const hd = p.hitDef;
-        if (!hd || p.moveType !== 'a') return eq ? 0 : 1;
-        const match = states.includes(hd.attrState) && (types.length === 0 || types.some((t) => t === hd.attrType || (t[0] === 'a' && t[1] === hd.attrType[1]) || (t[1] === 'a' && t[0] === hd.attrType[0])));
-        return match === eq ? 1 : 0;
+        let v = 0;
+        if (hd && p.moveType === 'a') {
+          const b = hitDefAttrBits(hd.attrState, hd.attrType) & want;
+          v = (b & 7) !== 0 && (b & ~7) !== 0 ? 1 : 0;
+        }
+        return eq ? v : 1 - v;
       };
     }
     case 'stagevar':
@@ -355,7 +358,7 @@ function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
     case 'animelem': {
       const n = nums[0]!;
       const second = node.second;
-      const secondFn = second ? compileSecond(second.value) : undefined;
+      const secondFn = second ? compileSecond(second) : undefined;
       const outer = relFn(node.op);
       return (p) => {
         const el = argInt(n, p);
@@ -364,14 +367,14 @@ function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
         if (t === undefined) return bottom();
         R.t = INT;
         if (!second) {
-          // Format 1: true on the first tick of element `el` (first pass only).
+          // No comparison: "[0, 0]", true on the element's first tick.
           const hit = t === 0;
           return outer(hit ? 1 : 0, 1) ? 1 : 0;
         }
-        const v = argInt(secondFn!, p);
-        if (v === undefined) return bottom();
+        const r = secondFn!(p, t);
+        if (r === undefined) return bottom();
         R.t = INT;
-        return relFn(second.op)(t, v) ? 1 : 0;
+        return r ? 1 : 0;
       };
     }
     case 'projcontact':
@@ -382,16 +385,19 @@ function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
       const kind = node.name === 'projhit' ? 'hit' : node.name === 'projcontact' ? 'contact' : 'guarded';
       const want = nums[0]!;
       const second = node.second;
-      const secondFn = second ? compileSecond(second.value) : undefined;
+      const secondFn = second ? compileSecond(second) : undefined;
       return (p) => {
         const v = argInt(want, p);
         if (v === undefined) return bottom();
         const t = projTime(p, node.id ?? 0, kind);
+        // No comparison means "[0, 0]": the contact happened this tick.
         let happened = t >= 0;
-        if (happened && second) {
-          const sv = argInt(secondFn!, p);
-          if (sv === undefined) return bottom();
-          happened = relFn(second.op)(t, sv);
+        if (happened) {
+          if (second) {
+            const r = secondFn!(p, t);
+            if (r === undefined) return bottom();
+            happened = r;
+          } else happened = t === 0;
         }
         R.t = INT;
         return happened === ((v !== 0) === eq) ? 1 : 0;
@@ -401,20 +407,44 @@ function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
   return undefined;
 }
 
-/** The optional second value of an AnimElem clause arrives as an AST. */
-function compileSecond(node: ClauseNode['nums'][number]): Fn<P> {
-  return compileNode(node, playerEnv);
+/** The optional comparison of an AnimElem / ProjHit clause: a relation or a range. */
+function compileSecond(second: NonNullable<ClauseNode['second']>): (p: P, t: number) => boolean | undefined {
+  const a = compileNode(second.value, playerEnv);
+  const rel = relFn(second.op);
+  if (!second.value2) {
+    return (p, t) => {
+      const v = argInt(a, p);
+      return v === undefined ? undefined : rel(t, v);
+    };
+  }
+  const b = compileNode(second.value2, playerEnv);
+  const { loOpen, hiOpen } = second;
+  return (p, t) => {
+    const lo = argInt(a, p);
+    const hi = argInt(b, p);
+    if (lo === undefined || hi === undefined) return undefined;
+    return (loOpen ? t > lo : t >= lo) && (hiOpen ? t < hi : t <= hi);
+  };
 }
 
-/** Ticks since the last projectile event of a kind (-1 = never); id 0 = any. */
+/** A HitDef's attr in mugen.exe's layout: S/C/A = 1/2/4, then N/S/H x A/T/P. */
+function hitDefAttrBits(state: string, type: string): number {
+  let b = state === 's' ? 1 : state === 'c' ? 2 : state === 'a' ? 4 : 0;
+  const cls = 'nsh'.indexOf(type[0] ?? '');
+  const kind = 'atp'.indexOf(type[1] ?? '');
+  if (cls >= 0 && kind >= 0) b |= 8 << (kind * 3 + cls);
+  return b;
+}
+
+/**
+ * ProjHitTime & co. (mugen.exe Trigger_Eval): ticks since the last contact if
+ * it is of that kind (contact = hit or guarded) and from that ID (0 = any), else -1.
+ */
 function projTime(p: P, id: number, kind: 'hit' | 'contact' | 'guarded' | 'cancel'): number {
-  if (id !== 0) return p.projInfo.get(id)?.[kind] ?? -1;
-  let best = -1;
-  for (const info of p.projInfo.values()) {
-    const t = info[kind];
-    if (t >= 0 && (best < 0 || t < best)) best = t;
-  }
-  return best;
+  const c = p.projContact;
+  const ok = kind === 'contact' ? c === 1 || c === 2 : c === (kind === 'hit' ? 2 : kind === 'cancel' ? 3 : 1);
+  if (!ok || (id !== 0 && p.projContactId !== id)) return -1;
+  return p.projContactTime;
 }
 
 function redirect(p: P, to: string, _id: number | undefined): P | undefined {

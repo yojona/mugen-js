@@ -225,7 +225,11 @@ export class World {
       // 0x43c480 -> 0x4349b0; measured: a thrown P2 already shows the
       // TargetBind position its thrower set this tick).
       this.placeBound(p);
+      const frozen = p.hitPause > 0;
       p.runStates();
+      // mugen.exe Player_Update: the projectile contact clock runs after the
+      // states, unless in hit pause.
+      if (!frozen) p.projContactTime++;
       if (this.inputLocked && !p.isHelper) p.ctrl = false;
       p.physicsStep();
       // Screen bounds apply as part of the player's movement, before the
