@@ -197,6 +197,7 @@ function applyReversal(r: Player, a: Player): void {
   const rv = r.reversal!;
   r.reversal = undefined;
   a.hitDefActive = false;
+  a.hitDefSet = false;
   r.moveContact = r.moveHit = 1;
   r.hitPause = rv.hd.pause[0];
   a.hitPause = rv.hd.pause[1];
@@ -344,6 +345,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     a.hitTargets.add(d);
     // A HitDef is valid for a single hit; triggering it again re-arms it.
     a.hitDefActive = false;
+    // mugen.exe's hd->active (what the AI's learning sees) only goes off for
+    // a hitonce HitDef (the default for throws).
+    if (hd.hitOnce) a.hitDefSet = false;
     a.moveContact = 1;
     if (guarded) a.moveGuarded = 1;
     else a.moveHit = 1;
