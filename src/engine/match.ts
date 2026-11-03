@@ -89,6 +89,17 @@ export interface TeamPlan {
   spawn(member: number, k: number): Player;
   /** Simul: the slot is played by the CPU (a CPU partner of a human does not lose the round by its KO). */
   ai?: boolean[];
+  /** Turns: each member's character and palette, for the HUD's waiting-teammate faces. */
+  faces?: { data: import('./character').CharacterData; pal: number }[];
+}
+
+/** What the HUD shows of a side. */
+export interface TeamView {
+  mode: TeamMode;
+  memberCount: number;
+  cur: number;
+  winsNeeded: number;
+  faces?: TeamPlan['faces'];
 }
 
 export interface MatchOptions {
@@ -604,6 +615,11 @@ export class Match {
     this.phase = phase;
     // tick() increments after this step, so the new phase starts at 0.
     this.phaseTime = -1;
+  }
+
+  teamView(t: number): TeamView {
+    const ts = this.teams[t]!;
+    return { mode: ts.mode, memberCount: ts.memberCount, cur: ts.cur, winsNeeded: ts.winsNeeded, faces: ts.plan?.faces };
   }
 
   /** The side's leader on the screen (P1 / P2, the current turns member). */
