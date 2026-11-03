@@ -2,7 +2,7 @@
 
 import { withContentFixes } from '../engine/content-fixes';
 import { Mixer } from '../audio/mixer';
-import { loadCharacter } from '../engine/character';
+import { loadCharacter, loadCharacterPreview, type CharacterData } from '../engine/character';
 import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../engine/cmd';
 import { loadProgram, type CharacterProgram } from '../engine/player';
 import { httpSource, Vfs } from '../engine/vfs';
@@ -73,15 +73,42 @@ const ctx: AppContext = { renderer, mixer, keys, motif, aiLevel: await aiLevel()
 
 setStatus('Cargando personajes…');
 const roster: Roster = await loadRoster(vfs, motif.selectDef);
-const rosterChars: RosterChar[] = [];
-for (const entry of roster.chars) {
-  if (entry.def === 'randomselect' || !entry.def) {
-    rosterChars.push({ entry, data: undefined, defPath: undefined });
-    continue;
+// Like mugen.exe, the select screen only needs each character's def and the
+// sprites the motif shows (portraits); the rest loads once it is picked.
+const motifSprites = (() => {
+  const keys: [string, string, string][] = [
+    ['Select Info', 'portrait.spr', '9000,0'],
+    ['Select Info', 'p1.face.spr', '9000,1'],
+    ['Select Info', 'p2.face.spr', '9000,1'],
+    ['VS Screen', 'p1.spr', '9000,1'],
+    ['VS Screen', 'p2.spr', '9000,1'],
+    ['Victory Screen', 'p1.spr', '9000,1'],
+    ['Victory Screen', 'p2.spr', '9000,1'],
+  ];
+  const out = new Map<string, [number, number]>();
+  for (const [sec, k, d] of keys) {
+    const [g, n] = (motif.value(sec, k) ?? d).split(',').map((x) => parseInt(x, 10));
+    if (Number.isFinite(g) && Number.isFinite(n)) out.set(`${g},${n}`, [g!, n!]);
   }
-  const defPath = charDefPath(vfs, entry.def);
-  const data = defPath ? await loadCharacter(vfs, defPath).catch(() => undefined) : undefined;
-  rosterChars.push({ entry, data, defPath });
+  return [...out.values()];
+})();
+const rosterChars: RosterChar[] = roster.chars.map((entry) => ({
+  entry,
+  data: undefined,
+  defPath: entry.def === 'randomselect' || !entry.def ? undefined : charDefPath(vfs, entry.def),
+}));
+{
+  let next = 0;
+  let done = 0;
+  const work = rosterChars.filter((c) => c.defPath);
+  const worker = async () => {
+    while (next < work.length) {
+      const c = work[next++]!;
+      c.data = await loadCharacterPreview(vfs, c.defPath!, motifSprites).catch(() => undefined);
+      setStatus(`Cargando personajes… ${++done}/${work.length}`);
+    }
+  };
+  await Promise.all(Array.from({ length: 8 }, worker));
 }
 
 async function stageName(path: string): Promise<string> {
@@ -110,12 +137,23 @@ const commonSnd: Snd | undefined = await vfs.read(ff('common.snd', 'common.snd')
 // mugen.exe's system font for the continue screen (G+0x873c).
 const systemFont = await loadFont(vfs, 'font/f-6x9.def').catch(() => undefined);
 
+// The whole character (sprites, animations, sounds), loaded when picked.
+const fullChars = new Map<string, Promise<CharacterData>>();
+function fullData(c: RosterChar): Promise<CharacterData> {
+  const key = c.defPath!;
+  let d = fullChars.get(key);
+  if (!d) {
+    d = loadCharacter(vfs, key);
+    fullChars.set(key, d);
+  }
+  return d;
+}
 const programs = new Map<string, CharacterProgram>();
 async function program(c: RosterChar): Promise<CharacterProgram> {
   const key = c.defPath!;
   let p = programs.get(key);
   if (!p) {
-    p = await loadProgram(vfs, c.data!);
+    p = await loadProgram(vfs, await fullData(c));
     programs.set(key, p);
   }
   return p;
