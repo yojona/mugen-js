@@ -6,7 +6,7 @@
 // alignment still need to be verified against the reference binary.
 
 import type { Clsn } from '../formats/air';
-import { clsnTouchInternal } from './ai-learn';
+import { clsnTouchInternal, guardFlagBits } from './ai-learn';
 import { attrMatches, hitDefAttrBits, type HitDefData } from './hitdef';
 import { endProjectile, noteProjContact, type Projectile } from './projectile';
 import type { Player } from './player';
@@ -42,21 +42,6 @@ function overlap(a: Box[], b: Box[]): boolean {
   return false;
 }
 
-/** Letter describing the defender for hitflag / guardflag tests. */
-function stanceOk(flags: string, d: Player): boolean {
-  switch (d.stateType) {
-    case 's':
-      return flags.includes('h') || flags.includes('m');
-    case 'c':
-      return flags.includes('l') || flags.includes('m');
-    case 'a':
-      return flags.includes('a');
-    case 'l':
-      return flags.includes('d');
-  }
-  return false;
-}
-
 /** HitFlags_Parse: hitflag / guardflag letters to mugen.exe's bits. */
 function hitFlagBits(flags: string): number {
   let b = 2;
@@ -79,8 +64,9 @@ function hitFlagBits(flags: string): number {
  * must allow it (not "-"), and "+" only matches players in one (unless
  * guarding); a falling player needs F; then H, L or A by state type.
  */
-function hitFlagMatches(d: Player, flags: string): boolean {
-  const b = hitFlagBits(flags);
+function hitFlagMatches(d: Player, flags: string, guard = false): boolean {
+  // A guardflag that is not given is 0 (hitflag defaults to its letters' 2).
+  const b = guard ? guardFlagBits(flags) : hitFlagBits(flags);
   const st = d.stateType;
   if (st === 'l' && !(b & 0x40)) return false;
   let checkPlus = true;
@@ -89,7 +75,7 @@ function hitFlagMatches(d: Player, flags: string): boolean {
     if (!d.guardFlag) checkPlus = false;
   }
   if (checkPlus && b & 0x100) return false;
-  if (d.moveType === 'h' && d.ghv.fall && !(b & 0x20)) return false;
+  if (d.ghv.fall && !(b & 0x20)) return false;
   switch (st) {
     case 's':
       return (b & 4) !== 0;
@@ -171,7 +157,8 @@ export function detectHits(players: Player[]): PendingHit[] {
       // KFM 1400 kick connecting at the edge of its reach).
       if (!clsnTouchInternal(d, 2, a, 1)) continue;
       if (!canHit(a, a.hitDef, d, a.juggleCost)) continue;
-      const guarded = isGuarding(d) && stanceOk(a.hitDef.guardFlag, d) && !a.special.has('unguardable');
+      // Player_Hit: guarding needs the guardflag to match like a hitflag.
+      const guarded = isGuarding(d) && hitFlagMatches(d, a.hitDef.guardFlag, true) && !a.special.has('unguardable');
       hits.push({ attacker: a, defender: d, hd: a.hitDef, guarded });
     }
   }
@@ -323,7 +310,7 @@ export function detectProjectileHits(projs: Projectile[], players: Player[]): Pe
       );
       if (!hitBox) continue;
       if (!canHit(pr.owner, pr.hd, d, pr.hd.airJuggle)) continue;
-      const guarded = isGuarding(d) && stanceOk(pr.hd.guardFlag, d);
+      const guarded = isGuarding(d) && hitFlagMatches(d, pr.hd.guardFlag, true) && !pr.owner.special.has('unguardable');
       hits.push({ attacker: pr.owner, defender: d, hd: pr.hd, guarded, proj: pr });
       break;
     }
