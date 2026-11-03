@@ -292,7 +292,9 @@ export function detectProjectileHits(projs: Projectile[], players: Player[]): Pe
     const atk = projBoxes(pr, 1);
     if (!atk.length) continue;
     for (const d of players) {
-      if (d.side === pr.owner.side || pr.hitTargets.has(d) || (!d.alive && d.stateType === 'l')) continue;
+      // Projectiles_HitPlayer: a projectile with hits left may hit the same
+      // target again once its hit pause and miss time are over.
+      if (d.side === pr.owner.side || (!d.alive && d.stateType === 'l')) continue;
       const k = d.world.gameWidth / d.world.screenWidth;
       const hitBox = intCollide(
         { x: pr.x, y: pr.y, facing: pr.facing, sx: pr.scale[0], sy: pr.scale[1], boxes: pr.anim.current?.clsn1 },
@@ -399,6 +401,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     world.playHitSound(a, hd.guardSound);
   } else {
     const dmg = scaleDamage(a, d, hd.damage);
+    // HitDef_Apply: a player hit is not guarding any more.
+    d.guardFlag = false;
     // Damage lands on the following tick (measured against MUGEN 1.1).
     d.pendingDamage = { amount: dmg, kill: hd.kill, tick: world.gameTime };
     d.shakeTick = world.gameTime;
