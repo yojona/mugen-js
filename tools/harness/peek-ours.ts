@@ -65,7 +65,7 @@ for (let i = 1; i <= ticks; i++) {
   // Frames, like the mugen.exe capture's frame counter.
   if (tr && i >= tr[0]! && i <= tr[1]!) w.randomTrace = [];
   const ad = process.env.AIDBG?.split(',').map(Number);
-  const dbgOn = ad && w.gameTime + 1 >= ad[0]! && w.gameTime + 1 <= ad[1]!;
+  const dbgOn = ad && i >= ad[0]! && i <= ad[1]!;
   if (dbgOn) setAiDebug([]);
   const evalAt = process.env.EVALAT?.split('-').map(Number);
   if (process.env.EVAL && evalAt && i >= evalAt[0]! && i <= (evalAt[1] ?? evalAt[0]!)) {
@@ -77,7 +77,7 @@ for (let i = 1; i <= ticks; i++) {
   }
   if (go) w.tick([0, 0]);
   if (dbgOn) {
-    console.log(`AI gt ${w.gameTime}: ${aiMod.DEBUG!.join(' ')}`);
+    console.log(`AI frame ${i}: ${aiMod.DEBUG!.join(" ")}`);
     setAiDebug(null);
   }
   if (w.randomTrace) {
