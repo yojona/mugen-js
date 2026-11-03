@@ -385,12 +385,14 @@ export class Player {
     this.stateNo = no;
     this.time = 0;
     this.persist.clear();
-    // Supersedes a built-in transition still waiting to apply its statedef.
-    this.pendingEntry = false;
+    // mugen.exe (Player_ChangeState) only moves the state number; the
+    // statedef (persist flags, type, physics, velset, anim, ctrl...) applies
+    // when the state first runs (Player_RunState at Time = 0), so the special
+    // states after a ChangeState in -2 still see the old ctrl.
+    this.pendingEntry = true;
     // Entered from outside controller processing (landing, being hit): the new
     // state's controllers first run next tick, still at Time = 0.
     if (!this.inStates) this.freshState = true;
-    this.resetPersist(cs);
     // Lying down: the get-up countdown starts when 5110 is entered.
     // The get-up count starts with a falling hit and again on hitting the
     // ground (5100); lying down (5110) counts its entry tick (measured).
@@ -402,10 +404,12 @@ export class Player {
     this.changedStateThisTick = true;
     this.pendingStateType = undefined;
     this.pendingVel = undefined;
-    // The controller's ctrl comes first; a ctrl in the new statedef wins
-    // (measured: 5210's ChangeState to 52 with ctrl = 1 lands without it).
+    // The controller's ctrl and anim come first; the statedef's win when it
+    // applies (measured: 5210's ChangeState to 52 with ctrl = 1 lands without it).
     if (ctrl !== undefined) this.ctrl = ctrl;
-    this.applyStatedef(cs);
+    // Changes from outside the state machine (hits, landing) apply the
+    // statedef now (measured; the hit code defers the statetype itself).
+    if (!this.inStates) this.enterIfPending();
     if (anim !== undefined) this.changeAnim(anim);
   }
   /**
@@ -503,7 +507,21 @@ export class Player {
   }
 
   /** Run one state's controllers. Returns true if the state was changed. */
+  /** The statedef of a newly entered state, applied when it first runs. */
+  private enterIfPending(): void {
+    // Not during a hit pause (Player_RunState: hitpause_time <= 0).
+    if (!this.pendingEntry || this.hitPause > 0) return;
+    this.pendingEntry = false;
+    const cs = this.compiledState(this.stateNo);
+    // A capture before that still sees the old MoveContact (measured: 400 -> 12).
+    if (cs) {
+      this.resetPersist(cs);
+      this.applyStatedef(cs);
+    }
+  }
+
   private runState(no: number): boolean {
+    if (no === this.stateNo && no >= 0) this.enterIfPending();
     // Special states always come from the player's own files
     // (Player_RunSpecialState RUNSTATE_OWN).
     const cs = this.compiledState(no, no < 0);
@@ -627,8 +645,8 @@ export class Player {
     if (this.isHelper) this.commands = this.keyCtrl ? this.root.commands : new Set();
     if (this.hitPause > 0) {
       // Frozen by hit pause: only ignorehitpause controllers run.
-      const sp = this.specialStates();
-      for (const special of [...sp, this.stateNo]) this.runState(special);
+      for (const special of this.specialStates()) this.runState(special);
+      this.runState(this.stateNo);
       return;
     }
     // Helpers skip -3/-2, and -1 unless they read input (cns.html).
@@ -675,16 +693,6 @@ export class Player {
       this.vel.x = this.pendingVel.x;
       this.vel.y = this.pendingVel.y;
       this.pendingVel = undefined;
-    }
-    if (this.pendingEntry) {
-      this.pendingEntry = false;
-      const cs = this.compiledState(this.stateNo);
-      // Built-in transitions apply the new statedef when it first runs, so a
-      // capture before that still sees the old MoveContact (measured: 400 -> 12).
-      if (cs) {
-        this.resetPersist(cs);
-        this.applyStatedef(cs);
-      }
     }
     // A ChangeState inside the new state restarts processing (bounded to avoid loops).
     for (let guard = 0; guard < 16; guard++) {
