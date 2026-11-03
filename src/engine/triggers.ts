@@ -122,7 +122,7 @@ const AXIS: Record<string, (p: P, axis: 'x' | 'y' | 'z') => number | undefined> 
   // Pos X is relative to the camera centre (trigger.html), in the player's units.
   pos: (p, a) => (a === 'x' ? p.pos.x - p.world.camera.x / p.scale : a === 'y' ? p.pos.y : 0),
   vel: (p, a) => (a === 'x' ? p.vel.x : a === 'y' ? p.vel.y : 0),
-  hitvel: (p, a) => (a === 'x' ? p.ghv.xvel : a === 'y' ? p.ghv.yvel : 0),
+  hitvel: (p, a) => (a === 'x' ? p.ghv.xvel * p.facing : a === 'y' ? p.ghv.yvel : 0),
   screenpos: (p, a) => (a === 'x' ? (p.wx - (p.world.camera.x - p.world.screenWidth / 2)) / p.scale : a === 'y' ? (p.wy - p.world.camera.y + p.world.groundY) / p.scale : 0),
   camerapos: (p, a) => (a === 'x' ? p.world.camera.x / p.scale : a === 'y' ? p.world.camera.y / p.scale : 0),
   p2dist: (p, a) => {

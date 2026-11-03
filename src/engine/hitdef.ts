@@ -134,6 +134,7 @@ export interface GetHitVars {
   slidetime: number;
   ctrltime: number;
   recovertime: number;
+  /** World space, like mugen.exe's gethit_vel_x (GetHitVar(xvel) reads it as is). */
   xvel: number;
   yvel: number;
   yaccel: number;

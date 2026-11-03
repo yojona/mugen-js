@@ -379,9 +379,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
   // Hit and guard velocities push along the attacker's facing (the
   // projectile's for projectiles; p1facing = -1 turns it), whichever side
   // the defender is on (mugen.exe HitDef_Apply / Player_Guard: vel x times
-  // -dir, dir = attacker facing). xdir turns that into d's own frame.
+  // -dir, dir = attacker facing), kept in world space.
   const dir = (proj ? proj.facing : a.facing) * (!proj && hd.p1Facing === -1 ? -1 : 1);
-  const xdir = -dir * d.facing === 1 ? 1 : -1;
   const airborne = d.stateType === 'a';
   const g = d.ghv;
 
@@ -399,7 +398,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.hittime = airborne ? -1 : hd.guardHitTime;
     g.slidetime = hd.guardSlideTime;
     g.ctrltime = airborne ? hd.airGuardCtrlTime : hd.guardCtrlTime;
-    g.xvel = (airborne ? hd.airGuardVel[0] : hd.guardVel) * xdir * conv;
+    g.xvel = (airborne ? hd.airGuardVel[0] : hd.guardVel) * -dir * conv;
     g.yvel = (airborne ? hd.airGuardVel[1] : 0) * conv;
     g.yaccel = hd.yaccel * conv;
     a.addPower(hd.getPower[1]);
@@ -475,7 +474,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
       if (vx !== 0) vx = Math.fround(vx + Math.sign(vx) * 2.5);
       if (vy <= 0) vy = Math.min(Math.fround(vy - 2), -6);
     }
-    g.xvel = vx * xdir * conv;
+    g.xvel = vx * -dir * conv;
     g.yvel = vy * conv;
     g.yaccel = hd.yaccel * conv;
     g.fall = willFall ? 1 : 0;
