@@ -97,7 +97,10 @@ const rosterChars: RosterChar[] = roster.chars.map((entry) => ({
   data: undefined,
   defPath: entry.def === 'randomselect' || !entry.def ? undefined : charDefPath(vfs, entry.def),
 }));
-{
+let busy = false;
+// The portraits load from the title screen on; the select screen waits for
+// all of them (like mugen.exe, it never shows a half-filled grid).
+const portraitsReady: Promise<unknown> = (() => {
   let next = 0;
   let done = 0;
   const work = rosterChars.filter((c) => c.defPath);
@@ -108,13 +111,12 @@ const rosterChars: RosterChar[] = roster.chars.map((entry) => ({
         console.warn(`${c.defPath}: ${e}`);
         return undefined;
       });
-      setStatus(++done < work.length ? `Retratos ${done}/${work.length}…` : '');
+      done++;
+      if (busy) setStatus(`Cargando retratos… ${done}/${work.length}`);
     }
   };
-  // Not awaited: the title and the select screen come up at once and the
-  // portraits fill in as they arrive (a cell can be picked once loaded).
-  void Promise.all(Array.from({ length: 8 }, worker));
-}
+  return Promise.all(Array.from({ length: 8 }, worker));
+})();
 
 async function stageName(path: string): Promise<string> {
   try {
@@ -180,7 +182,6 @@ setStatus('');
 let screen: Screen = new TitleScreen(ctx);
 // MUGEN's session RNG: -sessionseed, else seeded from the clock.
 const session = new SessionRng(parseInt(params.get('sessionseed') ?? '', 10) || (Date.now() % 2147483646) + 1);
-let busy = false;
 
 function randomOpponent(exclude?: RosterChar): Pick {
   const pool = rosterChars.filter((c) => c.data && c !== exclude);
@@ -221,6 +222,7 @@ async function storyboard(path: string | undefined, ...bases: string[]): Promise
 /** Run one mode to completion, returning to the title. */
 async function runMode(mode: GameMode): Promise<void> {
   for (;;) {
+    await loading(() => portraitsReady);
     const sel = await until<SelectResult>(new SelectScreen(ctx, mode, rosterChars, stages));
     if (sel.cancelled) return;
     if (mode === 'arcade') {
