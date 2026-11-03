@@ -191,12 +191,15 @@ export function mergeRecord(dst: AttackRecord, src: AttackRecord, ck: number): v
 /** Records keyed by stateno, in insertion (slot) order. */
 export type RecordTable = Map<number, AttackRecord>;
 
-/** Merge a whole table (0x42f4a0), used to carry records across matches. */
-export function mergeTables(dst: RecordTable, src: RecordTable): void {
+/** KeyedArray capacities of the two tables (Ai_Alloc): stand/crouch, air. */
+export const TABLE_CAP = { sc: 80, air: 40 } as const;
+
+/** Merge a whole table (0x42f4a0), used to carry records across matches; moves that do not fit are dropped. */
+export function mergeTables(dst: RecordTable, src: RecordTable, cap: number): void {
   for (const [no, r] of src) {
     const d = dst.get(no);
     if (d) mergeRecord(d, r, -1);
-    else dst.set(no, cloneRecord(r));
+    else if (dst.size < cap) dst.set(no, cloneRecord(r));
   }
 }
 
@@ -315,8 +318,8 @@ export class Recorder {
   constructor(readonly p: Player) {
     const saved = p.prog.aiRecords;
     if (saved) {
-      mergeTables(this.tblSC, saved.sc);
-      mergeTables(this.tblAir, saved.air);
+      mergeTables(this.tblSC, saved.sc, TABLE_CAP.sc);
+      mergeTables(this.tblAir, saved.air, TABLE_CAP.air);
     }
   }
 
@@ -324,8 +327,8 @@ export class Recorder {
   saveToCharacter(): void {
     const prog = this.p.prog;
     prog.aiRecords ??= { sc: new Map(), air: new Map() };
-    mergeTables(prog.aiRecords.sc, this.tblSC);
-    mergeTables(prog.aiRecords.air, this.tblAir);
+    mergeTables(prog.aiRecords.sc, this.tblSC, TABLE_CAP.sc);
+    mergeTables(prog.aiRecords.air, this.tblAir, TABLE_CAP.air);
   }
 
   table(st: string = this.p.stateType): RecordTable | null {
@@ -482,7 +485,8 @@ export class Recorder {
     if (tbl) {
       const d = tbl.get(rec.stateNo);
       if (d) mergeRecord(d, rec, ck);
-      else tbl.set(rec.stateNo, rec);
+      // Ai_FinishMove: a new move in a full table is dropped.
+      else if (tbl.size < (tbl === this.tblAir ? TABLE_CAP.air : TABLE_CAP.sc)) tbl.set(rec.stateNo, rec);
     }
     this.clearHeader();
   }
