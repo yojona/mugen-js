@@ -108,10 +108,12 @@ const rosterChars: RosterChar[] = roster.chars.map((entry) => ({
         console.warn(`${c.defPath}: ${e}`);
         return undefined;
       });
-      setStatus(`Cargando personajes… ${++done}/${work.length}`);
+      setStatus(++done < work.length ? `Retratos ${done}/${work.length}…` : '');
     }
   };
-  await Promise.all(Array.from({ length: 8 }, worker));
+  // Not awaited: the title and the select screen come up at once and the
+  // portraits fill in as they arrive (a cell can be picked once loaded).
+  void Promise.all(Array.from({ length: 8 }, worker));
 }
 
 async function stageName(path: string): Promise<string> {
