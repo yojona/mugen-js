@@ -228,6 +228,9 @@ const IMPLS: Record<string, Impl> = {
       p.hitDefActive = true;
       p.hitDefSet = true;
       p.hitTargets.clear();
+      // HitDef and ReversalDef share the player's one HitDef in mugen.exe:
+      // a HitDef replaces a ReversalDef (reversal_attr back to 0).
+      p.reversal = undefined;
     };
   },
   hitvelset: (_c, prm) => (p) => {
@@ -561,6 +564,8 @@ const EXTRA: Record<string, Impl> = {
     const attrs = parseAttrList(c.params.get('reversal.attr'));
     return (p) => {
       p.reversal = { attrs, hd: build(p) };
+      // ...and a ReversalDef replaces a HitDef.
+      p.hitDefActive = false;
     };
   },
   hitoverride: (c, prm) => {
