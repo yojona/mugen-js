@@ -228,10 +228,13 @@ function binary<C>(op: string, a: Fn<C>, b: Fn<C>): Fn<C> {
     case '**':
       return (c) => {
         if (!both(a, b, c, o)) return 0;
-        if (!o.float && o.x >= 0 && o.y >= 0) {
+        // Expr_IntPow: any int base with exp >= 0, clamped (0 ** 0 leaves
+        // its result unset in mugen.exe; 1 here).
+        if (!o.float && o.y >= 0) {
           R.t = INT;
+          if (o.x === 0 && o.y === 0) return 1;
           const p = Math.pow(o.x, o.y);
-          return p > INT_MAX ? INT_MAX : p;
+          return p > INT_MAX ? INT_MAX : p < INT_MIN ? INT_MIN : Math.trunc(p);
         }
         const p = Math.pow(o.x, o.y);
         if (Number.isNaN(p)) return bottom();
@@ -417,18 +420,18 @@ function mathTrigger<C>(n: CallNode, args: Fn<C>[]): Fn<C> | undefined {
       // All three arguments are evaluated; bottom in the unused one is dropped.
       arity(3);
       const [cond, t, f] = args as [Fn<C>, Fn<C>, Fn<C>];
+      // trigger.c TRIGGER_IFELSE tests the types against the wrong codes: a
+      // bottom condition counts as its value (0: the false branch), a float
+      // condition by its bits (-0.0 is true).
       return (c) => {
         const cv = cond(c);
-        if (R.t === BOTTOM) {
-          t(c);
-          f(c);
-          return bottom();
-        }
+        const ct = R.t;
         const tv = t(c);
         const tt = R.t;
         const fv = f(c);
         const ft = R.t;
-        if (cv !== 0) {
+        const truth = ct === BOTTOM ? false : ct === FLOAT ? cv !== 0 || Object.is(cv, -0) : cv !== 0;
+        if (truth) {
           R.t = tt;
           return tv;
         }
