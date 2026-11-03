@@ -409,11 +409,11 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     const wasFalling = d.moveType === 'h' && g.fall !== 0;
     const override = d.hitOverrides.find((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType) && hd.p1StateNo < 0 && !(hd.p2StateNo >= 0 && hd.p2GetP1State));
     const inAir = d.stateType === 'a' || !!override?.forceAir;
-    // Juggle points (Player_Hit): a hit on a falling target, or an air.fall
+    // Juggle points (Player_Hit): a hit on a falling target, a fall = 1 hit or an air.fall
     // hit in the air, spends the HitDef's juggle from the attacker's target
     // entry; the HitDef then costs nothing more until a state sets it.
     const cost = proj ? hd.airJuggle : a.juggleCost;
-    if (!override && (wasFalling || (hd.airFall && d.stateType === 'a'))) {
+    if (!override && (wasFalling || hd.fall || (hd.airFall && d.stateType === 'a'))) {
       a.targetJuggle.set(d, (a.targetJuggle.get(d) ?? a.const('data.airjuggle')) - Math.max(0, cost));
       if (!proj) a.juggleCost = 0;
     }
