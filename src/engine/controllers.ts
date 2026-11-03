@@ -7,6 +7,7 @@ import { parseHitDefAttr } from '../expr/mugen-parse';
 import { BOTTOM, compileExpr, compileExprList, R, toInt, type Fn, type TriggerEnv } from '../expr/compile';
 import type { ControllerDef } from './cns';
 import { compileHitDef, parseAttrList } from './hitdef';
+import { attrBits } from './ai-learn';
 import { compileExplod, compileExplodBindTime, compileGameMakeAnim, compileMakeDust, compileModifyExplod, compileRemoveExplod, simpleExplod, transBlend } from './explod';
 import { newAfterImage, type PalFxState } from './fx';
 import { compileBindTo, compileDestroySelf, compileHelper, compileParentVar } from './helper';
@@ -640,10 +641,17 @@ const EXTRA: Record<string, Impl> = {
     };
   },
   hitoverride: (c, prm) => {
-    const attrs = parseAttrList(c.params.get('attr'));
+    // HitOverride_ParseParams: attr stays 0 (never matches) when not given.
+    const raw = c.params.get('attr');
+    const attr = raw === undefined ? 0 : attrBits(parseAttrList(raw));
     return (p) => {
-      const slot = Math.max(0, Math.min(7, prm.int(p, 'slot') ?? 0));
-      p.hitOverrides[slot] = { attrs, stateNo: prm.int(p, 'stateno') ?? -1, time: prm.int(p, 'time') ?? 1, forceAir: (prm.int(p, 'forceair') ?? 0) !== 0 };
+      let slot = prm.int(p, 'slot') ?? 0;
+      if (slot < 0 || slot > 7) slot = 0;
+      let stateNo = prm.int(p, 'stateno') ?? -1;
+      if (stateNo < -1) stateNo = -1;
+      let time = prm.int(p, 'time') ?? 1;
+      if (time < -1) time = 1;
+      p.hitOverrides[slot] = { attr, stateNo, time, forceAir: (prm.int(p, 'forceair') ?? 0) !== 0, active: true };
     };
   },
 };

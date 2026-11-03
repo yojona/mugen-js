@@ -417,14 +417,14 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
   }
   // Player_Hit: a HitOverride matching a HitDef with p1stateno or
   // p2getp1state (a throw) makes the hit do nothing at all.
-  if (!proj && (hd.p1StateNo >= 0 || hd.p2GetP1State) && d.hitOverrides.some((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType))) return;
+  if (!proj && (hd.p1StateNo >= 0 || hd.p2GetP1State) && d.hitOverrides.some((o) => overrides(o, hd))) return;
   a.targets.set(d, hd.id);
   // Player_AddTarget: a new entry starts with the attacker's airjuggle.
   if (!a.targetJuggle.has(d)) a.targetJuggle.set(d, a.const('data.airjuggle'));
   // HitDef_Apply: a HitDef with ground.type (air.type in the air) = None
   // has no get-hit state for the target: only the sound and the spark, no
   // pause, damage, power or contact (Player_Hit sees 0).
-  if (!guarded && !proj && (d.stateType === 'a' ? hd.airType : hd.groundType) === 0 && !d.hitOverrides.some((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType))) {
+  if (!guarded && !proj && (d.stateType === 'a' ? hd.airType : hd.groundType) === 0 && !d.hitOverrides.some((o) => overrides(o, hd))) {
     a.hitTargets.add(d);
     d.ghv.chainid = hd.id;
     d.ghvAttacker = a;
@@ -543,7 +543,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     const killsNow = guardKo || (d.life - (d.pendingDamage?.amount ?? 0) <= 0 && !d.isHelper);
     if (d.stateType === 'c' && (hd.forceStand || killsNow)) d.stateType = 's';
     const wasFalling = d.moveType === 'h' && g.fall !== 0;
-    const override = d.hitOverrides.find((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType));
+    const override = d.hitOverrides.find((o) => overrides(o, hd));
     // HitDef_Apply: lying on the floor takes the down.* values (5080); lying
     // above it counts as in the air.
     const lying = d.stateType === 'l' && d.wy === 0 && !override?.forceAir;
@@ -815,3 +815,9 @@ function hitDamage(d: Player, raw: number, kill: boolean, tick: number): number 
   return x - pending;
 }
 
+/** Player_Hit: an active HitOverride whose attr shares a state bit and a type bit with the HitDef's. */
+function overrides(o: Player['hitOverrides'][number], hd: HitDefData): boolean {
+  if (!o?.active) return false;
+  const m = o.attr & hitDefAttrBits(hd.attrState, hd.attrType);
+  return (m & 7) !== 0 && (m & ~7) !== 0;
+}

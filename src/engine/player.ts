@@ -265,7 +265,8 @@ export class Player {
   /** HitBy / NotHitBy attribute masks (hitby_attr, nothitby_attr) and their times. */
   hitBy: { mask: number; time: number }[] = [];
   /** HitOverride slots (0..7). */
-  hitOverrides: ({ attrs: string[]; stateNo: number; time: number; forceAir: boolean } | undefined)[] = [];
+  /** HitOverride slots: attr bits (attrBits), time -1 = until replaced; inactive once time runs out. */
+  hitOverrides: ({ attr: number; stateNo: number; time: number; forceAir: boolean; active: boolean } | undefined)[] = [];
   /** Player_Reset's action 0 holds its first step (Match.startRound). */
   skipAnimTick = false;
   /** Hit by a projectile this tick: no other projectile until its next update (nothitby 0x1FF). */
@@ -1204,7 +1205,8 @@ export class Player {
 
   /** End of tick: advance state time. */
   advance(): void {
-    for (const o of this.hitOverrides) if (o && o.time > 0) o.time--;
+    // Player_Update: an override with time t (0 included) lasts until t updates ran out.
+    for (const o of this.hitOverrides) if (o?.active && o.time !== -1 && --o.time <= 0) o.active = false;
     if (this.hitPause > 0 && !this.hitPauseFresh) {
       this.hitPause--;
       return;
