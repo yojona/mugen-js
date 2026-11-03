@@ -16,13 +16,14 @@ import { FightHud } from '../motif/fight';
 import { charDefPath, loadMotif, loadRoster, type Roster } from '../motif/system';
 import { Renderer } from '../render/renderer';
 import { loadStage, type Stage } from '../stage/stage';
-import { FightScreen } from './fight-screen';
+import { FightScreen, type FightTeam } from './fight-screen';
+import type { TeamMode } from '../engine/match';
 import { ContinueScreen } from './continue';
 import { loadFont } from '../motif/font';
 import { Keyboard } from './input';
 import { VersusScreen, VictoryScreen } from './interstitial';
 import type { AppContext, Screen } from './screen';
-import { SelectScreen, type Pick, type RosterChar, type SelectResult } from './select';
+import { SelectScreen, type Pick, type RosterChar, type SelectResult, type TeamPick } from './select';
 import { TitleScreen, type GameMode } from './title';
 import { loadStoryboard, StoryboardScreen } from './storyboard';
 
@@ -189,6 +190,87 @@ function randomOpponent(exclude?: RosterChar): Pick {
   return { char: c, pal: 1 + Math.floor(Math.random() * 2) };
 }
 
+/** A side of a team fight: its mode, characters and who plays each (pad, or CPU). */
+interface TeamSide {
+  mode: TeamMode;
+  picks: Pick[];
+  pads: (number | undefined)[];
+}
+
+/** mugen.cfg [Options] Life, Team.1VS2Life, Team.LoseOnKO. */
+const teamOptions = await (async () => {
+  try {
+    const cfg = parseIni(await vfs.text('data/mugen.cfg'));
+    const o = findSection(cfg, 'Options');
+    const n = (k: string, d: number) => {
+      const v = parseInt(getValue(o, k) ?? '', 10);
+      return Number.isFinite(v) ? v : d;
+    };
+    return { life: n('Life', 100), team1vs2Life: n('Team.1VS2Life', 150), loseOnKo: n('Team.LoseOnKO', 0) !== 0 };
+  } catch {
+    return { life: 100, team1vs2Life: 150, loseOnKo: false };
+  }
+})();
+
+async function teamFight(sides: [TeamSide, TeamSide], stagePath: string | undefined): Promise<FightScreen> {
+  const lead = sides[1].picks[0] ?? sides[0].picks[0]!;
+  const sp = stagePath ?? vfs.resolve(lead.char.entry.stage ?? '') ?? stages[0]!.path;
+  const teams = (await Promise.all(
+    sides.map(async (t) => ({ mode: t.mode, picks: t.picks, pads: t.pads, progs: await Promise.all(t.picks.map((pk) => program(pk.char))) })),
+  )) as [FightTeam, FightTeam];
+  return new FightScreen(ctx, {
+    seed: session.matchSeed(),
+    p1: sides[0].picks[0]!,
+    p2: sides[1].picks[0]!,
+    progs: [teams[0].progs[0]!, teams[1].progs[0]!],
+    stage: await stage(sp),
+    hud,
+    fightFx,
+    commonSnd,
+    human: [sides[0].pads.some((x) => x !== undefined), sides[1].pads.some((x) => x !== undefined)],
+    training: false,
+    teams,
+    options: teamOptions,
+  });
+}
+
+/** The computer's team of a team match: `count` characters from the arcade order (its palettes as an arcade opponent's). */
+function cpuPicks(chars: RosterChar[]): Pick[] {
+  return chars.map((c) => ({ char: c, pal: session.opponentPalette((i) => !!c.data?.palettes?.[i]) }));
+}
+
+/** Team arcade, team co-op and team versus / watch with teams. */
+async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
+  const [mine, theirs] = sel.teams!;
+  // Pads: a human pick uses pad 0, the co-op partner pad 1 (TeamPick.ai false); P2's side in versus uses pad 1.
+  const padsOf = (t: TeamPick, side: number) => t.ai.slice(0, t.mode === 'single' ? 1 : t.count).map((ai, k) => (ai || mode === 'watch' ? undefined : side === 1 ? 1 : k));
+  if (mode === 'teamversus' || mode === 'watch') {
+    const sides: [TeamSide, TeamSide] = [
+      { mode: mine.mode, picks: mine.picks, pads: padsOf(mine, 0) },
+      { mode: theirs.mode, picks: theirs.picks, pads: padsOf(theirs, 1) },
+    ];
+    if (mode === 'teamversus') await until(new VersusScreen(ctx, sides[0].picks[0]!, sides[1].picks[0]!, 1));
+    await until(await loading(() => teamFight(sides, sel.stage)));
+    return;
+  }
+  // Team arcade / co-op: the computer team takes its characters from the
+  // arcade order, team_size at a time (Arcade_BuildOrder / Arcade_NextTeam).
+  const size = theirs.mode === 'single' ? 1 : theirs.count;
+  const pool = rosterChars.filter((c) => c.data).map((c) => ({ c, order: c.entry.order }));
+  const maxMatches = size > 1 || theirs.mode !== 'single' ? roster.teamMaxMatches : roster.arcadeMaxMatches;
+  const order = session.arcadeOrder(pool, maxMatches, size).map((x) => x.c);
+  const human: TeamSide = { mode: mine.mode, picks: mine.picks, pads: padsOf(mine, 0) };
+  for (let n = 0, match = 1; n + size <= order.length; n += size, match++) {
+    const opp: TeamSide = { mode: theirs.mode, picks: cpuPicks(order.slice(n, n + size)), pads: new Array(size).fill(undefined) };
+    await until(new VersusScreen(ctx, human.picks[0]!, opp.picks[0]!, match));
+    const res = await until<{ winner: number | undefined; quote?: string }>(await loading(() => teamFight([human, opp], undefined)));
+    if (res.winner !== 0) return;
+    if (n + size < order.length && (motif.value('Victory Screen', 'enabled') ?? '1') !== '0') {
+      await until(new VictoryScreen(ctx, human.picks[0]!, res.quote ?? (motif.value('Victory Screen', 'winquote.text') ?? 'Winner!').replace(/^"|"$/g, '')));
+    }
+  }
+}
+
 async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | undefined): Promise<FightScreen> {
   const sp = stagePath ?? vfs.resolve(p2.char.entry.stage ?? '') ?? stages[0]!.path;
   const progs: [CharacterProgram, CharacterProgram] = [await program(p1.char), await program(p2.char)];
@@ -223,6 +305,12 @@ async function runMode(mode: GameMode): Promise<void> {
   for (;;) {
     const sel = await until<SelectResult>(new SelectScreen(ctx, mode, rosterChars, stages));
     if (sel.cancelled) return;
+    const team = sel.teams && (mode !== 'watch' || sel.teams.some((t) => t.mode !== 'single'));
+    if (team && mode !== 'arcade' && mode !== 'versus' && mode !== 'training') {
+      await runTeamMode(mode, sel);
+      if (mode !== 'teamversus' && mode !== 'watch') return;
+      continue;
+    }
     if (mode === 'arcade') {
       const chosen = sel.p1.char;
       await storyboard(chosen.data?.def.arcade.intro, chosen.data?.dir ?? '');
@@ -287,7 +375,7 @@ async function mainLoop(): Promise<void> {
   await storyboard(motif.introStoryboard);
   for (;;) {
     const mode = await until<GameMode>(new TitleScreen(ctx, menuPos));
-    menuPos = ['arcade', 'versus', 'training', 'watch'].indexOf(mode);
+    menuPos = ['arcade', 'versus', 'teamarcade', 'teamversus', 'teamcoop', 'survival', 'survivalcoop', 'training', 'watch'].indexOf(mode);
     await runMode(mode);
   }
 }
