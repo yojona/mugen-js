@@ -88,8 +88,10 @@ function controllerFrom(entries: Entry[], label: string, file: string, line: num
         g.push(e.value);
         groups.set(n, g);
       }
-    } else if (e.key === 'type') type = e.value.toLowerCase().trim();
-    else if (!params.has(e.key)) params.set(e.key, e.value);
+    } else if (e.key === 'type') {
+      // Ini_GetValue returns the first occurrence of a key.
+      if (!type) type = e.value.toLowerCase().trim();
+    } else if (!params.has(e.key)) params.set(e.key, e.value);
   }
   // trigger1, trigger2, ... in order; a missing number ends the list.
   const triggers: string[][] = [];
