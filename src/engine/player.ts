@@ -906,7 +906,8 @@ export class Player {
 
   /** Hard-coded transitions MUGEN performs for players with control. */
   private engineTransitions(): void {
-    if (this.isHelper || this.noInputStates) return;
+    // Keyctrl helpers read input like players (Player_UpdateInput).
+    if (this.isHelper && !this.keyCtrl) return;
     // mugen.exe 0x435144: one action from the held directions.
     const cmd = this.commands;
     const no = this.stateNo;
@@ -914,16 +915,19 @@ export class Player {
     // Held keys (p+0x390..0x39c), not commands: an AI.Cheat "holdup" does
     // not jump (measured).
     const held = (k: number) => (this.cmdInput ? this.cmdInput.heldAt(k) !== 0 : cmd.has(['', 'holdup', 'holdfwd', 'holddown', 'holdback'][k]!));
-    const up = held(1);
-    const down = held(3);
-    const fwd = held(2);
-    const back = held(4);
+    // no_input_states: no action, and nothing keeps a crouch (the default
+    // branch still runs: 20 stops, a crouch with control stands up).
+    const noIn = this.noInputStates;
+    const up = !noIn && held(1);
+    const down = !noIn && held(3);
+    const fwd = !noIn && held(2);
+    const back = !noIn && held(4);
     let action: 'walk' | 'jump' | 'crouch' | 'airjump' | 'guard' | 'none' = 'none';
     if (st === 's') {
       if (fwd !== back) action = 'walk';
       if (down) action = 'crouch';
       if (up) action = 'jump';
-    } else if (st === 'a' && this.cmdInput?.upPressed) action = 'airjump';
+    } else if (st === 'a' && !noIn && this.cmdInput?.upPressed) action = 'airjump';
     // Guard: holding back (not up) with an attacker in range.
     const guardOk = !this.special.has(st === 'a' ? 'noairguard' : st === 'c' ? 'nocrouchguard' : 'nostandguard');
     if (back && !up && guardOk && ((this.moveType === 'i' && this.ctrl) || no === 52 || no === 151 || no === 153 || no === 155) && this.inGuardDist()) {
