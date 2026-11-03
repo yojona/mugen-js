@@ -193,7 +193,8 @@ export class MugenAI {
 
   /** 0x432c00: any player (self and teammates included) attacking within range of p. */
   private anyAttackInRange(): boolean {
-    for (const q of this.p.world.players) if (MugenAI.attackerInRange(q, this.p)) return true;
+    // Helpers too (g->players holds them).
+    for (const q of this.p.world.allPlayers()) if (!q.destroyed && MugenAI.attackerInRange(q, this.p)) return true;
     return false;
   }
 
