@@ -488,8 +488,11 @@ function redirect(p: P, to: string, _id: number | undefined): P | undefined {
       const sorted = [...es].sort((a, b) => Math.abs(a.wx - p.wx) - Math.abs(b.wx - p.wx));
       return sorted[n];
     }
-    case 'playerid':
-      return p.world.players.find((q) => q.id === _id);
+    case 'playerid': {
+      // Player_FindById scans every active player, helpers included; a negative ID is 0.
+      const id = Math.max(0, _id ?? 0);
+      return p.world.allPlayers().find((q) => q.id === id && !q.destroyed);
+    }
   }
   return undefined;
 }
