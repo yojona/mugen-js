@@ -476,6 +476,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     }
     g.xvel = vx * -dir * conv;
     g.yvel = vy * conv;
+    // HitDef_Apply: a falling ground hit with no y velocity gets -0.001
+    // (internal units), so the hit state sends it into the air.
+    if (!inAir && willFall && g.yvel === 0) g.yvel = Math.fround(-0.001) / (d.scale * (world.gameWidth / world.screenWidth));
     g.yaccel = hd.yaccel * conv;
     g.fall = willFall ? 1 : 0;
     if (proj) {
