@@ -65,7 +65,8 @@ const NULLARY: Record<string, Fn<P>> = {
   tickspersecond: int(() => 60),
   numenemy: int((p) => p.world.players.filter((q) => q.side !== p.root.side).length),
   numpartner: int(() => 0),
-  numtarget: int((p) => (p.hitTargets.size > 0 && p.hitCount > 0 ? p.hitTargets.size : 0)),
+  // Targets_Count: the target entries, kept while a target is being hit.
+  numtarget: int((p) => p.targets.size),
   numexplod: int((p) => p.world.explods.filter((e) => e.owner === p && !e.system).length),
   // Only live projectiles (state 1), not ones playing their hit/remove anim.
   numproj: int((p) => p.world.projectiles.filter((pr) => pr.owner === p && pr.phase === 'active').length),
