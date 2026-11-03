@@ -369,8 +369,17 @@ function cancel(pr: Projectile): void {
   endProjectile(pr, pr.cancelAnim);
 }
 
-function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): void {
+function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: PendingHit): void {
   const world = a.world;
+  // Player_Hit / Projectiles_HitPlayer: a guard the defender would not
+  // survive (life left after everything pending) is a KO hit instead
+  // (guard_ko is always on).
+  let guarded = guardedIn;
+  let guardKo = false;
+  if (guarded && d.life - previewDamage(d, hd.guardDamage, hd.guardKill) <= 0) {
+    guarded = false;
+    guardKo = true;
+  }
   // Player_Hit: a HitOverride matching a HitDef with p1stateno or
   // p2getp1state (a throw) makes the hit do nothing at all.
   if (!proj && (hd.p1StateNo >= 0 || hd.p2GetP1State) && d.hitOverrides.some((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType))) return;
@@ -491,7 +500,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     d.shakeTick = world.gameTime;
     // A crouching defender stands for a forcestand HitDef or a killing hit
     // (mugen.exe 0x43f1bb: the kill flag also selects 5000 over 5010).
-    const killsNow = d.life - (d.pendingDamage?.amount ?? 0) <= 0 && !d.isHelper;
+    const killsNow = guardKo || (d.life - (d.pendingDamage?.amount ?? 0) <= 0 && !d.isHelper);
     if (d.stateType === 'c' && (hd.forceStand || killsNow)) d.stateType = 's';
     const wasFalling = d.moveType === 'h' && g.fall !== 0;
     const override = d.hitOverrides.find((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType));
@@ -527,7 +536,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     // fall animtype, anim 5030).
     // Player_Hit: a KO when the life left after everything pending is out
     // (kill = 0 damage was limited already); never for helpers.
-    const kills = d.life - (d.pendingDamage?.amount ?? 0) <= 0 && !d.isHelper;
+    const kills = guardKo || (d.life - (d.pendingDamage?.amount ?? 0) <= 0 && !d.isHelper);
     const willFall = (inAir ? hd.airFall : hd.fall) || (wasFalling && !hd.forceNoFall) || kills;
     g.animtype = wasFalling || willFall ? hd.fallAnimType : inAir ? hd.airAnimType : hd.animType;
     g.groundtype = hd.groundType;
@@ -738,7 +747,8 @@ function placementOffsets(a: Player, d: Player, hd: HitDefData, dir: number): [n
  * (gethit_damage, applied in its next update); kill = 0 keeps the life
  * left after everything pending at 1 or more. Returns the added damage.
  */
-function hitDamage(d: Player, raw: number, kill: boolean, tick: number): number {
+/** The pending damage total Player_HitDamage would leave (not applied). */
+function previewDamage(d: Player, raw: number, kill: boolean): number {
   const pending = d.pendingDamage?.amount ?? 0;
   let x = Math.trunc(d.defenceFactor * raw + 0.5) + pending;
   if (raw >= 1 && x === 0) x = 1;
@@ -746,6 +756,12 @@ function hitDamage(d: Player, raw: number, kill: boolean, tick: number): number 
     const left = d.life - pending;
     if (left - x < 1 && d.alive) x = left - 1;
   }
+  return x;
+}
+
+function hitDamage(d: Player, raw: number, kill: boolean, tick: number): number {
+  const pending = d.pendingDamage?.amount ?? 0;
+  const x = previewDamage(d, raw, kill);
   d.pendingDamage = { amount: x, kill: true, tick };
   return x - pending;
 }
