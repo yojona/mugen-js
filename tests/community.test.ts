@@ -89,4 +89,14 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('chang-kofa', 'choi-kofa'))(
+    'Chang vs Choi, CPU level 4: 9000 frames (TargetBind from the binder, custom-state commands, no collisions after the round)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'chang-vs-choi.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['chang-kofa', 'choi-kofa'], frames: 9000, seed: 16808 });
+      expect(ours.length).toBe(9000);
+      expect(peekDiff(ref, ours, 14, 9000)).toEqual([]);
+    },
+    120_000,
+  );
 });
