@@ -134,6 +134,12 @@ export class Match {
       p.hitDefActive = false;
       p.hitDefSet = false;
       p.airJumpsLeft = 0;
+      // Player reset (char.c): the variables below the persist indices are
+      // cleared, the others carry over to the next round.
+      p.vars.fill(0, 0, Math.max(0, Math.min(p.vars.length, p.const('data.intpersistindex'))));
+      p.fvars.fill(0, 0, Math.max(0, Math.min(p.fvars.length, p.const('data.floatpersistindex'))));
+      p.sysVars.fill(0);
+      p.sysFvars.fill(0);
       // Every round starts in 5900 (common1: clears the variables, then
       // 190 on round 1 or 0; measured: a probe's variables restart each
       // round in mugen.exe).
@@ -302,6 +308,7 @@ export class Match {
             // (measured in mugen.exe: frame 3410 has no tick between the
             // last RoundState 4 tick and 5900).
             this.round++;
+            for (const p of this.players) p.roundsExisted++;
             this.startRound();
             this.phaseTime = -1;
             return false;

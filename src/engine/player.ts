@@ -210,6 +210,8 @@ export class Player {
   // Being hit
   ghv: GetHitVars = emptyGetHitVars();
   defenceMul = 1;
+  /** Rounds this player has played to their end (RoundsExisted). */
+  roundsExisted = 0;
   /**
    * hitdef.guard_dist: reset to size.attack.dist on entering a state
    * without hitdefpersist, set by a HitDef's guard.dist and AttackDist; it
