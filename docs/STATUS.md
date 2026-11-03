@@ -52,6 +52,7 @@ variable on the leaving screen's last frame). Comparisons use `?pristine=1`
 | Andy vs Chris (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical into round 3: projectile end animations, landing turns, p2stateno into idle states (damage dropped), round resets of the get-hit variables |
 | Billy vs Daimon (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical: ReversalDef (p2getp1state movetype, pause timing, hit count), NumTarget, AI learning ticks across pauses |
 | King vs Joe (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical: projectiles move when their owner ran (Pause started mid-tick), world-space GetHitVar(xvel) driving a character's own corner push |
+| Chang vs Choi (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical: TargetBind placed by the binder, custom states use the owner's command list, command labels across characters, hits disabled in RoundState 4 |
 
 The parser, the parameter readers and several rules now come from the
 decompilation of the same mugen.exe (`ref/mugen-unleashed`, used only as a
@@ -72,7 +73,7 @@ documentation but not yet compared against the original.
 
 | # | Stage | Goal | State |
 |---|---|---|---|
-| 1 | Community characters | CPU vs CPU with real characters until whole matches match | Seven KOF pairs match (Iori/Kyo, Kim/Benimaru, Clark/Kula, Athena/Leona, Andy/Chris, Billy/Daimon, King/Joe); next: more characters |
+| 1 | Community characters | CPU vs CPU with real characters until whole matches match | Eight KOF pairs match (Iori/Kyo, Kim/Benimaru, Clark/Kula, Athena/Leona, Andy/Chris, Billy/Daimon, King/Joe, Chang/Choi); next: more characters |
 | 2 | AI coverage | Whole matches at levels 1, 3, 5, 6 and 8; time-over round; draw | Ready to start |
 | 3 | Exact camera | Reproduce the float math at `0x4167xx` (tiny drifts left in round 1) | Optional hardening |
 | 4 | Game modes | Team (simul/turns), Survival, Arcade with AI ramp; demo mode (title idle 600 frames); continue "Yes" path verified | Pending |
