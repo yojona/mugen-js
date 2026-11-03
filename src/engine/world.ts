@@ -4,7 +4,7 @@ import { CommandInput } from './cmd';
 import type { AnimationMap } from '../formats/air';
 import type { Sff } from '../formats/sff';
 import { clsn2TouchInternal, postResolvedMessages, Recorder } from './ai-learn';
-import { applyHits, detectHits, detectProjectileHits } from './combat';
+import { applyHits, collideProjectiles, detectHits, detectProjectileHits } from './combat';
 import { simpleExplod, updateExplod, type Explod } from './explod';
 import { updateProjectile, type Projectile } from './projectile';
 import { newPalFx, recordAfterImage, tickPalFx, type EnvShake, type PalFxState } from './fx';
@@ -365,7 +365,11 @@ export class World {
     // decided before the updates): a Pause started during the tick does not
     // stop its owner's projectiles until the next one.
     for (const pr of this.projectiles) if (active.includes(pr.owner)) updateProjectile(pr);
-    if (hitsOn) applyHits(detectProjectileHits(this.projectiles, active));
+    if (hitsOn) {
+      applyHits(detectProjectileHits(this.projectiles, active));
+      // Players_CheckHits: projectiles against projectiles come after.
+      collideProjectiles(this.projectiles, this.allPlayers().filter((p) => !p.destroyed));
+    }
     this.projectiles = this.projectiles.filter((pr) => pr.phase !== 'dead');
     // The second push pass (mugen.exe 0x43de16; measured: walking into a
     // cornered opponent closes 3/4 of the overlap per tick).

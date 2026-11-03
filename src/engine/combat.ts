@@ -303,31 +303,9 @@ function intCollide(
   return false;
 }
 
-/**
- * Projectile collisions: opposing projectiles cancel by priority (equal: both
- * cancel; otherwise the stronger loses one priority point), then projectiles
- * hit players' Clsn2 boxes.
- */
+/** Projectiles hitting players' Clsn2 boxes (Projectiles_HitPlayer). */
 export function detectProjectileHits(projs: Projectile[], players: Player[]): PendingHit[] {
   const live = projs.filter((p) => p.phase === 'active' && p.hitPause === 0);
-  for (let i = 0; i < live.length; i++) {
-    for (let j = i + 1; j < live.length; j++) {
-      const a = live[i]!;
-      const b = live[j]!;
-      if (a.phase !== 'active' || b.phase !== 'active' || a.owner.side === b.owner.side) continue;
-      const ab = [...projBoxes(a, 1), ...projBoxes(a, 2)];
-      const bb = [...projBoxes(b, 1), ...projBoxes(b, 2)];
-      if (!overlap(ab, bb)) continue;
-      if (a.priority === b.priority) {
-        cancel(a);
-        cancel(b);
-      } else {
-        const [hi, lo] = a.priority > b.priority ? [a, b] : [b, a];
-        cancel(lo);
-        hi.priority--;
-      }
-    }
-  }
   const hits: PendingHit[] = [];
   for (const pr of live) {
     if (pr.phase !== 'active' || pr.hitsLeft <= 0 || pr.missTimer > 0) continue;
@@ -351,6 +329,52 @@ export function detectProjectileHits(projs: Projectile[], players: Player[]): Pe
     }
   }
   return hits;
+}
+
+/**
+ * Projectiles_Collide, for each pair of players in list order: each active
+ * projectile of the first meets at most one of the second (Clsn2 against
+ * Clsn2); one with priority lower or equal loses a hit (and the other a
+ * priority point), at no hits left it is cancelled, else it pauses for its
+ * p1 pausetime.
+ */
+export function collideProjectiles(projs: Projectile[], order: Player[]): void {
+  for (let i = 0; i < order.length; i++) {
+    for (let j = i + 1; j < order.length; j++) {
+      const A = order[i]!;
+      const B = order[j]!;
+      const lb = projs.filter((q) => q.owner === B);
+      if (!lb.length) continue;
+      for (const pa of projs.filter((q) => q.owner === A)) {
+        if (pa.phase !== 'active' || !pa.anim.current?.clsn2?.length) continue;
+        for (const pb of lb) {
+          if (pb.phase !== 'active' || pa.owner.side === pb.owner.side) continue;
+          const k = A.world.gameWidth / A.world.screenWidth;
+          const touch = intCollide(
+            { x: pa.x, y: pa.y, facing: pa.facing, sx: pa.clsnScale[0], sy: pa.clsnScale[1], boxes: pa.anim.current.clsn2 },
+            { x: pb.x, y: pb.y, facing: pb.facing, sx: pb.clsnScale[0], sy: pb.clsnScale[1], boxes: pb.anim.current?.clsn2 },
+            k,
+          );
+          if (!touch) continue;
+          let decA = false;
+          if (pa.priority <= pb.priority) {
+            pa.hitsLeft--;
+            decA = true;
+          }
+          if (pa.hitsLeft <= 0) cancel(pa);
+          else pa.hitPause = pa.hd.pause[0];
+          if (pb.priority <= pa.priority) {
+            pa.priority--;
+            pb.hitsLeft--;
+          }
+          if (pb.hitsLeft <= 0) cancel(pb);
+          else pb.hitPause = pb.hd.pause[0];
+          if (decA) pb.priority--;
+          break;
+        }
+      }
+    }
+  }
 }
 
 function cancel(pr: Projectile): void {
