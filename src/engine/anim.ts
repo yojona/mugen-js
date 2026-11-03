@@ -151,8 +151,13 @@ export class AnimPlayer {
 
   /** AnimElemNo(offset): 1-based element displayed `offset` ticks from now. */
   animElemNo(offset: number): number | undefined {
-    const e = this.time + offset;
-    if (e < 0) return undefined;
+    let e = this.time + offset;
+    // Anim_ElemAtOffset: before the first loop a negative time has no
+    // element; once the action has ended it mirrors (time - offset + span).
+    if (e < 0) {
+      if (this.time < this.t.total) return undefined;
+      e = this.time - offset + (this.t.total - this.t.loopStartTime);
+    }
     return this.elementAt(this.mapped(e)).elem + 1;
   }
 
