@@ -467,12 +467,13 @@ const EXTRA: Record<string, Impl> = {
     }
   },
   width: (_c, prm) => (p) => {
-    if (prm.has('value')) {
-      const v: [number, number] = [prm.num(p, 'value', 0) ?? 0, prm.num(p, 'value', 1) ?? 0];
-      p.width = { edge: v, player: v };
-    }
-    if (prm.has('edge')) p.width.edge = [prm.num(p, 'edge', 0) ?? 0, prm.num(p, 'edge', 1) ?? 0];
-    if (prm.has('player')) p.width.player = [prm.num(p, 'player', 0) ?? 0, prm.num(p, 'player', 1) ?? 0];
+    // SCTRL_WIDTH sets all four (ints, missing ones 0); value only counts
+    // when neither edge nor player is given.
+    const i = (k: string, n: number) => Math.trunc(prm.num(p, k, n) ?? 0);
+    if (!prm.has('edge') && !prm.has('player')) {
+      const v: [number, number] = [i('value', 0), i('value', 1)];
+      p.width = { edge: v, player: [v[0], v[1]] };
+    } else p.width = { edge: [i('edge', 0), i('edge', 1)], player: [i('player', 0), i('player', 1)] };
   },
   screenbound: (_c, prm) => (p) => {
     p.screenBound = (prm.int(p, 'value') ?? 0) !== 0;
