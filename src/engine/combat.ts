@@ -257,7 +257,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
   const world = a.world;
   a.targets.set(d, hd.id);
   // Explods flagged removeongethit disappear when their owner is hit.
-  if (!guarded) world.explods = world.explods.filter((e) => !(e.owner === d && e.removeOnGetHit));
+  if (!guarded) world.explods = world.explods.filter((e) => !(e.owner === d && !e.system && e.removeOnGetHit));
   if (proj) {
     // Projectiles pause themselves (p1 pausetime) and count their hits.
     proj.hitTargets.add(d);

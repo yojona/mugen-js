@@ -42,6 +42,11 @@ export interface Explod {
   /** Set when created during a SuperPause/Pause: ticks it may still animate. */
   superMoveTime: number;
   pauseMoveTime: number;
+  /**
+   * A hit/guard spark (Player_MakeSpark): owner id 0 in mugen.exe, so no
+   * player's NumExplod, RemoveExplod or ModifyExplod sees it.
+   */
+  system?: boolean;
 }
 
 /** Compiled parameter access shared by Explod / ModifyExplod. */
@@ -68,7 +73,7 @@ function params(c: ControllerDef, env: TriggerEnv<P>) {
     return v === undefined ? undefined : toInt(v);
   };
   // Validate expressions eagerly.
-  for (const k of ['id', 'pos', 'facing', 'vfacing', 'bindid', 'bindtime', 'vel', 'accel', 'removetime', 'scale', 'angle', 'sprpriority', 'ontop', 'ownpal', 'removeongethit', 'ignorehitpause', 'random', 'supermovetime', 'pausemovetime']) {
+  for (const k of ['id', 'pos', 'facing', 'vfacing', 'bindid', 'bindtime', 'vel', 'accel', 'removetime', 'scale', 'angle', 'sprpriority', 'ontop', 'ownpal', 'removeongethit', 'ignorehitpause', 'random', 'supermovetime', 'supermove', 'pausemovetime']) {
     if (c.params.has(k)) list(k);
   }
   return { list, num, int, has: (k: string) => c.params.has(k), raw: (k: string) => c.params.get(k)?.trim() };
@@ -173,9 +178,18 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
       removeOnGetHit: (prm.int(p, 'removeongethit') ?? 0) !== 0,
       ignoreHitPause: (prm.int(p, 'ignorehitpause') ?? 1) !== 0,
       trans: prm.has('trans') ? transBlend(prm.raw('trans')!) : undefined,
-      superMoveTime: prm.int(p, 'supermovetime') ?? 0,
-      pauseMoveTime: prm.int(p, 'pausemovetime') ?? 0,
+      superMoveTime: 0,
+      pauseMoveTime: 0,
     };
+    // Explod_SetParams: removetime -2 is the animation's length; the pause
+    // move times may follow it (-2, or supermove = 1 without supermovetime).
+    if (e.removeTime === -2) e.removeTime = e.anim.totalTime < 0 ? -1 : e.anim.totalTime;
+    const smt = prm.int(p, 'supermovetime');
+    if (!smt) {
+      if (prm.int(p, 'supermove')) e.superMoveTime = e.removeTime;
+    } else e.superMoveTime = smt === -2 ? e.removeTime : smt;
+    const pmt = prm.int(p, 'pausemovetime');
+    if (pmt !== undefined) e.pauseMoveTime = pmt === -2 ? e.removeTime : pmt;
     w.explods.push(e);
   };
 }
@@ -203,7 +217,7 @@ export function compileModifyExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P
   return (p) => {
     const id = prm.int(p, 'id') ?? -1;
     for (const e of p.world.explods) {
-      if (e.owner !== p || (id !== -1 && e.id !== id)) continue;
+      if (e.owner !== p || e.system || (id !== -1 && e.id !== id)) continue;
       const sc = p.scale;
       const v2 = (k: string, unit = sc): [number, number] | undefined => (prm.has(k) ? [(prm.num(p, k, 0) ?? 0) * unit, (prm.num(p, k, 1) ?? 0) * unit] : undefined);
       const pos = v2('pos');
@@ -237,7 +251,7 @@ export function compileRemoveExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P
   const prm = params(c, env);
   return (p) => {
     const id = prm.int(p, 'id') ?? -1;
-    p.world.explods = p.world.explods.filter((e) => e.owner !== p || (id !== -1 && e.id !== id));
+    p.world.explods = p.world.explods.filter((e) => e.owner !== p || e.system || (id !== -1 && e.id !== id));
   };
 }
 
@@ -246,7 +260,7 @@ export function compileExplodBindTime(c: ControllerDef, env: TriggerEnv<P>): (p:
   return (p) => {
     const id = prm.int(p, 'id') ?? -1;
     const t = prm.int(p, 'time') ?? prm.int(p, 'value') ?? 1;
-    for (const e of p.world.explods) if (e.owner === p && (id === -1 || e.id === id)) e.bindTime = t;
+    for (const e of p.world.explods) if (e.owner === p && !e.system && (id === -1 || e.id === id)) e.bindTime = t;
   };
 }
 

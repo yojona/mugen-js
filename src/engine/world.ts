@@ -355,8 +355,11 @@ export class World {
     this.explods = this.explods.filter((e) => {
       // During a pause an explod moves while its age is within its move time
       // (SysDraw_Start: pause_movetime against the frames shown so far).
-      const t = this.superPause ? e.superMoveTime : this.pause ? e.pauseMoveTime : -1;
-      if ((this.superPause || this.pause) && t !== -1 && e.age > t) return true;
+      // A pause counts from the frame after the one that starts it.
+      const sp = this.superPause && !this.superPause.fresh ? this.superPause : undefined;
+      const pz = !sp && this.pause && !this.pause.fresh ? this.pause : undefined;
+      const t = sp ? e.superMoveTime : pz ? e.pauseMoveTime : -1;
+      if ((sp || pz) && t !== -1 && e.age > t) return true;
       if (!e.ignoreHitPause && e.owner.hitPause > 0) return true;
       return updateExplod(e);
     });
@@ -409,7 +412,12 @@ export class World {
       const dx = this.random(3) - 1;
       const dy = this.random(3) - 1;
       const anim = this.fightFx?.anims.get(120);
-      if (anim) this.explods.push(simpleExplod(p, anim, true, p.wx + dx, p.wy + dy, -1, 1));
+      if (!anim) continue;
+      // Player_MakeDust: no owner and id 0, like a spark (but it stops in pauses).
+      const e = simpleExplod(p, anim, true, p.wx + dx, p.wy + dy, -1, 1);
+      e.id = 0;
+      e.system = true;
+      this.explods.push(e);
     }
   }
 
@@ -424,7 +432,12 @@ export class World {
     const x = d.wx + dirToA * width + dirToA * xy[0];
     const y = src.y + xy[1];
     const e = simpleExplod(a, anim, !ref.own, x, y, 9, -dirToA);
-    e.removeTime = -2;
+    // Player_MakeSpark: id 0, no owner, and it plays through pauses
+    // (pause move times = its remove time).
+    e.id = 0;
+    e.system = true;
+    e.removeTime = e.anim.totalTime;
+    e.superMoveTime = e.pauseMoveTime = e.removeTime;
     this.explods.push(e);
   }
 
