@@ -146,11 +146,10 @@ const IMPLS: Record<string, Impl> = {
     const v = prm.int(p, 'value');
     if (v !== undefined) p.ctrl = v !== 0;
   },
-  // Turning keeps the world velocity (vel x is facing-relative; measured:
-  // KFM's 1028 shows vel x -1.6 after its VelSet 1.6 and Turn).
+  // Turning keeps the world velocity (the facing setter flips vel x;
+  // measured: KFM's 1028 shows vel x -1.6 after its VelSet 1.6 and Turn).
   turn: () => (p) => {
     p.facing = -p.facing;
-    p.vel.x = -p.vel.x;
   },
   statetypeset: (_c, prm) => (p) => {
     const st = prm.raw('statetype')?.trim().toLowerCase()[0];

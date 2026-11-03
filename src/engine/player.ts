@@ -123,7 +123,19 @@ export class Player {
   /** Position and velocity in the character's own coordinate space (localcoord). */
   pos: Vec = { x: 0, y: 0 };
   vel: Vec = { x: 0, y: 0 };
-  facing = 1;
+  private facingValue = 1;
+  /**
+   * mugen.exe keeps velocities in world space (VelSet multiplies by facing),
+   * so turning around does not change where a player is moving. Ours are
+   * relative to facing: a turn flips the x velocity to keep it in place.
+   */
+  get facing(): number {
+    return this.facingValue;
+  }
+  set facing(v: number) {
+    if (v !== this.facingValue) this.vel.x = -this.vel.x;
+    this.facingValue = v;
+  }
 
   /**
    * World units per character unit: stage localcoord width / character

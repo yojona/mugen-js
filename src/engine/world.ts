@@ -413,9 +413,8 @@ export class World {
     const e = this.enemyOf(p);
     if (!e || (!p.ctrl && this.roundState <= 2) || p.special.has('noautoturn')) return;
     if (!((p.wx - e.wx) * p.facing > 0)) return;
-    // Turning keeps the world velocity (vel x is facing-relative).
+    // Turning keeps the world velocity (the facing setter flips vel x).
     p.facing = -p.facing;
-    p.vel.x = -p.vel.x;
     p.cmdInput?.syncFacing(p.facing < 0);
     if (p.stateType === 's' && p.hasAnim(5)) p.changeAnim(5);
     else if (p.stateType === 'c' && p.hasAnim(6)) p.changeAnim(6);
