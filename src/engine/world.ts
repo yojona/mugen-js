@@ -497,7 +497,8 @@ export class World {
       // BindToTarget/Parent/Root place after every update (Player_UpdateBind);
       // a TargetBind target is not put back (its own PosSet wins: Iori's
       // 3120 lands Kyo at y = 0 in mugen.exe).
-      if (!b.byTarget) this.placeBound(p);
+      // Player_UpdateBind ends with a Camera_Update for each bound player.
+      if (!b.byTarget && this.placeBound(p)) this.stepCameraX();
       // The bind (and GetHitVar(isbound)) lasts the whole tick.
       if (b.time === 0 || (b.time > 0 && --b.time === 0)) p.bind = undefined;
     }

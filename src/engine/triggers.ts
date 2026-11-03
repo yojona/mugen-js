@@ -120,7 +120,11 @@ const NULLARY: Record<string, Fn<P>> = {
 /** Vector triggers selected with an axis word. */
 const AXIS: Record<string, (p: P, axis: 'x' | 'y' | 'z') => number | undefined> = {
   // Pos X is relative to the camera centre (trigger.html), in the player's units.
-  pos: (p, a) => (a === 'x' ? p.pos.x - p.world.camera.x / p.scale : a === 'y' ? p.pos.y : 0),
+  // TRIGGER_POS: a float, in the units of the player evaluating it.
+  pos: (p, a) => {
+    const u = ((R.from as P | undefined) ?? p).scale;
+    return a === 'x' ? Math.fround((p.wx - p.world.camera.x) / u) : a === 'y' ? Math.fround(p.wy / u) : 0;
+  },
   vel: (p, a) => (a === 'x' ? p.vel.x : a === 'y' ? p.vel.y : 0),
   hitvel: (p, a) => (a === 'x' ? p.ghv.xvel * p.facing : a === 'y' ? p.ghv.yvel : 0),
   screenpos: (p, a) => (a === 'x' ? (p.wx - (p.world.camera.x - p.world.screenWidth / 2)) / p.scale : a === 'y' ? (p.wy - p.world.camera.y + p.world.groundY) / p.scale : 0),
