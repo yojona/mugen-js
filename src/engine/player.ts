@@ -426,6 +426,7 @@ export class Player {
     this.stateChanged = true;
     this.changedStateThisTick = true;
     this.pendingStateType = undefined;
+    this.pendingMoveType = undefined;
     this.pendingVel = undefined;
     // The controller's ctrl and anim come first; the statedef's win when it
     // applies (measured: 5210's ChangeState to 52 with ctrl = 1 lands without it).
@@ -440,6 +441,7 @@ export class Player {
    * runs (measured: a trip into 5070, type A, still shows S next tick).
    */
   pendingStateType: StateType | undefined;
+  pendingMoveType: MoveType | undefined;
   /** Statedef velset of a hit state, applied when the state first runs. */
   pendingVel: { x: number; y: number } | undefined;
 
@@ -756,6 +758,10 @@ export class Player {
       this.stateType = this.pendingStateType;
       this.pendingStateType = undefined;
     }
+    if (this.pendingMoveType) {
+      this.moveType = this.pendingMoveType;
+      this.pendingMoveType = undefined;
+    }
     if (this.pendingVel) {
       this.vel.x = this.pendingVel.x;
       this.vel.y = this.pendingVel.y;
@@ -984,6 +990,13 @@ export class Player {
       this.pendingPlacement = undefined;
     }
     if (this.hitPause > 0) return;
+    // Player_Update after the states: the damage of a hit lands in the
+    // target's next update if it is still being hit (movetype H), else it
+    // is dropped (gethit_damage = 0), e.g. a p2stateno into an idle state.
+    if (this.pendingDamage && this.pendingDamage.tick < this.world.gameTime) {
+      if (this.moveType === 'h') this.applyPendingDamage();
+      else this.pendingDamage = undefined;
+    }
     // Player_Update after the states: defence_mul goes back to 100 / defence
     // out of a hit (so a DefenceMulSet in -2 only counts while being hit) and
     // in the guard states; falls multiply it by fall.defence_mul.
@@ -1079,7 +1092,6 @@ export class Player {
   advance(): void {
     for (const s of this.hitBy) if (s.time > 0) s.time--;
     for (const o of this.hitOverrides) if (o && o.time > 0) o.time--;
-    if (this.pendingDamage && this.pendingDamage.tick < this.world.gameTime) this.applyPendingDamage();
     if (this.hitPause > 0 && !this.hitPauseFresh) {
       this.hitPause--;
       return;

@@ -536,6 +536,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
         if (hd.p2GetP1State) d.stateOwner = a;
         d.changeState(hd.p2StateNo);
       } else d.changeState(hitState);
+      // The new state's movetype too (HitDef_Apply sets H; a p2stateno into
+      // an idle state only turns I when it runs).
+      if (d.moveType !== 'h' && d.compiledState(d.stateNo)) d.pendingMoveType = d.moveType;
       // The new statetype shows once the hit state first runs (measured: 5070).
       if (d.stateType !== oldType) {
         d.pendingStateType = d.stateType;
