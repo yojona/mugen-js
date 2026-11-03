@@ -175,10 +175,19 @@ export class FightScreen implements Screen {
     const H = w.screenHeight;
     r.setProjection(W, H);
     r.clear(0, 0, 0);
+    // Zoom: everything in the stage scales by the stage scale around the
+    // zoomed view (Player_UpdateDrawParams: (pos - cam - shake) * scale).
+    const zv = w.zoomView;
+    if (zv.active) {
+      const k = w.gameWidth / w.screenWidth;
+      const top = w.groundY - w.camera.y;
+      r.view = { s: zv.scale, ox: (W / 2) * (1 - zv.scale) - (zv.shakeX / k) * zv.scale, oy: top * (1 - zv.scale) - (zv.shakeY / k) * zv.scale };
+    }
     drawScene(r, w, {
       background: () => drawStageLayer(r, this.bg, w.camera, 0, W, H),
       foreground: () => drawStageLayer(r, this.bg, w.camera, 1, W, H),
     });
+    r.view = { s: 1, ox: 0, oy: 0 };
     const [mw, mh] = this.ctx.motif.localCoord;
     r.setProjection(mw, mh);
     this.s.hud.draw(r, this.match);

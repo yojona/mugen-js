@@ -401,6 +401,16 @@ const EXTRA: Record<string, Impl> = {
     if (p.isHelper) return;
     p.victoryQuote = prm.int(p, 'value') ?? -1;
   },
+  zoom: (_c, prm) => (p) => {
+    // run_zoom (MUGEN 1.1): pos (default 1,1, in the player's units), scale
+    // >= 1, lag 0..1; it lasts this tick only.
+    const k = p.world.gameWidth / p.world.screenWidth;
+    const x = (prm.num(p, 'pos', 0) ?? 1) * p.scale * k;
+    const y = (prm.num(p, 'pos', 1) ?? 1) * p.scale * k;
+    const scale = Math.max(1, prm.num(p, 'scale') ?? 1);
+    const lag = Math.max(0, Math.min(1, prm.num(p, 'lag') ?? 0));
+    p.world.zoom = { x: Math.fround(x), y: Math.fround(y), scale: Math.fround(scale), lag: Math.fround(lag) };
+  },
   envcolor: (_c, prm) => (p) => {
     // SCTRL_ENVCOLOR: value r,g,b (default white), time +1 unless -1
     // (below -1 is 1), under.

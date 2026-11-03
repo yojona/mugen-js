@@ -143,6 +143,12 @@ export class Renderer {
     this.dummyRgba = this.texture(gl.RGBA8, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
   }
 
+  /**
+   * View transform applied to everything drawn: a game point (x, y) lands
+   * at (x * s + ox, y * s + oy) (the Zoom controller's stage scale).
+   */
+  view = { s: 1, ox: 0, oy: 0 };
+
   /** Change the logical coordinate space without resizing the canvas. */
   setProjection(width: number, height: number): void {
     this.width = width;
@@ -187,7 +193,8 @@ export class Renderer {
   drawQuad(p: Omit<DrawParams, 'x' | 'y' | 'scaleX' | 'scaleY' | 'angle'> & { corners: [number, number][] }): void {
     const kx = 2 / this.width;
     const ky = -2 / this.height;
-    const c = p.corners.flatMap(([x, y]) => [x * kx - 1, y * ky + 1]);
+    const v = this.view;
+    const c = p.corners.flatMap(([x, y]) => [(x * v.s + v.ox) * kx - 1, (y * v.s + v.oy) * ky + 1]);
     const topW = Math.abs(p.corners[1]![0] - p.corners[0]![0]);
     const botW = Math.abs(p.corners[3]![0] - p.corners[2]![0]);
     this.cornerMode = { corners: c, q: [Math.max(topW, 1e-3), Math.max(botW, 1e-3)] };
@@ -231,10 +238,11 @@ export class Renderer {
     const m11 = cos * sy;
     const tx = p.x - (m00 * s.axisX + m01 * s.axisY);
     const ty = p.y - (m10 * s.axisX + m11 * s.axisY);
-    // Game space -> clip space.
-    const kx = 2 / this.width;
-    const ky = -2 / this.height;
-    gl.uniformMatrix3fv(this.u.uMatrix!, false, [m00 * kx, m10 * ky, 0, m01 * kx, m11 * ky, 0, tx * kx - 1, ty * ky + 1, 1]);
+    // Game space -> view -> clip space.
+    const v = this.view;
+    const kx = (2 / this.width) * v.s;
+    const ky = (-2 / this.height) * v.s;
+    gl.uniformMatrix3fv(this.u.uMatrix!, false, [m00 * kx, m10 * ky, 0, m01 * kx, m11 * ky, 0, tx * kx + (v.ox * 2) / this.width - 1, ty * ky - (v.oy * 2) / this.height + 1, 1]);
     gl.uniform2f(this.u.uSize!, s.width, s.height);
     gl.uniform1i(this.u.uIndexed!, st.indexed ? 1 : 0);
     gl.uniform1i(this.u.uMask!, p.mask === false ? 0 : 1);

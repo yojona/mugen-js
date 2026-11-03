@@ -102,6 +102,13 @@ export class World {
    * counted down once per game tick; the stage is not drawn while time != 0).
    */
   envColor: { rgb: [number, number, number]; time: number; under: boolean } | undefined;
+  /** Zoom controller of this tick (internal units; cleared every tick). */
+  zoom: { x: number; y: number; scale: number; lag: number } | undefined;
+  /**
+   * Camera_UpdateZoom's view (internal units): the zoomed edges, the draw
+   * offset (shake_x/y) and the stage draw scale; neutral without a zoom.
+   */
+  zoomView = { l: 0, r: 0, shakeX: 0, shakeY: 0, scale: 1, active: false };
   bgPalFx: PalFxState = newPalFx();
   pause: PauseState | undefined;
   superPause: PauseState | undefined;
@@ -113,6 +120,8 @@ export class World {
     this.pause = this.superPause = this.queuedPause = undefined;
     this.envShake = undefined;
     this.envColor = undefined;
+    this.zoom = undefined;
+    this.zoomView = { l: 0, r: 0, shakeX: 0, shakeY: 0, scale: 1, active: false };
     this.bgPalFx = newPalFx();
   }
 
@@ -339,6 +348,8 @@ export class World {
     // They are part of input processing, so a player frozen by a SuperPause
     // still takes them (measured: the CPU's jump input during the pause
     // enters 40 twice, prevstateno 40).
+    // Round_Tick: the Zoom controller must be asserted every tick.
+    this.zoom = undefined;
     for (const p of this.allPlayers()) p.startOfTick();
     // Attacking players update first (measured: an opponent's P2Dist already
     // sees an attacking P2's movement of this tick).
@@ -441,6 +452,7 @@ export class World {
     // exactly its 12 pause ticks earlier than counting them).
     for (const p of [...this.players].reverse()) p.recorder?.tick(!this.frozen(p) && !p.hitPauseLastTick);
     this.updateCamera();
+    this.updateZoom();
     for (const p of active) {
       recordAfterImage(p.afterImage, p.drawFrame());
       tickPalFx(p.palFx);
@@ -923,6 +935,48 @@ export class World {
       const target = highest < -this.floorTension ? (highest + this.floorTension) * this.verticalFollow : 0;
       this.camera.y = Math.max(this.boundHigh, Math.min(this.boundLow, target));
     }
+  }
+
+  /** Camera_UpdateZoom (camera.c 0x4157b0), in internal units and float precision. */
+  private updateZoom(): void {
+    const f = Math.fround;
+    const ce = this.camEdges ?? this.camInit();
+    const v = this.zoomView;
+    const z = this.zoom;
+    if (!z) {
+      Object.assign(v, { l: ce.l, r: ce.r, shakeX: 0, shakeY: 0, scale: 1, active: false });
+      return;
+    }
+    const approach = (cur: number, target: number) => {
+      // Math_Approach with step 0 and snap 1.
+      const res = f(cur * z.lag + (1 - z.lag) * target);
+      return Math.abs(target - res) < 1 ? target : res;
+    };
+    const w = f((ce.r - ce.l) / z.scale);
+    const centre = f((ce.l + ce.r) * 0.5);
+    let cx = f(z.scale * z.x + centre);
+    let l = f(cx - w * 0.5);
+    let r = f(cx + w * 0.5);
+    if (ce.l > l) {
+      r = f(ce.l - l + r);
+      l = ce.l;
+    }
+    if (ce.r < r) {
+      l = f(l - (r - ce.r));
+      r = ce.r;
+      if (ce.l > l) l = ce.l;
+    }
+    if (!v.active) {
+      v.l = ce.l;
+      v.r = ce.r;
+    }
+    v.l = approach(v.l, l);
+    v.r = approach(v.r, r);
+    cx = centre;
+    v.shakeX = f((v.r + v.l) * 0.5 - cx);
+    v.shakeY = approach(v.shakeY, z.y);
+    v.scale = f((ce.r - ce.l) / (v.r - v.l));
+    v.active = true;
   }
 
   /** Apply stage settings (stage .def) to the world. */
