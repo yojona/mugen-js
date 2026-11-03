@@ -66,9 +66,10 @@ export async function loadProgram(vfs: Vfs, data: CharacterData): Promise<Charac
     const q = doc.sections.find((s) => s.name.toLowerCase() === 'quotes');
     for (const e of q?.entries ?? []) if (/^victory\d+$/.test(e.key)) quotes.push(e.value.replace(/^"|"$/g, ''));
   }
-  // Learned AI shipped with the character (<def name>.ai), like mugen.exe.
-  const aiPath = data.defPath.replace(/\.def$/i, '.ai');
-  const aiRecords = vfs.resolve(aiPath) ? parseAiFile(await vfs.read(aiPath)) : undefined;
+  // Learned AI: the .def's [Files] ai (Char_Load), whatever its extension;
+  // an invalid file is ignored.
+  const aiPath = f.ai ? vfs.resolve(f.ai, dir) : undefined;
+  const aiRecords = aiPath ? parseAiFile(await vfs.read(aiPath)) : undefined;
   return { data, consts: parseConstants(constDocs), states, cmd, compiled: new Map(), quotes, aiRecords };
 }
 
