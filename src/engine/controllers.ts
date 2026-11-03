@@ -278,10 +278,10 @@ const IMPLS: Record<string, Impl> = {
   },
 
   playsnd: (_c, prm) => {
-    // value = [F]group, number   (F = common sound file)
+    // value = [F|S]group, number   (F = common sound file, S = own; Cns_ParseSoundRef)
     const raw = prm.raw('value') ?? '';
-    const m = /^\s*(f?)\s*([^,]*),(.*)$/i.exec(raw);
-    const common = !!m?.[1];
+    const m = /^\s*([fs]?)\s*([^,]*),(.*)$/i.exec(raw);
+    const common = m?.[1]?.toLowerCase() === 'f';
     const groupFn = m ? compileExpr(m[2]!, playerEnvRef!) : null;
     const numFn = m ? compileExpr(m[3]!, playerEnvRef!) : null;
     return (p) => {
