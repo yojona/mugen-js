@@ -623,7 +623,7 @@ const EXTRA: Record<string, Impl> = {
   },
 
   helper: (c, _prm, env) => compileHelper(c, env),
-  destroyself: () => compileDestroySelf(),
+  destroyself: (c, _prm, env) => compileDestroySelf(c, env),
   parentvarset: (c, _prm, env) => compileParentVar(c, env, false),
   parentvaradd: (c, _prm, env) => compileParentVar(c, env, true),
   bindtoparent: (c, _prm, env) => compileBindTo(c, env, false),

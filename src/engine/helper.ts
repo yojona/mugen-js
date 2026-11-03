@@ -94,9 +94,35 @@ export function compileHelper(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
   };
 }
 
-export function compileDestroySelf(): (p: P) => void {
+/**
+ * Helper_Remove: the helper lets go of its targets, of the explods (with
+ * removeexplods: removes its own) and players bound to it; with recursive
+ * its own helpers go too.
+ */
+export function removeHelper(p: P, recursive: boolean, removeExplods: boolean): void {
+  if (!p.isHelper || p.destroyed) return;
+  const w = p.world;
+  p.releaseTargets();
+  if (removeExplods) w.explods = w.explods.filter((e) => e.owner !== p);
+  for (const e of w.explods) if (e.bindTo === p) e.bindTime = 0;
+  for (const o of w.allPlayers()) {
+    if (o.bind && !o.bind.byTarget && o.bind.to === p && o.bind.time !== 0) o.bind = undefined;
+    if (o.parent === p && recursive) removeHelper(o, recursive, removeExplods);
+  }
+  p.destroyed = true;
+}
+
+export function compileDestroySelf(c: ControllerDef, env: TriggerEnv<P>): (p: P) => void {
+  const one = (k: string) => {
+    const src = c.params.get(k);
+    return src === undefined ? undefined : compileExpr(src, env);
+  };
+  const rec = one('recursive');
+  const rem = one('removeexplods');
   return (p) => {
-    if (p.isHelper) p.destroyed = true;
+    if (!p.isHelper) return;
+    const v = (f: ((q: P) => number) | undefined) => (f ? f(p) !== 0 : false);
+    removeHelper(p, v(rec), v(rem));
   };
 }
 

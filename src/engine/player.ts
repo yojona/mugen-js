@@ -656,6 +656,8 @@ export class Player {
       this.stateChanged = false;
       const custom = !!this.stateOwner;
       c.run(this);
+      // DestroySelf stops the rest of the state (STATECTRL_STOP).
+      if (this.destroyed) return false;
       if (this.world.randomTrace) {
         if (this.stateChanged) this.world.randomTrace.push(`=> ${this.stateNo} by ${this.world.traceCtx}`);
         this.world.traceCtx = '';
@@ -759,7 +761,10 @@ export class Player {
     // A ChangeState ends only the pass of its own special state; the next
     // one still runs (mugen.exe Player_Update: -3, -2 and -1 are separate
     // Player_RunSpecialState calls).
-    for (const special of specials) this.runState(special);
+    for (const special of specials) {
+      this.runState(special);
+      if (this.destroyed) return;
+    }
     // Get-up from lying down happens after the special states and before the
     // current state runs (measured: 5110 Time = 60 is visible in -2).
     this.runCurrent();
