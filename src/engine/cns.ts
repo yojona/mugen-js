@@ -150,6 +150,8 @@ const DEFAULTS: Record<string, number> = {
   'size.air.front': 12,
   'size.height': 60,
   'size.attack.dist': 160,
+  'size.attack.z.width.front': 4,
+  'size.attack.z.width.back': 4,
   'size.proj.attack.dist': 90,
   'size.proj.doscale': 0,
   'size.head.pos.x': -5,
@@ -235,6 +237,11 @@ export function parseConstants(docs: IniDoc[], defaults = DEFAULTS): Constants {
           if (Number.isFinite(parts[1])) c.set(`velocity.${stem}.y`, parts[1]!);
           continue;
         }
+        if (group === 'size' && e.key === 'attack.z.width') {
+          if (Number.isFinite(parts[0])) c.set('size.attack.z.width.front', Math.trunc(parts[0]!));
+          if (Number.isFinite(parts[1])) c.set('size.attack.z.width.back', Math.trunc(parts[1]!));
+          continue;
+        }
         if (group === 'velocity' && SCALAR_VELOCITY.has(e.key)) {
           if (Number.isFinite(parts[0])) c.set(`${base}.x`, parts[0]!);
           continue;
@@ -285,4 +292,25 @@ function velocityDefaults(c: Constants, vel: Map<string, number[]>): void {
   set('velocity.airjump.neu', xy('airjump.neu', neu[0], neu[1]), 'velocity.airjump.y');
   set('velocity.airjump.fwd', xy('airjump.fwd', fwd[0], fwd[1]));
   set('velocity.airjump.back', xy('airjump.back', back[0], back[1]));
+  // Char_LoadConsts: the up/down variants (x only, run.up/down pairs);
+  // runjump/airjump up/down default to jump.up/down; runjump.y is
+  // runjump.fwd's second value.
+  const x = (k: string, d = 0) => {
+    const p = vel.get(k);
+    return p && Number.isFinite(p[0]) ? p[0]! : d;
+  };
+  c.set('velocity.walk.up.x', x('walk.up'));
+  c.set('velocity.walk.down.x', x('walk.down'));
+  set('velocity.run.up', xy('run.up', 0, 0));
+  set('velocity.run.down', xy('run.down', 0, 0));
+  const up = x('jump.up');
+  const down = x('jump.down');
+  c.set('velocity.jump.up.x', up);
+  c.set('velocity.jump.down.x', down);
+  c.set('velocity.runjump.up.x', x('runjump.up', up));
+  c.set('velocity.runjump.down.x', x('runjump.down', down));
+  c.set('velocity.airjump.up.x', x('airjump.up', up));
+  c.set('velocity.airjump.down.x', x('airjump.down', down));
+  const rj = vel.get('runjump.fwd');
+  c.set('velocity.runjump.y', rj && Number.isFinite(rj[1]) ? rj[1]! : 0);
 }
