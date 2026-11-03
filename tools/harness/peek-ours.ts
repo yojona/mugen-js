@@ -67,7 +67,8 @@ for (let i = 1; i <= ticks; i++) {
   const ad = process.env.AIDBG?.split(',').map(Number);
   const dbgOn = ad && w.gameTime + 1 >= ad[0]! && w.gameTime + 1 <= ad[1]!;
   if (dbgOn) setAiDebug([]);
-  if (process.env.EVAL && process.env.EVALAT && i === Number(process.env.EVALAT)) {
+  const evalAt = process.env.EVALAT?.split('-').map(Number);
+  if (process.env.EVAL && evalAt && i >= evalAt[0]! && i <= (evalAt[1] ?? evalAt[0]!)) {
     // Evaluate expressions on P1 right before this tick (EVAL='a;b;c').
     for (const e of process.env.EVAL.split(';')) {
       const v = compileExpr(e, playerEnv)(p1);
