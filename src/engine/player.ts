@@ -398,9 +398,16 @@ export class Player {
     return cs;
   }
 
+  /** AnimExist: the animation set in use (the state owner's after ChangeAnim2). */
   hasAnim(no: number): boolean {
+    return (this.animProg ?? this.prog).data.anims.has(no);
+  }
+  /** SelfAnimExist: the character's own animations. */
+  hasSelfAnim(no: number): boolean {
     return this.prog.data.anims.has(no);
   }
+  /** The program whose AIR the current animation comes from. */
+  animProg: CharacterProgram | undefined;
 
   /** Change action; `fromOwner` uses the state owner's AIR (ChangeAnim2, custom-state statedef anim). */
   changeAnim(no: number, elem = 0, fromOwner = false): void {
@@ -411,6 +418,7 @@ export class Player {
       return;
     }
     this.animNo = no;
+    this.animProg = src;
     this.anim.set(a, elem);
   }
 

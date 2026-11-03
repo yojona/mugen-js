@@ -209,11 +209,13 @@ function call(node: CallNode, args: Fn<P>[]): Fn<P> | undefined {
         return v === undefined ? bottom() : ((R.t = INT), v);
       };
     case 'animexist':
-    case 'selfanimexist':
+    case 'selfanimexist': {
+      const self = name === 'selfanimexist';
       return (p) => {
         const n = argInt(a, p);
-        return n === undefined ? bottom() : ((R.t = INT), p.hasAnim(n) ? 1 : 0);
+        return n === undefined ? bottom() : ((R.t = INT), (self ? p.hasSelfAnim(n) : p.hasAnim(n)) ? 1 : 0);
       };
+    }
     case 'const240p':
     case 'const480p':
     case 'const720p': {
