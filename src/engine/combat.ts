@@ -188,7 +188,8 @@ function resolvePriority(hits: PendingHit[]): PendingHit[] {
   const out: PendingHit[] = [];
   for (const h of hits) {
     const rev = hits.find((o) => o.attacker === h.defender && o.defender === h.attacker);
-    if (!rev || h.guarded || rev.guarded) {
+    // Players_CheckHits: guarding plays no part in it.
+    if (!rev) {
       out.push(h);
       continue;
     }
@@ -357,7 +358,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
   if (proj) {
     // Projectiles pause themselves (p1 pausetime) and count their hits.
     proj.hitTargets.add(d);
-    proj.hitPause = guarded ? hd.guardPause[0] : hd.pause[0];
+    // Projectiles_HitPlayer: the p1 pausetime, guarded or not.
+    proj.hitPause = hd.pause[0];
     proj.hitsLeft--;
     proj.missTimer = proj.missTime;
     noteProjContact(a, guarded ? 1 : 2, proj.projId);
@@ -441,7 +443,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     d.shakeTick = world.gameTime;
     // A crouching defender stands for a forcestand HitDef or a killing hit
     // (mugen.exe 0x43f1bb: the kill flag also selects 5000 over 5010).
-    const killsNow = hd.kill && d.life - dmg <= 0;
+    const killsNow = d.life - (d.pendingDamage?.amount ?? 0) <= 0 && !d.isHelper;
     if (d.stateType === 'c' && (hd.forceStand || killsNow)) d.stateType = 's';
     const wasFalling = d.moveType === 'h' && g.fall !== 0;
     const override = d.hitOverrides.find((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType) && hd.p1StateNo < 0 && !(hd.p2StateNo >= 0 && hd.p2GetP1State));
@@ -459,7 +461,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     // Knock-down hits use fall.animtype (MUGEN shows anim 5030 for KFM's palm).
     // A killing hit always knocks down (measured: KFM's 1410 KO plays the
     // fall animtype, anim 5030).
-    const kills = hd.kill && d.life - dmg <= 0;
+    // Player_Hit: a KO when the life left after everything pending is out
+    // (kill = 0 damage was limited already); never for helpers.
+    const kills = d.life - (d.pendingDamage?.amount ?? 0) <= 0 && !d.isHelper;
     const willFall = (inAir ? hd.airFall : hd.fall) || (wasFalling && !hd.forceNoFall) || kills;
     g.animtype = wasFalling || willFall ? hd.fallAnimType : inAir ? hd.airAnimType : hd.animType;
     g.groundtype = hd.groundType;
@@ -479,10 +483,11 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     // A killing hit throws the defender (mugen.exe 0x43f29a): ground hits
     // with no y velocity keep 0.66 of x; x gains 2.5 outwards, y loses 2 and
     // is at most -6 (measured: KFM's 1410 KO sends P2 at -8.44, -6).
+    // Player_KoVelocity: at most -6 up on the ground, -3 in the air.
     if (kills) {
-      if (vy === 0) vx = Math.fround(vx * 0.66);
+      if (!inAir && vy === 0) vx = Math.fround(vx * 0.66);
       if (vx !== 0) vx = Math.fround(vx + Math.sign(vx) * 2.5);
-      if (vy <= 0) vy = Math.min(Math.fround(vy - 2), -6);
+      if (vy <= 0) vy = Math.min(Math.fround(vy - 2), inAir ? -3 : -6);
     }
     g.xvel = vx * -dir * conv;
     g.yvel = vy * conv;
@@ -517,7 +522,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.chainid = hd.id;
     d.ghvAttacker = a;
     g.hitcount = d.moveType === 'h' ? g.hitcount + 1 : 1;
-    if (d.life - dmg <= 0 && hd.kill) g.fall = 1;
+    if (kills) g.fall = 1;
     if (!proj) a.hitCount += hd.numHits;
     a.addPower(hd.getPower[0]);
     d.addPower(hd.givePower[0]);
@@ -557,7 +562,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
       d.entryVelSet = false;
       // A grounded defender hit by ground.type = Trip goes to 5070 (HITTRIP);
       // by statetype only: common1's 5000/5010 switch to air themselves when yvel != 0.
-      const hitState = !inAir && hd.groundType === 3 ? 5070 : inAir ? 5020 : d.stateType === 'c' ? 5010 : 5000;
+      // air.type = Trip sends an airborne target to 5070 too (HitDef_Apply).
+      const hitState = (inAir ? hd.airType : hd.groundType) === 3 ? 5070 : inAir ? 5020 : d.stateType === 'c' ? 5010 : 5000;
       if (override && override.stateNo >= 0) d.changeState(override.stateNo);
       else if (hd.p2StateNo >= 0) {
         // HitDef_Apply sets only the number of the common hit state, then

@@ -201,16 +201,24 @@ export function updateProjectile(pr: Projectile): void {
   // Projectiles_Update: bounds, miss time and removetime are checked with
   // the time before this tick's increment (time++ comes last).
   const age = pr.age++;
-  if (pr.missTimer > 0 && --pr.missTimer === 0) pr.hitTargets.clear();
   const w = pr.owner.world;
+  // World-space velocity: stage and height bounds only remove a projectile
+  // moving out past them (Projectiles_Update); the camera edges always do.
+  const wvx = pr.vel[0] * pr.facing;
+  const wvy = pr.vel[1];
   const left = w.camera.x - w.screenWidth / 2;
   const right = w.camera.x + w.screenWidth / 2;
+  const outStage =
+    (pr.x < w.boundLeft - w.screenWidth / 2 - pr.stageBound && wvx < 0) ||
+    (pr.y < pr.heightBound[0] && wvy < 0) ||
+    (pr.x > w.boundRight + w.screenWidth / 2 + pr.stageBound && wvx > 0) ||
+    (pr.y > pr.heightBound[1] && wvy > 0);
   const outScreen = pr.x < left - pr.edgeBound || pr.x > right + pr.edgeBound;
-  const outStage = pr.x < w.boundLeft - w.screenWidth / 2 - pr.stageBound || pr.x > w.boundRight + w.screenWidth / 2 + pr.stageBound;
-  const outHeight = pr.y < pr.heightBound[0] || pr.y > pr.heightBound[1];
-  if (outScreen || outStage || outHeight) {
+  if (outStage || outScreen) {
     pr.phase = 'dead';
     return;
   }
+  // Then the miss time, then removetime (with the time before this tick's increment).
+  if (pr.missTimer > 0 && --pr.missTimer === 0) pr.hitTargets.clear();
   if (pr.removeTime >= 0 && age >= pr.removeTime) endProjectile(pr, pr.remAnim, pr.remVel);
 }
