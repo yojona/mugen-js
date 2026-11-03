@@ -352,6 +352,8 @@ export class World {
         t.vel.y = p.vel.y * k;
         t.posFreeze = true;
         t.pendingPlacement = undefined;
+        // The bind time only runs out while it places a target being hit.
+        if (b.time > 0) b.time--;
       }
     };
     // Players that existed when the tick began (frozen ones included).
@@ -499,8 +501,9 @@ export class World {
       // 3120 lands Kyo at y = 0 in mugen.exe).
       // Player_UpdateBind ends with a Camera_Update for each bound player.
       if (!b.byTarget && this.placeBound(p)) this.stepCameraX();
-      // The bind (and GetHitVar(isbound)) lasts the whole tick.
-      if (b.time === 0 || (b.time > 0 && --b.time === 0)) p.bind = undefined;
+      // The bind (and GetHitVar(isbound)) lasts the whole tick. A TargetBind
+      // runs out in its binder's update (only while placing a target being hit).
+      if (b.time === 0 || (!b.byTarget && b.time > 0 && --b.time === 0)) p.bind = undefined;
     }
   }
 
