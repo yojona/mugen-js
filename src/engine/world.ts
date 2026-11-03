@@ -228,7 +228,15 @@ export class World {
       // A bound player is moved at the start of its own update (mugen.exe
       // 0x43c480 -> 0x4349b0; measured: a thrown P2 already shows the
       // TargetBind position its thrower set this tick).
-      this.placeBound(p);
+      if (this.placeBound(p) && p.bind?.byTarget) {
+        // TargetBind also copies the binder's velocity and freezes the
+        // target's own movement for the tick (pos_freeze).
+        const b = p.bind.to;
+        const k = b.scale / p.scale;
+        p.vel.x = b.vel.x * b.facing * p.facing * k;
+        p.vel.y = b.vel.y * k;
+        p.posFreeze = true;
+      }
       const frozen = p.hitPause > 0;
       p.runStates();
       // mugen.exe Player_Update: the projectile contact clock runs after the
@@ -341,19 +349,21 @@ export class World {
     for (const p of this.allPlayers()) {
       const b = p.bind;
       if (!b) continue;
-      // The bound player is put back after its own movement (measured: a
-      // thrown KFM entering 821 keeps the TargetBind position for that tick).
-      this.placeBound(p);
+      // BindToTarget/Parent/Root place after every update (Player_UpdateBind);
+      // a TargetBind target is not put back (its own PosSet wins: Iori's
+      // 3120 lands Kyo at y = 0 in mugen.exe).
+      if (!b.byTarget) this.placeBound(p);
       // The bind (and GetHitVar(isbound)) lasts the whole tick.
       if (b.time === 0 || (b.time > 0 && --b.time === 0)) p.bind = undefined;
     }
   }
 
-  private placeBound(p: Player): void {
+  private placeBound(p: Player): boolean {
     const b = p.bind;
-    if (!b || b.time === 0) return;
+    if (!b || b.time === 0) return false;
     // Bind offsets are stored in world units.
     p.setWorldPos(b.to.wx + b.offset[0], b.to.wy + b.offset[1]);
+    return true;
   }
 
   /** Player x in MUGEN's internal (GameWidth-based) units, truncated. */
