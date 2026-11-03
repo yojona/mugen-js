@@ -84,6 +84,8 @@ export class World {
   /** fight.def over.hittime: in RoundState 3 from then on the living take no damage. */
   overHitTime = Infinity;
   shadow: { intensity: number; color: [number, number, number]; yscale: number; fadeRange: [number, number] } | undefined;
+  /** [Reflection] intensity (0..256): players mirrored on the floor. */
+  reflection = 0;
   seed = 1;
   fightFx?: FightFx;
   explods: Explod[] = [];
@@ -1106,6 +1108,7 @@ export class World {
     this.screenWidth = info.localCoord[0];
     this.screenHeight = info.localCoord[1];
     this.shadow = info.shadow;
+    this.reflection = info.reflection;
     this.autoTurn = info.autoTurn;
   }
 }

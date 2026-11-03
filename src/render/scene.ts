@@ -138,6 +138,31 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
 
 /** Floor shadows: each player's sprite flattened onto the ground (stage [Shadow]). */
 function drawShadows(r: Renderer, w: World, sx: (x: number) => number, sy: (y: number) => number): void {
+  // Shadow_Draw's reflection: the sprite mirrored about the floor line,
+  // blended with alpha intensity / 256 (drawn before the shadow).
+  const refl = Math.max(0, Math.min(256, w.reflection));
+  if (refl > 0) {
+    for (const p of w.allPlayers()) {
+      if (p.special.has('invisible')) continue;
+      const v = p.anim.view();
+      if (!v || v.element.group < 0) continue;
+      const s = p.prog.data.sff.get(v.element.group, v.element.number);
+      if (!s) continue;
+      const k = p.scale;
+      const floor = sy(0);
+      const y = sy((p.pos.y + v.y + p.drawOffset[1]) * k);
+      r.draw({
+        sprite: s,
+        palette: p.prog.data.paletteFor(s, p.palRemap ?? p.palNo),
+        x: sx((p.pos.x + p.facing * (v.x + p.drawOffset[0])) * k),
+        y: floor + (floor - y),
+        scaleX: p.facing * (v.element.flipH ? -1 : 1) * v.scaleX * p.drawScale[0] * p.const('size.xscale') * k,
+        scaleY: -(v.element.flipV ? -1 : 1) * v.scaleY * p.drawScale[1] * p.const('size.yscale') * k,
+        palfx: palFxUniforms(p.palFx),
+        blend: { kind: 'add', src: refl, dst: 256 - refl },
+      });
+    }
+  }
   const sh = w.shadow;
   if (!sh || sh.intensity <= 0) return;
   for (const p of w.allPlayers()) {
