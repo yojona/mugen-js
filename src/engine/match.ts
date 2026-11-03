@@ -179,6 +179,9 @@ export class Match {
     w.fightTime = 0;
     w.camera.x = 0;
     w.camTarget = undefined;
+    // Camera_Reset: the edges back at the start position; camera_mode 0.
+    w.camEdges = undefined;
+    w.cameraMode = 0;
     this.clock = this.cfg.roundSeconds < 0 ? -1 : (this.cfg.roundSeconds + 1) * this.cfg.framesPerCount - 1;
     this.phase = 'wait';
     this.phaseTime = 0;
@@ -198,6 +201,8 @@ export class Match {
     if (this.announce) this.announce.age++;
     const simulate = this.step();
     this.phaseTime++;
+    // Round_RunState's end: camera_mode++ every tick.
+    this.world.cameraMode++;
     return simulate;
   }
 

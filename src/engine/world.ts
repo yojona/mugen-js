@@ -628,16 +628,16 @@ export class World {
   screenLimits(p: Player): [number, number] {
     // Player_ScreenBound: from the edges the camera is heading to
     // (screen_left/right_target), not where it is.
-    const cam = this.camTarget ?? this.camera.x;
-    const left = cam - this.screenWidth / 2;
-    const right = cam + this.screenWidth / 2;
-    // Stage [Bound] screenleft/right plus any Width controller edge width,
-    // rounded to whole internal pixels.
     const k = this.gameWidth / this.screenWidth;
-    const edge = (side: 'front' | 'back') => Math.floor(Math.fround(p.bodyWidth(side, 'edge') * p.scale * k) + 0.5) / k;
-    const leftDist = this.screenLeft + edge(p.facing > 0 ? 'back' : 'front');
-    const rightDist = this.screenRight + edge(p.facing > 0 ? 'front' : 'back');
-    return [left + leftDist, right - rightDist];
+    // In internal units: screen_left/right are floats (the stage's
+    // screenleft/right from the target edges), the Width edges whole units.
+    const ce = this.camEdges ?? this.camInit();
+    const tl = ce.lt;
+    const tr = ce.rt;
+    const sl = Math.fround(this.screenLeft * k + tl);
+    const sr = Math.fround(tr - this.screenRight * k);
+    const edge = (side: 'front' | 'back') => Math.floor(Math.fround(p.bodyWidth(side, 'edge') * p.scale * k) + 0.5);
+    return [(edge(p.facing > 0 ? 'back' : 'front') + sl) / k, (sr - edge(p.facing > 0 ? 'front' : 'back')) / k];
   }
 
   private clampPlayer(p: Player): void {
@@ -648,63 +648,173 @@ export class World {
     }
     // The clamped position is stored as a float (measured: x at a screen
     // edge reads back as an exact float32 in internal units).
-    const k = this.gameWidth / this.screenWidth;
-    if (x !== p.wx) p.setWorldPos(Math.fround(x * k) / k);
+    if (x !== p.wx) p.setWorldPos(x);
   }
 
   /** Where the camera centre wants to be: keep players out of the tension zones. */
-  private cameraTargetX(ps: Player[]): number {
-    const half = this.screenWidth / 2;
-    // Each player's extent includes its Width edge (mugen.exe 0x415cb1, in
-    // whole internal units; measured: KFM's throw with edge = 60).
-    const k = this.gameWidth / this.screenWidth;
-    const edge = (p: Player, side: 'front' | 'back') => Math.floor(p.bodyWidth(side, 'edge') * p.scale * k + 0.5) / k;
-    const minX = Math.min(...ps.map((p) => p.wx - edge(p, p.facing > 0 ? 'back' : 'front')));
-    const maxX = Math.max(...ps.map((p) => p.wx + edge(p, p.facing > 0 ? 'front' : 'back')));
-    const lo = maxX - half + this.tension;
-    const hi = minX + half - this.tension;
-    // The previous target is kept (mugen.exe G+0x11f10/14) and only moved
-    // as much as needed: the camera keeps easing towards it even after the
-    // players are back between the tension zones (measured).
-    let cx = this.camTarget ?? this.camera.x;
-    if (lo <= hi) cx = Math.min(Math.max(cx, lo), hi); // move the minimum needed
-    else cx = (minX + maxX) / 2; // too far apart: centre between them
-    // Never push a player off the opposite edge.
-    cx = Math.min(cx, minX - this.screenLeft + half);
-    cx = Math.max(cx, maxX + this.screenRight - half);
-    cx = Math.max(this.boundLeft, Math.min(this.boundRight, cx));
-    this.camTarget = cx;
-    return cx;
-  }
-  /** Camera target kept between steps; reset with the camera. */
+  /** Camera_Update's mode (camera_mode): 0 and 1 hold still, 2 snaps. */
+  cameraMode = 0;
+  /**
+   * Camera edges in internal units, as mugen.exe keeps them (floats):
+   * screen_left/right and the targets they move towards.
+   */
+  camEdges: { l: number; r: number; lt: number; rt: number } | undefined;
+  /** Centre of the target edges in world units (EdgeDist and the like). */
   camTarget: number | undefined;
 
+  private camInit(): { l: number; r: number; lt: number; rt: number } {
+    const k = this.gameWidth / this.screenWidth;
+    const x = Math.fround(this.camera.x * k);
+    const hw = Math.trunc(this.gameWidth) * 0.5;
+    const l = Math.fround(x - hw);
+    const r = Math.fround(hw + x);
+    return { l, r, lt: l, rt: r };
+  }
+
   /**
-   * One horizontal camera step, as in mugen.exe (0x415ae0): the camera moves
-   * 5% of the way to its target plus a minimum of 0.1 (per 320 pixels of
-   * screen), never past the target, snapping to it once the rest is smaller
-   * than the step. When the player on that side moves
-   * outwards faster, the camera keeps up with that player's velocity.
-   * MUGEN runs this after each player's physics and again at the end of the
-   * tick, which gives the 0.95^3-per-tick easing measured with the harness.
+   * One horizontal step of Camera_Update (mugen.exe 0x415ae0), in internal
+   * units and the original's float precision: the target edges follow the
+   * outermost players with the tension and the stage bounds, the edges move
+   * 5% of the way plus 0.1 per 320 pixels (or with the outer player's
+   * speed), snapping when the rest is smaller than the step. MUGEN runs it
+   * after every player's update and once more at the end of the tick.
    */
   private stepCameraX(): void {
-    const ps = this.players.filter((p) => p.moveCamera[0]);
-    if (!ps.length) return;
-    const target = this.cameraTargetX(ps);
-    const d = target - this.camera.x;
-    if (d === 0) return;
-    let speed = 0.05 * d + Math.sign(d) * 0.1 * (this.screenWidth / 320);
-    const edge = d > 0 ? ps.reduce((a, b) => (b.wx > a.wx ? b : a)) : ps.reduce((a, b) => (b.wx < a.wx ? b : a));
-    const v = edge.vel.x * edge.facing * edge.scale;
-    if (d > 0 ? v > speed : v < speed) speed = v;
-    let x = this.camera.x + speed;
-    // Snap once what is left is smaller than the step just taken (0x4169b1).
-    if (d > 0 ? x > target : x < target) x = target;
-    if (Math.abs(target - x) < Math.abs(speed)) x = target;
-    // mugen.exe keeps the camera edges as floats (G+0x11f08/0c).
+    if (this.cameraMode <= 1) return;
+    const snap = this.cameraMode === 2;
+    const f = Math.fround;
     const k = this.gameWidth / this.screenWidth;
-    this.camera.x = Math.fround(x * k) / k;
+    const e = (this.camEdges ??= this.camInit());
+    const tension = f(this.tension * k);
+    const wf = f(Math.trunc(this.gameWidth));
+    let speedL = f((f(0.1) * wf) / 320);
+    let speedR = speedL;
+    const camW = wf; // zoomin = zoomout = 1
+    const zoomoutW = wf;
+    const hz = 0.5 * zoomoutW;
+    const ll = f(this.boundLeft * k - hz);
+    const rl = f(this.boundRight * k + hz);
+    let l = e.lt;
+    let r = e.rt;
+    const ps = this.players.filter((p) => p.moveCamera[0]);
+    const edge = (p: Player, side: number) => {
+      const w = p.bodyWidth(p.facing === side ? 'front' : 'back', 'edge') * p.scale * k;
+      return Math.trunc(Math.floor(f(w) + 0.5));
+    };
+    let left: Player | undefined;
+    let right: Player | undefined;
+    for (const p of ps) {
+      if (!left || left.wx * k - edge(left, -1) > p.wx * k - edge(p, -1)) left = p;
+      if (!right || edge(right, 1) + right.wx * k < edge(p, 1) + p.wx * k) right = p;
+    }
+    if (left && right) {
+      const xl = f(left.wx * k - f(edge(left, -1)));
+      const xr = f(edge(right, 1) + right.wx * k);
+      if (camW > r - l) {
+        const mid = f((l + r) * 0.5);
+        l = f(mid - camW * 0.5);
+        r = f(camW * 0.5 + mid);
+      }
+      const width = xr - xl + (tension + tension);
+      if (width < camW) {
+        let dx = 0;
+        if (r - l > camW) {
+          const mid = f((l + r) * 0.5);
+          l = f(mid - 0.5 * camW);
+          r = f(0.5 * camW + mid);
+        }
+        if (xl - tension < l) dx = f(xl - tension - l);
+        if (xr + tension > r) dx = f(xr + tension - r);
+        l = f(l + dx);
+        r = f(r + dx);
+      } else {
+        const mid = f((xl + xr) * 0.5);
+        if (zoomoutW >= width) {
+          l = f(xl - tension);
+          r = f(xr + tension);
+        } else {
+          l = f(mid - hz);
+          r = f(mid + hz);
+        }
+      }
+      if (ll > l) {
+        let sh = f(ll - l);
+        l = ll;
+        const xrt = xr + tension;
+        if (sh + r > xrt) sh = f(xrt - r);
+        if (sh + r - ll < camW) sh = f(camW - (r - ll));
+        if (0 < sh) r = f(r + sh);
+        if (rl < r) r = rl;
+      }
+      if (rl < r) {
+        let sh = f(r - rl);
+        r = rl;
+        if (xl - tension > l - sh) sh = f(l - xl + tension);
+        if (rl - (l - sh) < camW) sh = f(camW - (rl - l));
+        if (0 < sh) l = f(l - sh);
+        if (ll > l) l = ll;
+      }
+      if (l < r) {
+        e.lt = l;
+        e.rt = r;
+      }
+      const q1 = f(xl - e.l - tension);
+      const q2 = f(e.r - xr - tension);
+      let d = f(e.lt - e.l);
+      speedL = f(e.lt * 0.05 + e.l * 0.95 - e.l + Math.sign(d) * speedL);
+      d = f(e.rt - e.r);
+      speedR = f(e.rt * 0.05 + e.r * 0.95 - e.r + Math.sign(d) * speedR);
+      // World-space velocities in internal units.
+      const lv = left.vel.x * left.facing * left.scale * k;
+      if (speedL > lv && speedL < 0 && 0 > q1) {
+        speedL = f(lv);
+        if (speedR < 0 && speedL < speedR) speedR = speedL;
+      }
+      const rv = right.vel.x * right.facing * right.scale * k;
+      if (speedR < rv && speedR > 0 && 0 > q2) {
+        speedR = f(rv);
+        if (speedL > 0 && speedR > speedL) speedL = speedR;
+      }
+    } else {
+      speedL = 0;
+      speedR = 0;
+    }
+    {
+      const a = e.l;
+      const t = e.lt;
+      if (t < a) {
+        const n = f(a + speedL);
+        e.l = !(t <= n) ? t : n;
+      } else if (t > a) {
+        const n = f(a + speedL);
+        e.l = !(t >= n) ? t : n;
+      }
+    }
+    {
+      const a = e.r;
+      const t = e.rt;
+      if (t > a) {
+        const n = f(a + speedR);
+        e.r = !(t >= n) ? t : n;
+      } else if (t < a) {
+        const n = f(a + speedR);
+        e.r = !(t <= n) ? t : n;
+      }
+    }
+    if (snap) {
+      e.l = e.lt;
+      e.r = e.rt;
+    }
+    if (f(Math.abs(speedL)) > f(Math.abs(e.l - e.lt))) e.l = e.lt;
+    if (f(Math.abs(speedR)) > f(Math.abs(e.r - e.rt))) e.r = e.rt;
+    if (zoomoutW < e.r - e.l) {
+      if (e.rt >= e.r) e.l = f(e.r - zoomoutW);
+      else if (e.lt <= e.l) e.r = f(zoomoutW + e.l);
+    }
+    if (ll > e.l) e.l = ll;
+    if (rl < e.r) e.r = rl;
+    this.camera.x = f((e.l + e.r) * 0.5) / k;
+    this.camTarget = ((e.lt + e.rt) * 0.5) / k;
   }
 
   /**
@@ -726,6 +836,7 @@ export class World {
     const c = info.camera;
     this.camera = { x: c.startX, y: c.startY };
     this.camTarget = undefined;
+    this.camEdges = undefined;
     this.boundLeft = c.boundLeft;
     this.boundRight = c.boundRight;
     this.boundHigh = c.boundHigh;
