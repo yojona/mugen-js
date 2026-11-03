@@ -154,7 +154,8 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
     }
     const e: Explod = {
       owner: p,
-      id: prm.int(p, 'id') ?? -1,
+      // An Explod without an id has id 0 (a ModifyExplod's default is -1).
+      id: prm.int(p, 'id') ?? 0,
       anim: new AnimPlayer(a),
       common: anim.common,
       space,
