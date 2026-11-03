@@ -545,7 +545,8 @@ export class Player {
     const d = this.pendingDamage;
     if (!d) return;
     this.pendingDamage = undefined;
-    this.life = Math.max(d.kill ? 0 : Math.min(this.life, 1), this.life - d.amount);
+    // The kill = 0 limit was applied when the hit landed (Player_HitDamage).
+    this.life = Math.max(0, Math.min(this.const('data.life'), this.life - d.amount));
     if (this.life <= 0) {
       this.alive = false;
       this.ghv.fall = 1;

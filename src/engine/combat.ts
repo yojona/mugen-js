@@ -385,8 +385,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
   const g = d.ghv;
 
   if (guarded) {
-    const dmg = scaleDamage(a, d, hd.guardDamage);
-    d.pendingDamage = { amount: dmg, kill: hd.guardKill, tick: world.gameTime };
+    const dmg = hitDamage(d, hd.guardDamage, hd.guardKill, world.gameTime);
     d.shakeTick = world.gameTime;
     g.guarded = 1;
     g.damage = dmg;
@@ -423,11 +422,10 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     world.spawnSpark(a, d, hd.guardSpark, sparkXY, src);
     world.playHitSound(a, hd.guardSound);
   } else {
-    const dmg = scaleDamage(a, d, hd.damage);
+    // Damage lands on the following tick (measured against MUGEN 1.1).
+    const dmg = hitDamage(d, hd.damage, hd.kill, world.gameTime);
     // HitDef_Apply: a player hit is not guarding any more.
     d.guardFlag = false;
-    // Damage lands on the following tick (measured against MUGEN 1.1).
-    d.pendingDamage = { amount: dmg, kill: hd.kill, tick: world.gameTime };
     d.shakeTick = world.gameTime;
     // A crouching defender stands for a forcestand HitDef or a killing hit
     // (mugen.exe 0x43f1bb: the kill flag also selects 5000 over 5010).
@@ -645,7 +643,20 @@ function placementOffsets(a: Player, d: Player, hd: HitDefData, dir: number): [n
  * attacker's attack when it ran) times the defender's defence multiplier,
  * rounded; at least 1 for a positive damage.
  */
-function scaleDamage(_a: Player, d: Player, dmg: number): number {
-  const n = Math.trunc(d.defenceFactor * dmg + 0.5);
-  return dmg >= 1 && n === 0 ? 1 : n;
+/**
+ * Player_HitDamage: the damage is added to the target's pending damage
+ * (gethit_damage, applied in its next update); kill = 0 keeps the life
+ * left after everything pending at 1 or more. Returns the added damage.
+ */
+function hitDamage(d: Player, raw: number, kill: boolean, tick: number): number {
+  const pending = d.pendingDamage?.amount ?? 0;
+  let x = Math.trunc(d.defenceFactor * raw + 0.5) + pending;
+  if (raw >= 1 && x === 0) x = 1;
+  if (!kill) {
+    const left = d.life - pending;
+    if (left - x < 1 && d.alive) x = left - 1;
+  }
+  d.pendingDamage = { amount: x, kill: true, tick };
+  return x - pending;
 }
+
