@@ -250,9 +250,9 @@ function projBoxes(pr: Projectile, which: 1 | 2): Box[] {
   const boxes = which === 1 ? el?.clsn1 : el?.clsn2;
   if (!boxes) return [];
   return boxes.map((b) => {
-    const xa = pr.x + pr.facing * b.x1 * pr.scale[0];
-    const xb = pr.x + pr.facing * b.x2 * pr.scale[0];
-    return { x1: Math.min(xa, xb), x2: Math.max(xa, xb), y1: pr.y + b.y1 * pr.scale[1], y2: pr.y + b.y2 * pr.scale[1] };
+    const xa = pr.x + pr.facing * b.x1 * pr.clsnScale[0];
+    const xb = pr.x + pr.facing * b.x2 * pr.clsnScale[0];
+    return { x1: Math.min(xa, xb), x2: Math.max(xa, xb), y1: pr.y + b.y1 * pr.clsnScale[1], y2: pr.y + b.y2 * pr.clsnScale[1] };
   });
 }
 
@@ -318,7 +318,7 @@ export function detectProjectileHits(projs: Projectile[], players: Player[]): Pe
       if (d.side === pr.owner.side || (!d.alive && d.stateType === 'l')) continue;
       const k = d.world.gameWidth / d.world.screenWidth;
       const hitBox = intCollide(
-        { x: pr.x, y: pr.y, facing: pr.facing, sx: pr.scale[0], sy: pr.scale[1], boxes: pr.anim.current?.clsn1 },
+        { x: pr.x, y: pr.y, facing: pr.facing, sx: pr.clsnScale[0], sy: pr.clsnScale[1], boxes: pr.anim.current?.clsn1 },
         { x: d.clsnX, y: d.clsnY, facing: d.facing, sx: d.const('size.xscale') * d.scale, sy: d.const('size.yscale') * d.scale, boxes: d.anim.current?.clsn2 },
         k,
       );

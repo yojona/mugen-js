@@ -24,6 +24,8 @@ export interface Projectile {
   accel: [number, number];
   velMul: [number, number];
   scale: [number, number];
+  /** Clsn scale: the owner's size.xscale/yscale (mugen.exe scales boxes when loading; projscale is drawing only). */
+  clsnScale: [number, number];
   removeOnHit: boolean;
   removeTime: number;
   hitsLeft: number;
@@ -118,6 +120,7 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
       remVel: kp(pair(p, 'remvelocity', [0, 0])),
       accel: kp(pair(p, 'accel', [0, 0])),
       velMul: pair(p, 'velmul', [1, 1]),
+      clsnScale: [p.const('size.xscale') * k, p.const('size.yscale') * k] as [number, number],
       scale: (doScale ? [ps[0] * p.const('size.xscale') * k, ps[1] * p.const('size.yscale') * k] : [ps[0] * k, ps[1] * k]) as [number, number],
       removeOnHit: (int(p, 'projremove') ?? 1) !== 0,
       removeTime: int(p, 'projremovetime') ?? -1,
