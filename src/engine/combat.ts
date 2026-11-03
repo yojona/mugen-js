@@ -567,7 +567,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
  * back instead (cornerpush.veloff, negative = away from the defender).
  */
 function cornerPush(a: Player, d: Player, veloff: number): void {
-  if (!veloff) return;
+  // (A cornerpush of 0 still replaces, i.e. stops, any push going on.)
   // mugen.exe 0x4342f0: the defender is cornered within 5 internal units
   // of either of its screen limits (measured: 2.4 stage units still push).
   const w = a.world;
