@@ -169,15 +169,35 @@ export class SelectScreen implements Screen {
     if (c.done) return;
     const pad = c.pad;
     const pre = `p${index + 1}`;
-    const move = (dr: number, dc: number) => {
-      c.row = Math.max(0, Math.min(this.rows - 1, c.row + dr));
-      c.col = Math.max(0, Math.min(this.cols - 1, c.col + dc));
-      motifSound(this.ctx, this.v(`${pre}.cursor.move.snd`));
+    // Charsel_MoveCursor (select.c 0x4090e0): left, right, up, down in that
+    // order; empty cells are skipped unless moveoveremptyboxes, and the
+    // cursor wraps only with wrapping (else it stops at the last filled cell).
+    const wrapping = this.int('wrapping', 0) !== 0;
+    const overEmpty = this.int('moveoveremptyboxes', 0) !== 0;
+    const empty = (row: number, col: number) => {
+      const e = this.roster[row * this.cols + col];
+      return !e || (!e.data && e.entry.def !== 'randomselect');
     };
-    if (pad.pressed(IN_U)) move(-1, 0);
-    else if (pad.pressed(IN_D)) move(1, 0);
-    else if (pad.pressed(IN_L)) move(0, -1);
-    else if (pad.pressed(IN_R)) move(0, 1);
+    const step = (v: number, n: number, d: number, isEmpty: (v: number) => boolean): number => {
+      let last = v;
+      for (let tries = n; ; ) {
+        if (!isEmpty(v)) last = v;
+        v += d;
+        if (v < 0 || v >= n) {
+          if (!wrapping) return last;
+          v = v < 0 ? n - 1 : 0;
+        }
+        if (!isEmpty(v) || overEmpty || --tries === 0) return v;
+      }
+    };
+    const from = [c.row, c.col];
+    if (pad.pressed(IN_L)) c.col = step(c.col, this.cols, -1, (v) => empty(c.row, v));
+    if (pad.pressed(IN_R)) c.col = step(c.col, this.cols, 1, (v) => empty(c.row, v));
+    if (pad.pressed(IN_U)) c.row = step(c.row, this.rows, -1, (v) => empty(v, c.col));
+    if (pad.pressed(IN_D)) c.row = step(c.row, this.rows, 1, (v) => empty(v, c.col));
+    if (pad.pressed(IN_L) || pad.pressed(IN_R) || pad.pressed(IN_U) || pad.pressed(IN_D)) {
+      if (from[0] !== c.row || from[1] !== c.col) motifSound(this.ctx, this.v(`${pre}.cursor.move.snd`));
+    }
     for (const [bit, pal] of PAL_BUTTONS) {
       if (!pad.pressed(bit)) continue;
       let ch = this.cellAt(c);
