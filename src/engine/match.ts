@@ -4,6 +4,7 @@
 // time over), 4 over (win poses). Timings mirror the [Round] parameters; the
 // exact tick alignment still has to be checked against the reference binary.
 
+import { emptyGetHitVars } from './hitdef';
 import type { Player } from './player';
 import type { World } from './world';
 
@@ -143,6 +144,9 @@ export class Match {
       p.posFreeze = false;
       p.defMul = undefined;
       p.cornerPushVel = 0;
+      // ...and clears the get-hit variables (hit count, fall...).
+      p.ghv = emptyGetHitVars();
+      p.ghv.recovertime = p.const('data.liedown.time');
       p.targets.clear();
       p.targetJuggle.clear();
       p.noInputStates = false;
