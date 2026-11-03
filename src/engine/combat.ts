@@ -523,12 +523,14 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     }
     // p2facing = 1 turns P2 to face P1, -1 away from it (measured: KFM's
     // Smash Kung Fu Upper).
-    if (hd.p2Facing === 1) d.facing = -aFacing;
-    else if (hd.p2Facing === -1) d.facing = aFacing;
+    // The turn waits for P2's next update (next_facing).
+    if (hd.p2Facing === 1 && d.facing !== -aFacing) d.nextFacing = -aFacing;
+    else if (hd.p2Facing === -1 && d.facing !== aFacing) d.nextFacing = aFacing;
     // A light/medium/hard hit from behind swaps High and Low in the hit
     // types (mugen.exe 0x43f3e1; measured: KFM's jump kick into a crossed-up
     // P2 shows anim 5010).
-    if (g.animtype >= 0 && g.animtype <= 2 && d.facing !== (hd.p2Facing === -1 ? aFacing : -aFacing)) {
+    const dFacing = d.nextFacing || d.facing;
+    if (g.animtype >= 0 && g.animtype <= 2 && dFacing !== (hd.p2Facing === -1 ? aFacing : -aFacing)) {
       const swap = (t: number) => (t === 1 ? 2 : t === 2 ? 1 : t);
       g.groundtype = swap(g.groundtype);
       g.airtype = swap(g.airtype);
@@ -576,8 +578,12 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
   d.sprPriority = hd.p2SprPriority;
   if (proj) return;
   a.sprPriority = hd.p1SprPriority;
-  if (hd.p1GetP2Facing) a.facing = hd.p1GetP2Facing > 0 ? d.facing : -d.facing;
-  else if (hd.p1Facing === -1) a.facing = -a.facing;
+  // next_facing too: the attacker turns in its next update.
+  const dNow = d.nextFacing || d.facing;
+  if (hd.p1GetP2Facing) {
+    const f = hd.p1GetP2Facing > 0 ? dNow : -dNow;
+    if (f !== a.facing) a.nextFacing = f;
+  } else if (hd.p1Facing === -1) a.nextFacing = -a.facing;
   // p1stateno: the statedef applies when the state first runs (measured: a
   // KFM throw keeps anim 800 and its MoveContact on the hit tick).
   if (!guarded && hd.p1StateNo >= 0) a.enterLater(hd.p1StateNo);

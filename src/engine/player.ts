@@ -90,6 +90,8 @@ export class Player {
   cornerPushVel = 0;
   /** HitDef snap/mindist/maxdist, applied when this player next updates. */
   pendingPlacement: (() => void) | undefined;
+  /** next_facing: a turn from a hit, applied in the player's next update. */
+  nextFacing = 0;
   /** Hit pause seen by the previous tick's input processing. */
   hitPauseLastTick = false;
   /** CPU control (MUGEN's AI); undefined for human players. */
@@ -1000,6 +1002,11 @@ export class Player {
       this.pendingPlacement = undefined;
     }
     if (this.hitPause > 0) return;
+    // Player_Update after the states (not in hit pause): a turn from a hit.
+    if (this.nextFacing) {
+      if (this.facing !== this.nextFacing) this.facing = this.nextFacing;
+      this.nextFacing = 0;
+    }
     // Player_Update after the states: the damage of a hit lands in the
     // target's next update if it is still being hit (movetype H), else it
     // is dropped (gethit_damage = 0), e.g. a p2stateno into an idle state.
