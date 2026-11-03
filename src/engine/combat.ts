@@ -358,7 +358,17 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
   a.targets.set(d, hd.id);
   // Player_AddTarget: a new entry starts with the attacker's airjuggle.
   if (!a.targetJuggle.has(d)) a.targetJuggle.set(d, a.const('data.airjuggle'));
-  // Explods flagged removeongethit disappear when their owner is hit.
+  // HitDef_Apply: a HitDef with ground.type (air.type in the air) = None
+  // has no get-hit state for the target: only the sound and the spark, no
+  // pause, damage, power or contact (Player_Hit sees 0).
+  if (!guarded && !proj && (d.stateType === 'a' ? hd.airType : hd.groundType) === 0 && !d.hitOverrides.some((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType))) {
+    a.hitTargets.add(d);
+    d.ghv.chainid = hd.id;
+    d.ghvAttacker = a;
+    world.playHitSound(a, hd.hitSound);
+    world.spawnSpark(a, d, hd.spark, [hd.sparkXY[0] * a.scale, hd.sparkXY[1] * a.scale], { x: a.wx, y: a.wy });
+    return;
+  }
   // HitDef_Apply: a hit player lets go of its own targets and loses its
   // removeongethit explods.
   if (!guarded) {
