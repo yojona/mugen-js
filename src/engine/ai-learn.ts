@@ -419,7 +419,9 @@ export class Recorder {
     let ck = contactKind(p);
     if (this.contact === 0) this.contact = ck;
     else ck = this.contact;
-    const adv = advanced && !p.world.pause && !p.world.superPause;
+    // pause_kind is set from the frame after a pause starts.
+    const w = p.world;
+    const adv = advanced && !(w.pause && !w.pause.fresh) && !(w.superPause && !w.superPause.fresh);
     const rec = this.rec;
     if (adv) {
       const [dx, dy] = this.relPos();
