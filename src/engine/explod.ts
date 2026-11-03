@@ -131,7 +131,8 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
         x = ref.wx + off[0] * ref.facing;
         y = ref.wy + off[1];
         facing *= ref.facing;
-        if (prm.has('bindtime')) bindTo = ref;
+        // p1/p2 explods always keep their anchor (bindtime defaults to 1).
+        bindTo = ref;
         space = 'stage';
         break;
       }
@@ -167,7 +168,8 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
       facing,
       vfacing: (prm.int(p, 'vfacing') ?? 1) < 0 ? -1 : 1,
       bindTo,
-      bindTime: bindTo ? (prm.int(p, 'bindtime') ?? (posType === 'none' ? -1 : 0)) : 0,
+      // bindtime defaults to 1 (sctrl.c bindtime_def).
+      bindTime: bindTo ? (prm.int(p, 'bindtime') ?? 1) : 0,
       bindOffset: posType === 'p1' || posType === 'p2' ? [off[0] * (bindTo?.facing ?? 1), off[1]] : off,
       vel: [(prm.num(p, 'vel', 0) ?? 0) * k, (prm.num(p, 'vel', 1) ?? 0) * k],
       velDir: facing * faceParam,
