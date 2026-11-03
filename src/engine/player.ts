@@ -244,7 +244,6 @@ export class Player {
     d += this.life;
     if (d < 1 && !kill) d = 1;
     this.life = Math.min(this.const('data.life'), Math.max(0, d));
-    if (this.life <= 0) this.alive = false;
   }
   get attackFactor(): number {
     return this.attackMul ?? this.const('data.attack') / 100;
@@ -549,10 +548,7 @@ export class Player {
     this.pendingDamage = undefined;
     // The kill = 0 limit was applied when the hit landed (Player_HitDamage).
     this.life = Math.max(0, Math.min(this.const('data.life'), this.life - d.amount));
-    if (this.life <= 0) {
-      this.alive = false;
-      this.ghv.fall = 1;
-    }
+    if (this.life <= 0) this.ghv.fall = 1;
   }
 
   addPower(v: number): void {
@@ -1102,6 +1098,9 @@ export class Player {
         }
         break;
     }
+    // Player_Update after the movement (not in hit pause): a player whose
+    // life ran out is KO now; the round sees it on its next tick.
+    if (this.life <= 0 && this.alive && !this.isHelper) this.alive = false;
   }
 
   /**

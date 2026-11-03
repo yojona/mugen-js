@@ -255,7 +255,6 @@ const IMPLS: Record<string, Impl> = {
     if (!dmg) return;
     p.life = Math.max(p.ghv['fall.kill'] ? 0 : Math.min(p.life, 1), p.life - dmg);
     p.ghv['fall.damage'] = 0;
-    if (p.life <= 0) p.alive = false;
   },
   // mugen.exe: attack_mul = value * data.attack / 100.
   attackmulset: (_c, prm) => (p) => {

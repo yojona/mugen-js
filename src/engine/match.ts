@@ -264,7 +264,8 @@ export class Match {
           this.clock--;
           timeUp = this.clock === 0 && this.phaseTime > c.ctrlTime;
         }
-        const dead = this.players.filter((p) => p.life <= 0);
+        // KO: players their own update found out of life (p->alive).
+        const dead = this.players.filter((p) => !p.alive);
         if (dead.length || timeUp) {
           if (dead.length === 2) this.announce = { kind: 'dko', age: 0 };
           else if (dead.length) this.announce = { kind: 'ko', age: 0 };

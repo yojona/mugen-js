@@ -68,6 +68,9 @@ describe('match flow', () => {
     const { w, p1, p2, m, step, untilFight } = setup();
     untilFight();
     p2.life = 0;
+    // P2's own update finds it out of life; the round sees the KO next tick.
+    step();
+    expect(w.roundState).toBe(2);
     step();
     expect(m.announce?.kind).toBe('ko');
     expect(w.roundState).toBe(3);
