@@ -538,6 +538,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
       d.returnToOwnStates();
       const oldType = d.stateType;
       const oldVel = { x: d.vel.x, y: d.vel.y };
+      d.entryVelSet = false;
       // A grounded defender hit by ground.type = Trip goes to 5070 (HITTRIP);
       // by statetype only: common1's 5000/5010 switch to air themselves when yvel != 0.
       const hitState = !inAir && hd.groundType === 3 ? 5070 : inAir ? 5020 : d.stateType === 'c' ? 5010 : 5000;
@@ -559,8 +560,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
         d.stateType = oldType;
       }
       // So does the statedef's velset (measured: a walking P2 hit into 5000
-      // still shows its walk speed that tick).
-      if (d.vel.x !== oldVel.x || d.vel.y !== oldVel.y) {
+      // still shows its walk speed that tick; a TargetBind's velocity copy
+      // the next tick is still reset by it).
+      if (d.entryVelSet) {
         d.pendingVel = { x: d.vel.x, y: d.vel.y };
         d.vel.x = oldVel.x;
         d.vel.y = oldVel.y;

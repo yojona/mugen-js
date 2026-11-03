@@ -444,6 +444,8 @@ export class Player {
   pendingMoveType: MoveType | undefined;
   /** Statedef velset of a hit state, applied when the state first runs. */
   pendingVel: { x: number; y: number } | undefined;
+  /** The last statedef applied had a velset. */
+  entryVelSet = false;
 
   /** Statedef *persist flags: what carries over from the previous state. */
   private resetPersist(cs: CompiledState): void {
@@ -477,6 +479,7 @@ export class Player {
       return R.t === 2 ? undefined : v;
     };
     const v0 = num('velset', 0);
+    this.entryVelSet = v0 !== undefined;
     if (v0 !== undefined) {
       this.vel.x = v0;
       this.vel.y = num('velset', 1) ?? 0;
