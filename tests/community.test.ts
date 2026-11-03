@@ -47,4 +47,15 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+
+  it.skipIf(!have('athena-kofa', 'leona-kofa'))(
+    'Athena vs Leona, CPU level 4: 9000 frames into round 2 (helper projectiles, reversal helpers, throws with snap, pauses)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'athena-vs-leona.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['athena-kofa', 'leona-kofa'], frames: 9000, seed: 16808 });
+      expect(ours.length).toBe(9000);
+      expect(peekDiff(ref, ours, 14, 9000)).toEqual([]);
+    },
+    120_000,
+  );
 });
