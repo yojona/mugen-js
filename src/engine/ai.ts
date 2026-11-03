@@ -425,7 +425,8 @@ export class MugenAI {
       }
     }
     if (this.state !== 3) return false;
-    if (!this.watching || !rec || !w) return this.toState(0);
+    // Ai_ModeGuard: a destroyed (inactive) watched helper ends the guard.
+    if (!this.watching || !rec || !w || w.destroyed) return this.toState(0);
     const t = this.watchTime;
     let kind = w.recorder?.contact ?? 0;
     if (kind === 0) {
@@ -476,7 +477,7 @@ export class MugenAI {
     this.attackList = [];
     if (!this.watching || !rec) return 0;
     const tbl = p.recorder?.table();
-    if (!tbl || !w) return 0;
+    if (!tbl || !w || w.destroyed) return 0;
     const t = this.watchTime;
     const kind = w.recorder?.contact ?? 0;
     let tt: number;
