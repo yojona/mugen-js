@@ -931,7 +931,7 @@ export class Player {
       this.pendingPlacement();
       this.pendingPlacement = undefined;
     }
-    if (this.hitPause > 0 || this.ghv.hitshaketime > 0) return;
+    if (this.hitPause > 0 || (this.ghv.hitshaketime > 1 && this.moveType === 'h')) return;
     if (this.cornerPushVel) {
       this.pos.x = this.pos.x + this.cornerPushVel * this.facing;
       this.cornerPushVel *= 0.7;
