@@ -333,7 +333,8 @@ export class World {
     this.clampToScreen();
     // Every player takes part, paused ones too (Players_CheckHits only skips
     // inactive players; a Pause stops updates, not hits).
-    applyHits(detectHits(this.allPlayers().filter((p) => !p.destroyed)));
+    const hitters = this.allPlayers().filter((p) => !p.destroyed);
+    applyHits(detectHits(hitters), hitters, this.frames);
     if (!this.superPause && !this.pause) {
       for (const pr of this.projectiles) updateProjectile(pr);
     }

@@ -159,7 +159,17 @@ function applyReversal(r: Player, a: Player): void {
   }
 }
 
-export function applyHits(hits: PendingHit[]): void {
+/**
+ * Players_CheckHits applies the hits target by target, in player order on
+ * odd frames and in reverse order on even ones (each target's attackers in
+ * player order); `order` is that player list, `frame` g->frames.
+ */
+export function applyHits(hits: PendingHit[], order?: Player[], frame = 1): void {
+  if (order && hits.length > 1) {
+    const idx = (p: Player) => order.indexOf(p);
+    const dir = frame & 1 ? 1 : -1;
+    hits = [...hits].sort((x, y) => dir * (idx(x.defender) - idx(y.defender)) || idx(x.attacker) - idx(y.attacker));
+  }
   for (const h of hits) applyHit(h);
 }
 
@@ -277,6 +287,10 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     // The pause starts counting next tick; this tick still advances (measured).
     a.hitPauseFresh = true;
   }
+  // HitDef_Apply / Player_Guard: the target loses any hit pause of its own
+  // (a trade: the hit taken cancels the pause of the hit given).
+  d.hitPause = 0;
+  d.hitPauseFresh = false;
   const src = proj ? { x: proj.x, y: proj.y } : { x: a.wx, y: a.wy };
   const towardA = src.x >= d.wx ? 1 : -1;
   // HitDef values are in the attacker's units; the defender stores its own.
