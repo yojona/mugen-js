@@ -874,6 +874,15 @@ export class World {
       if (!left || left.wx * k - edge(left, -1) > p.wx * k - edge(p, -1)) left = p;
       if (!right || edge(right, 1) + right.wx * k < edge(p, 1) + p.wx * k) right = p;
     }
+    // The highest player with movecamera y (Camera_Update's top).
+    let top: Player | undefined;
+    for (const p of this.allPlayers()) if (!p.destroyed && p.moveCamera[1] && (!top || top.wy > p.wy)) top = p;
+    const vfollow = this.verticalFollow;
+    const oldTy = this.camYTarget;
+    if (left && right && top) {
+      // Vertical target (verticalfollow >= 0; the zoom variant is not ported).
+      if (vfollow >= 0) this.camYTarget = f(vfollow * f(this.floorTension * k + top.wy * k));
+    }
     if (left && right) {
       const xl = f(left.wx * k - f(edge(left, -1)));
       const xr = f(edge(right, 1) + right.wx * k);
@@ -980,8 +989,48 @@ export class World {
     }
     if (ll > e.l) e.l = ll;
     if (rl < e.r) e.r = rl;
+    this.stepCameraY(oldTy);
     this.camera.x = f((e.l + e.r) * 0.5) / k;
     this.camTarget = ((e.lt + e.rt) * 0.5) / k;
+  }
+
+  /** Camera_Update's vertical target and offset (internal units, floats). */
+  camYTarget = 0;
+  camOffsetY = 0;
+
+  /**
+   * Camera_Update, vertical (verticalfollow >= 0): a target that jumps more
+   * than 1 moves 15% of the way; the offset follows by 0.5 per 320 pixels,
+   * faster (verticalfollow / 10 of the rest) when far; boundhigh / boundlow.
+   */
+  private stepCameraY(oldTy: number): void {
+    const f = Math.fround;
+    const k = this.gameWidth / this.screenWidth;
+    const vfollow = this.verticalFollow;
+    if (this.roundState !== 0 && vfollow >= 0 && f(Math.abs(this.camYTarget - oldTy)) > 1) this.camYTarget = f(oldTy * 0.85 + this.camYTarget * 0.15);
+    const wf2 = f(Math.trunc(this.gameWidth));
+    const hw = f((0.5 * wf2) / 320);
+    const m = f((wf2 * 5) / 320);
+    const cy = this.camOffsetY;
+    const ty = this.camYTarget;
+    if (vfollow >= 0) {
+      if (ty > cy) {
+        const n = f(hw + cy);
+        this.camOffsetY = n;
+        if (ty - m > n) this.camOffsetY = f(n + (vfollow * (ty - n)) / 10);
+        if (this.camOffsetY >= ty - hw) this.camOffsetY = ty;
+      } else if (ty < cy) {
+        const n = f(cy - hw);
+        this.camOffsetY = n;
+        if (m + ty < n) this.camOffsetY = f(n - (vfollow * (n - ty)) / 10);
+        if (this.camOffsetY <= ty + hw) this.camOffsetY = ty;
+      }
+    }
+    const lo = f(this.boundLow * k);
+    const hi = f(this.boundHigh * k);
+    if (lo < this.camOffsetY) this.camOffsetY = lo;
+    if (hi > this.camOffsetY) this.camOffsetY = hi;
+    this.camera.y = this.camOffsetY / k;
   }
 
   /**
@@ -990,13 +1039,8 @@ export class World {
    */
   private updateCamera(): void {
     this.stepCameraX();
-    const vs = this.players.filter((p) => p.moveCamera[1] || p.moveCamera[0]);
-    if (vs.length) {
-      const highest = Math.min(...vs.map((p) => p.wy));
-      const target = highest < -this.floorTension ? (highest + this.floorTension) * this.verticalFollow : 0;
-      this.camera.y = Math.max(this.boundHigh, Math.min(this.boundLow, target));
-    }
   }
+
 
   /** Camera_UpdateZoom (camera.c 0x4157b0), in internal units and float precision. */
   private updateZoom(): void {

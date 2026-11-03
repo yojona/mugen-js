@@ -390,6 +390,9 @@ export class Match {
     w.fightTime = 0;
     w.camera.x = 0;
     w.camTarget = undefined;
+    // Camera_Reset: the vertical offset and target back at the start (0).
+    w.camera.y = 0;
+    w.camYTarget = w.camOffsetY = 0;
     // Camera_Reset: the edges back at the start position; camera_mode 0.
     w.camEdges = undefined;
     w.cameraMode = 0;
