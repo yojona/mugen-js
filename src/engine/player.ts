@@ -540,7 +540,8 @@ export class Player {
     // Player_HitByAllows: both masks and the HitDef's attr must share a
     // state bit and an attack bit.
     let m = hitDefAttrBits(hd.attrState, hd.attrType);
-    for (const slot of this.hitBy) if (slot && slot.time > 0) m &= slot.mask;
+    // A negative time never runs out (only 0 resets the mask).
+    for (const slot of this.hitBy) if (slot && slot.time !== 0) m &= slot.mask;
     return (m & 7) === 0 || (m & ~7) === 0;
   }
 
