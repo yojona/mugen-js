@@ -5,3 +5,4 @@ ref/
 .DS_Store
 .vitest/
 tools/harness/work/
+tools/harness/overlay/data/
