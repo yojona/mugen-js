@@ -188,7 +188,7 @@ export class World {
     // checks the pause menu; measured: AI state time keeps counting).
     {
       postResolvedMessages(this.players);
-      for (const p of this.players) p.ai?.tick(this.aiRoundFight);
+      for (const p of this.players) p.ai?.tick(process.env.AIEXP ? this.roundState === 2 : this.aiRoundFight);
       for (const p of this.players) if (p.ai) p.ai.msgs.length = 0;
     }
     // Automatic turn, after the AI and before input processing (mugen.exe
@@ -223,7 +223,7 @@ export class World {
     // Attacking players update first (measured: an opponent's P2Dist already
     // sees an attacking P2's movement of this tick).
     const order = [...active.filter((p) => p.moveType === 'a'), ...active.filter((p) => p.moveType !== 'a')];
-    for (const p of order) {
+    const update = (p: Player) => {
       p.changedStateThisTick = false;
       // A bound player is moved at the start of its own update (mugen.exe
       // 0x43c480 -> 0x4349b0; measured: a thrown P2 already shows the
@@ -242,6 +242,19 @@ export class World {
       // MUGEN moves the camera after every player's physics, then once more
       // at the end of the tick (mugen.exe 0x43d43a / 0x413d95).
       this.stepCameraX();
+    };
+    const updated = new Set<Player>(order);
+    for (const p of order) update(p);
+    // Helpers created during the updates are updated in the same tick, again
+    // until no more appear (round.c: the player_tick[64] loop).
+    for (;;) {
+      const fresh = this.helpers.filter((h) => !updated.has(h) && !h.destroyed);
+      if (!fresh.length) break;
+      for (const h of fresh) {
+        updated.add(h);
+        active.push(h);
+        update(h);
+      }
     }
     applyHits(detectHits(active));
     if (!this.superPause && !this.pause) {
