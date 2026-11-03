@@ -994,9 +994,10 @@ export class Player {
     // The corner push waits out a SuperPause (mugen.exe: pause_kind != 1,
     // from the frame after the one that starts it).
     if (this.cornerPushVel && !(this.world.superPause && !this.world.superPause.fresh)) {
-      this.pos.x = this.pos.x + this.cornerPushVel * this.facing;
+      this.pos.x = this.pos.x + this.cornerPushVel;
       this.cornerPushVel *= 0.7;
-      if (Math.abs(this.cornerPushVel) < 0.5) this.cornerPushVel = 0;
+      // push_min_speed: 1 internal unit.
+      if (Math.abs(this.cornerPushVel) * (this.world.gameWidth / this.world.screenWidth) * this.scale < 1) this.cornerPushVel = 0;
     }
     if (!this.posFreeze) {
       this.pos.x = this.pos.x + this.vel.x * this.facing;
