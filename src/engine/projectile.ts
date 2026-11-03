@@ -94,20 +94,19 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
     const postype = (c.params.get('postype') ?? 'p1').trim().toLowerCase();
     let x = p.wx + off[0] * p.facing;
     let y = p.wy + off[1];
-    const left = w.camera.x - w.screenWidth / 2;
-    const right = w.camera.x + w.screenWidth / 2;
     if (postype === 'p2') {
       const e = w.enemyOf(p);
       if (e) {
         x = e.wx + off[0] * p.facing;
         y = e.wy + off[1];
       }
-    } else if (postype === 'front') x = (p.facing > 0 ? right : left) + off[0] * p.facing;
-    else if (postype === 'back') x = (p.facing > 0 ? left : right) + off[0] * p.facing;
-    else if (postype === 'left') x = left + off[0] * p.facing;
-    else if (postype === 'right') x = right + off[0] * p.facing;
-    // Projectile_Fire: the screen-edge postypes start at y = 0.
-    if (postype === 'front' || postype === 'back' || postype === 'left' || postype === 'right') y = off[1];
+    } else if (postype === 'front' || postype === 'back' || postype === 'left' || postype === 'right') {
+      // Projectile_Fire takes only Player_GetPosOrigin's x and y, not its
+      // edge offset: the screen-edge postypes start at the camera centre, at
+      // y = 0 (measured: probepos fires at x = camera + offset).
+      x = w.camera.x + off[0] * p.facing;
+      y = off[1];
+    }
     const hitAnim = int(p, 'projhitanim') ?? -1;
     const doScale = p.const('size.proj.doscale') !== 0;
     const ps = pair(p, 'projscale', [1, 1]);
