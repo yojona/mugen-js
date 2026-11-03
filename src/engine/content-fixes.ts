@@ -26,6 +26,8 @@ export function withContentFixes(src: FileSource, fixes: Fix[] = CONTENT_FIXES):
   const byPath = new Map(fixes.map((f) => [f.path.toLowerCase(), f]));
   return {
     list: () => src.list(),
+    // Fixed files are text read whole; ranges are for binary files.
+    readRange: src.readRange?.bind(src),
     async read(path) {
       const bytes = await src.read(path);
       const fix = byPath.get(path.toLowerCase());
