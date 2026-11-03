@@ -98,9 +98,9 @@ const rosterChars: RosterChar[] = roster.chars.map((entry) => ({
   defPath: entry.def === 'randomselect' || !entry.def ? undefined : charDefPath(vfs, entry.def),
 }));
 let busy = false;
-// The portraits load from the title screen on; the select screen waits for
-// all of them (like mugen.exe, it never shows a half-filled grid).
-const portraitsReady: Promise<unknown> = (() => {
+// mugen.exe loads every character's def and portraits before the title
+// (gameflow state 2, Select_Init, after the logo storyboard).
+await (() => {
   let next = 0;
   let done = 0;
   const work = rosterChars.filter((c) => c.defPath);
@@ -111,8 +111,7 @@ const portraitsReady: Promise<unknown> = (() => {
         console.warn(`${c.defPath}: ${e}`);
         return undefined;
       });
-      done++;
-      if (busy) setStatus(`Cargando retratos… ${done}/${work.length}`);
+      setStatus(`Cargando personajes… ${++done}/${work.length}`);
     }
   };
   return Promise.all(Array.from({ length: 8 }, worker));
@@ -222,7 +221,6 @@ async function storyboard(path: string | undefined, ...bases: string[]): Promise
 /** Run one mode to completion, returning to the title. */
 async function runMode(mode: GameMode): Promise<void> {
   for (;;) {
-    await loading(() => portraitsReady);
     const sel = await until<SelectResult>(new SelectScreen(ctx, mode, rosterChars, stages));
     if (sel.cancelled) return;
     if (mode === 'arcade') {
