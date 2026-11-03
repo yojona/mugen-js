@@ -199,6 +199,9 @@ function applyReversal(r: Player, a: Player): void {
   a.hitDefActive = false;
   a.hitDefSet = false;
   r.moveContact = r.moveHit = 1;
+  // Player_Reverse: the reverser counts the hits and gets its power.
+  r.hitCount += rv.hd.numHits;
+  r.addPower(rv.hd.getPower[0]);
   // hitpause_next on both sides: the pause starts counting next tick.
   r.hitPause = rv.hd.pause[0];
   a.hitPause = rv.hd.pause[1];
