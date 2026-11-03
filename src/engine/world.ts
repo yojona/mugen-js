@@ -739,7 +739,8 @@ export class World {
     const rl = f(this.boundRight * k + hz);
     let l = e.lt;
     let r = e.rt;
-    const ps = this.players.filter((p) => p.moveCamera[0]);
+    // Every active player slot, helpers with movecamera included.
+    const ps = this.allPlayers().filter((p) => !p.destroyed && p.moveCamera[0]);
     const edge = (p: Player, side: number) => {
       const w = p.bodyWidth(p.facing === side ? 'front' : 'back', 'edge') * p.scale * k;
       return Math.trunc(Math.floor(f(w) + 0.5));
