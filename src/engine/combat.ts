@@ -384,6 +384,9 @@ function cancel(pr: Projectile): void {
 
 function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): void {
   const world = a.world;
+  // Player_Hit: a HitOverride matching a HitDef with p1stateno or
+  // p2getp1state (a throw) makes the hit do nothing at all.
+  if (!proj && (hd.p1StateNo >= 0 || hd.p2GetP1State) && d.hitOverrides.some((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType))) return;
   a.targets.set(d, hd.id);
   // Player_AddTarget: a new entry starts with the attacker's airjuggle.
   if (!a.targetJuggle.has(d)) a.targetJuggle.set(d, a.const('data.airjuggle'));
@@ -501,7 +504,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     const killsNow = d.life - (d.pendingDamage?.amount ?? 0) <= 0 && !d.isHelper;
     if (d.stateType === 'c' && (hd.forceStand || killsNow)) d.stateType = 's';
     const wasFalling = d.moveType === 'h' && g.fall !== 0;
-    const override = d.hitOverrides.find((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType) && hd.p1StateNo < 0 && !(hd.p2StateNo >= 0 && hd.p2GetP1State));
+    const override = d.hitOverrides.find((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType));
     // HitDef_Apply: lying on the floor takes the down.* values (5080); lying
     // above it counts as in the air.
     const lying = d.stateType === 'l' && d.wy === 0 && !override?.forceAir;
