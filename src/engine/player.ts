@@ -419,11 +419,6 @@ export class Player {
     // Entered from outside controller processing (landing, being hit): the new
     // state's controllers first run next tick, still at Time = 0.
     if (!this.inStates) this.freshState = true;
-    // The get-up count starts with a falling hit and again on hitting the
-    // ground (5100); 5110 counts it down after its states (engineHitTransitions).
-    if (no === 5100) {
-      this.ghv.recovertime = this.const('data.liedown.time');
-    }
     this.stateChanged = true;
     this.changedStateThisTick = true;
     this.pendingStateType = undefined;
@@ -985,9 +980,21 @@ export class Player {
     // out of a hit (so a DefenceMulSet in -2 only counts while being hit) and
     // in the guard states; falls multiply it by fall.defence_mul.
     const st = this.stateNo;
+    const g = this.ghv;
+    if (this.moveType !== 'h') {
+      // Out of a hit: the get-up count and the fall count start over.
+      g.recovertime = this.const('data.liedown.time');
+      g.fallcount = 0;
+    }
     if (this.moveType !== 'h' || (st >= 130 && st <= 132) || st === 140) this.defMul = undefined;
     if (this.time === 0) {
-      if (st === 5070 || st === 5100) this.defMul = Math.fround(Math.fround(this.const('data.fall.defence_mul')) * this.defenceFactor);
+      // Tripped (5070) or hitting the ground (5100): one more fall; a second
+      // landing halves the get-up count.
+      if (st === 5100 && g.fallcount > 0) g.recovertime >>= 1;
+      if (st === 5070 || st === 5100) {
+        g.fallcount++;
+        this.defMul = Math.fround(Math.fround(this.const('data.fall.defence_mul')) * this.defenceFactor);
+      }
       if (st === 5120 || st === 5200 || st === 5210) this.defMul = undefined;
     }
     if (this.ghv.hitshaketime > 1 && this.moveType === 'h') return;
