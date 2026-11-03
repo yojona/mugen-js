@@ -132,12 +132,16 @@ const AXIS: Record<string, (p: P, axis: 'x' | 'y' | 'z') => number | undefined> 
     const e = p.world.enemyOf(p);
     if (!e) return undefined;
     if (a !== 'x') return a === 'y' ? (e.wy - p.wy) / p.scale : 0;
-    const dx = ((e.wx - p.wx) * p.facing) / p.scale;
-    const front = p.stateType === 'a' ? p.const('size.air.front') : p.const('size.ground.front');
-    const eFacesUs = e.facing !== p.facing;
-    const eBack = e.stateType === 'a' ? (eFacesUs ? e.const('size.air.front') : e.const('size.air.back')) : eFacesUs ? e.const('size.ground.front') : e.const('size.ground.back');
-    // The opponent's width is in its own units.
-    return dx - front - (eBack * e.scale) / p.scale;
+    // Player_BodyDistX (0x4346xx): from p's front edge to the opponent's
+    // front edge when p is in front of it, else (level included) its back edge.
+    const f = Math.fround;
+    const front = f((p.stateType === 'a' ? p.const('size.air.front') : p.const('size.ground.front')) * p.scale * p.facing + p.wx);
+    const side = f((p.wx - e.wx) * e.facing);
+    const eEdge =
+      side > 0
+        ? f((e.stateType === 'a' ? e.const('size.air.front') : e.const('size.ground.front')) * e.scale * e.facing + e.wx)
+        : f(e.wx - (e.stateType === 'a' ? e.const('size.air.back') : e.const('size.ground.back')) * e.scale * e.facing);
+    return f((eEdge - front) * p.facing) / p.scale;
   },
   parentdist: (p, a) => (p.parent ? (a === 'x' ? ((p.parent.wx - p.wx) * p.facing) / p.scale : a === 'y' ? (p.parent.wy - p.wy) / p.scale : 0) : undefined),
   rootdist: (p, a) => (p.isHelper ? (a === 'x' ? ((p.root.wx - p.wx) * p.facing) / p.scale : a === 'y' ? (p.root.wy - p.wy) / p.scale : 0) : undefined),
