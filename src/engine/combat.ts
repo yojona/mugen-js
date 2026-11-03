@@ -748,7 +748,9 @@ function cornerPush(a: Player, d: Player, veloff: number): void {
   // pause, decaying by 0.7 per tick (measured: 14.3, 10.01, 7.007, ... with
   // vel x staying 0).
   // Player_CornerPush: push_vel = cornerpush * facing, kept in world space.
-  a.cornerPushVel = veloff * a.facing;
+  // gethit_cornerpush is a float in internal units.
+  const ku = a.scale * (w.gameWidth / w.screenWidth);
+  a.cornerPushVel = (Math.fround(veloff * ku) / ku) * a.facing;
 }
 
 /**

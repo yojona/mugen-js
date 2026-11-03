@@ -1088,7 +1088,8 @@ export class Player {
     // from the frame after the one that starts it).
     if (this.cornerPushVel && !(this.world.superPause && !this.world.superPause.fresh)) {
       this.pos.x = this.pos.x + this.cornerPushVel;
-      this.cornerPushVel *= 0.7;
+      // push_decay_x is the float 0.7f.
+      this.cornerPushVel *= Math.fround(0.7);
       // push_min_speed: 1 internal unit.
       if (Math.abs(this.cornerPushVel) * (this.world.gameWidth / this.world.screenWidth) * this.scale < 1) this.cornerPushVel = 0;
     }

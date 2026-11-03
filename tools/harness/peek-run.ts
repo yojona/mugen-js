@@ -23,6 +23,8 @@ export interface PeekOptions {
   seed: number;
   ai?: [number, number];
   stage?: string;
+  /** Full precision positions (not 4 decimals). */
+  exact?: boolean;
 }
 
 export const REF_DIR = join(import.meta.dirname, '..', '..', 'ref', 'mugen-1.1b1');
@@ -49,7 +51,7 @@ export async function peekMatch(o: PeekOptions): Promise<string[]> {
   ]);
   w.seed = o.seed;
   const lines: string[] = [];
-  const f = (x: number) => x.toFixed(4);
+  const f = (x: number) => (o.exact ? String(x) : x.toFixed(4));
   for (let i = 1; i <= o.frames; i++) {
     if (m.tick()) w.tick([0, 0]);
     const pl = [p1, p2].flatMap((p) => [p.stateNo, p.time, p.life, f(p.pos.x), f(p.pos.y), f(p.vel.x * p.facing), f(p.vel.y)]);
