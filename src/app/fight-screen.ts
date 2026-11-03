@@ -141,11 +141,12 @@ export class FightScreen implements Screen {
     const m = this.match;
     const w = this.world;
     const inputs = w.players.map((p) => (p.pad !== undefined ? (this.ctx.keys.pads[p.pad]?.bits ?? 0) : 0));
-    if (m.tick()) {
+    const simulated = m.tick();
+    if (simulated) {
       w.tick(inputs);
       if (!w.superPause && !w.pause) this.bg.tick();
     }
-    this.s.hud.tick(m);
+    this.s.hud.tick(m, simulated);
     for (const [g, n] of m.sounds) this.ctx.mixer.play(this.s.hud.snd?.get(g, n));
     this.ctx.mixer.run(w.sounds, (owner, g, n) => (owner ? owner.prog.data.snd : this.s.commonSnd)?.get(g, n));
     w.sounds.length = 0;
