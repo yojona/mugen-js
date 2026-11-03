@@ -99,6 +99,8 @@ export interface MatchOptions {
   team1vs2Life?: number;
   /** [Options] Team.LoseOnKO: a CPU simul partner's KO counts. */
   loseOnKo?: boolean;
+  /** Quick VS (command line): no life multiplier between unequal teams. */
+  quickVs?: boolean;
 }
 
 /** TeamSel: a side's members and round rules (Match_Start). */
@@ -257,7 +259,7 @@ export class Match {
       weak = 1;
       q = f(1 / q);
     }
-    this.teams[weak]!.lifeMul = f(1 / q);
+    this.teams[weak]!.lifeMul = this.opts.quickVs ? 1 : f(1 / q);
     for (const p of this.players) p.power = 0;
   }
 
