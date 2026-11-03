@@ -78,6 +78,49 @@ export interface StartPos {
   facing: number;
 }
 
+export type TeamMode = 'single' | 'simul' | 'turns';
+
+/** One side of a match (Charsel: single, simul pair or turns order). */
+export interface TeamPlan {
+  mode: TeamMode;
+  /** Characters: 1 single, 2 simul, the turns order's length. */
+  count: number;
+  /** Create the player of turns member `member`, or simul slot `k`. */
+  spawn(member: number, k: number): Player;
+  /** Simul: the slot is played by the CPU (a CPU partner of a human does not lose the round by its KO). */
+  ai?: boolean[];
+}
+
+export interface MatchOptions {
+  teams?: [TeamPlan, TeamPlan];
+  /** [Options] Life, in percent. */
+  life?: number;
+  /** [Options] Team.1VS2Life (life of a lone player against a simul pair, in percent). */
+  team1vs2Life?: number;
+  /** [Options] Team.LoseOnKO: a CPU simul partner's KO counts. */
+  loseOnKo?: boolean;
+}
+
+/** TeamSel: a side's members and round rules (Match_Start). */
+interface TeamState {
+  plan: TeamPlan | undefined;
+  mode: TeamMode;
+  /** Members (turns order length; 1 for single and simul). */
+  memberCount: number;
+  /** Characters on the screen at once (2 for simul). */
+  slots: number;
+  cur: number;
+  lifeMul: number;
+  winsNeeded: number;
+  drawsMax: number;
+  lifeReset: boolean;
+  recoveryBase: number;
+  recoveryRate: number;
+  recoveryWeight: number;
+  /** Mean life / life max of the members at the round start. */
+  lifeRatio: number;
+}
+
 export class Match {
   round = 1;
   wins: [number, number] = [0, 0];
@@ -121,15 +164,116 @@ export class Match {
 
   private frameNo = 0;
 
+  private teams: [TeamState, TeamState];
+  /** The side that won the round (null: draw), valid from the KO / time over. */
+  private roundWinnerSide: number | null = null;
+  /** round_ticks: fight ticks of the round (turns life recovery). */
+  private roundTicks = 0;
+
   constructor(
     readonly world: World,
     readonly cfg: RoundConfig,
-    readonly starts: [StartPos, StartPos],
+    readonly starts: StartPos[],
+    readonly opts: MatchOptions = {},
   ) {
     world.framesDriven = true;
     world.overHitTime = cfg.overHitTime;
     this.clock = cfg.roundSeconds < 0 ? -1 : (cfg.roundSeconds + 1) * cfg.framesPerCount - 1;
+    const mk = (t: number): TeamState => {
+      const plan = opts.teams?.[t];
+      const mode = plan?.mode ?? 'single';
+      return {
+        plan,
+        mode,
+        memberCount: mode === 'turns' ? plan!.count : 1,
+        slots: mode === 'simul' ? Math.min(2, plan!.count) : 1,
+        cur: 0,
+        lifeMul: 1,
+        winsNeeded: cfg.matchWins,
+        drawsMax: cfg.maxDrawGames,
+        lifeReset: true,
+        recoveryBase: 0,
+        recoveryRate: 0,
+        recoveryWeight: 0,
+        lifeRatio: 0,
+      };
+    };
+    this.teams = [mk(0), mk(1)];
+    if (opts.teams) {
+      world.players.length = 0;
+      for (let t = 0; t < 2; t++) this.loadMember(t);
+    }
+    world.teamModes = [this.teams[0].mode, this.teams[1].mode];
+    this.matchStart();
     this.startRound();
+  }
+
+  /**
+   * Team_ReloadMember / Team_CreatePlayers: the current member's players in
+   * their slots (P1/P3 for side 0, P2/P4 for side 1), the power carried over
+   * from the member it replaces; a simul partner shares the leader's power.
+   */
+  private loadMember(t: number): void {
+    const ts = this.teams[t]!;
+    const plan = ts.plan!;
+    const w = this.world;
+    const old = w.players.filter((p) => p.side === t);
+    const power = old[0]?.power;
+    w.players = w.players.filter((p) => p.side !== t);
+    const made: Player[] = [];
+    for (let k = 0; k < ts.slots; k++) {
+      const p = plan.spawn(ts.mode === 'turns' ? ts.cur : 0, k);
+      p.slotNoSet = t + 1 + 2 * k;
+      if (k > 0) p.powerLeader = made[0];
+      made.push(p);
+    }
+    if (power !== undefined) made[0]!.power = power;
+    w.players.push(...made);
+    w.players.sort((a, b) => a.slotNo - b.slotNo);
+  }
+
+  /** Match_Start: wins needed, draws, life multipliers between unequal teams, turns life recovery. */
+  private matchStart(): void {
+    const [a, b] = this.teams;
+    if (a.memberCount >= 2 || b.memberCount >= 2) {
+      for (const [x, y] of [[a, b], [b, a]] as const) {
+        x.recoveryRate = 275;
+        x.recoveryBase = 125;
+        x.recoveryWeight = 0.6;
+        x.lifeReset = false;
+        if (y.memberCount >= 2) x.winsNeeded = y.memberCount;
+        x.drawsMax = 0;
+      }
+    }
+    const f = Math.fround;
+    const strength = (x: TeamState) => {
+      let r = f(x.slots / x.winsNeeded);
+      if (x.mode === 'simul') r = f(((this.opts.team1vs2Life ?? 150) * r) / 200);
+      return r;
+    };
+    let q = f(strength(a) / strength(b));
+    let weak = 0;
+    if (q < 1) {
+      weak = 1;
+      q = f(1 / q);
+    }
+    this.teams[weak]!.lifeMul = f(1 / q);
+    for (const p of this.players) p.power = 0;
+  }
+
+  /** The players of a side, in slot order. */
+  private side(t: number): Player[] {
+    return this.players.filter((p) => p.side === t);
+  }
+
+  /** Team_ResetLife: life max from the team's multiplier and [Options] Life; life clamped (or set, forced). */
+  private resetLife(t: number, force: boolean): void {
+    const ts = this.teams[t]!;
+    for (const p of this.side(t)) {
+      const life = Math.trunc(p.const('data.life') * ts.lifeMul * ((this.opts.life ?? 100) / 100) + 0.5);
+      p.lifeMax = life;
+      if (p.life > life || force) p.life = life;
+    }
   }
 
   get players(): Player[] {
@@ -143,12 +287,14 @@ export class Match {
 
   private startRound(): void {
     const w = this.world;
-    this.players.forEach((p, i) => {
-      const s = this.starts[i]!;
+    const first = this.round === 1;
+    this.players.forEach((p) => {
+      const s = this.starts[p.slotNo - 1] ?? this.starts[p.side]!;
       p.setWorldPos(s.x, s.y);
       p.vel.x = p.vel.y = 0;
       p.facing = s.facing;
-      p.life = p.const('data.life');
+      // Round_Reset: life back to full, unless the team keeps it (turns).
+      if (first || this.teams[p.side]!.lifeReset) p.life = p.lifeMax;
       p.alive = true;
       p.ctrl = false;
       p.returnToOwnStates();
@@ -193,6 +339,12 @@ export class Match {
       else p.changeState(this.round === 1 && p.compiledState(190) ? 190 : 0);
       p.ctrl = false;
     });
+    for (let t = 0; t < 2; t++) this.resetLife(t, false);
+    for (const ts of this.teams) {
+      const ps = this.side(this.teams.indexOf(ts));
+      ts.lifeRatio = ps.length ? ps.reduce((a, p) => Math.fround(a + p.life / p.lifeMax), 0) / ps.length : 0;
+    }
+    this.roundTicks = 0;
     w.explods = [];
     w.resetRoundFx();
     w.projectiles = [];
@@ -303,18 +455,21 @@ export class Match {
           this.clock--;
           timeUp = this.clock === 0 && this.phaseTime > c.ctrlTime;
         }
-        // KO: players their own update found out of life (p->alive).
-        const dead = this.players.filter((p) => !p.alive);
+        // KO: a team whose every member is out of life (p->alive).
+        const ko = this.teamKo();
+        const koSides = (ko[0] === 1 ? 1 : 0) + (ko[1] === 1 ? 1 : 0);
         // Not before ctrl.time, nor with AssertSpecial noko.
         const noKo = this.players.some((p) => p.special.has('noko')) || w.helpers.some((h) => h.special.has('noko'));
-        if ((dead.length || timeUp) && this.phaseTime > c.ctrlTime && !noKo) {
-          if (dead.length === 2) this.announce = { kind: 'dko', age: 0 };
-          else if (dead.length) this.announce = { kind: 'ko', age: 0 };
+        if (!koSides && !timeUp) this.roundTicks++;
+        if ((koSides || timeUp) && this.phaseTime > c.ctrlTime && !noKo) {
+          if (koSides === 2) this.announce = { kind: 'dko', age: 0 };
+          else if (koSides) this.announce = { kind: 'ko', age: 0 };
           else this.announce = { kind: 'to', age: 0 };
-          this.sounds.push([2, dead.length === 2 ? 1 : dead.length ? 0 : 2]);
-          this.roundWinner = this.decideWinner();
-          w.winType = dead.length ? 1 : 2;
-          w.roundWinnerSide = this.roundWinner ? this.roundWinner.side + 1 : 0;
+          this.sounds.push([2, koSides === 2 ? 1 : koSides ? 0 : 2]);
+          this.roundWinnerSide = koSides === 2 ? null : ko[1] === 1 ? 0 : ko[0] === 1 ? 1 : this.decideWinner();
+          this.roundWinner = this.roundWinnerSide === null ? null : (this.leader(this.roundWinnerSide) ?? null);
+          w.winType = koSides ? 1 : 2;
+          w.roundWinnerSide = this.roundWinnerSide === null ? 0 : this.roundWinnerSide + 1;
           for (const p of this.players) if (p.life <= 0) p.alive = false;
           w.roundState = 3;
           // G+0x12760 restarts at 0 and still counts the KO tick.
@@ -386,10 +541,11 @@ export class Match {
         // At over.wintime the winners go to their win pose, the losers still
         // standing to 170, everyone to 175 on a draw (Round_RunState case 4).
         if (this.phaseTime === c.overWinTime) {
+          const ws = this.roundWinnerSide;
           for (const p of this.players) {
+            if (ws === p.side) p.noInputStates = false;
             if (!p.alive) continue;
-            if (p === this.roundWinner) p.noInputStates = false;
-            const no = !this.roundWinner ? 175 : p === this.roundWinner ? 180 : 170;
+            const no = ws === null ? 175 : ws === p.side ? 180 : 170;
             if (p.compiledState(no)) p.changeState(no);
           }
           this.scoreRound();
@@ -418,6 +574,7 @@ export class Match {
             // last RoundState 4 tick and 5900).
             this.round++;
             for (const p of this.players) p.roundsExisted++;
+            this.nextMembers();
             this.startRound();
             this.phaseTime = -1;
             return false;
@@ -433,6 +590,7 @@ export class Match {
           this.wins = [0, 0];
           this.draws = 0;
           this.matchOver = false;
+          this.roundWinnerSide = null;
           this.startRound();
         }
         break;
@@ -446,33 +604,92 @@ export class Match {
     this.phaseTime = -1;
   }
 
-  private decideWinner(): Player | null {
-    const [a, b] = this.players;
-    if (!a || !b) return null;
-    // Round_RunState: each side's life in 1/1000 of its maximum, plus 1 alive.
-    const score = (p: Player) => Math.trunc((p.life * 1000) / p.const('data.life')) + (p.alive ? 1 : 0);
-    const sa = score(a);
-    const sb = score(b);
-    if (sa === sb) return null;
-    return sa > sb ? a : b;
+  /** The side's leader on the screen (P1 / P2, the current turns member). */
+  leader(side: number): Player | undefined {
+    return this.side(side)[0];
+  }
+
+  /**
+   * Round_RunState: per side 1 when every member is out of life, 0 when
+   * someone stands, -1 without members. A CPU simul partner of a human does
+   * not count (unless Team.LoseOnKO).
+   */
+  private teamKo(): [number, number] {
+    const ko: [number, number] = [-1, -1];
+    for (let t = 0; t < 2; t++) {
+      const ts = this.teams[t]!;
+      this.side(t).forEach((p, k) => {
+        if (ko[t] === -1) ko[t] = 1;
+        const ai = ts.plan?.ai;
+        if (ts.mode === 'simul' && k >= 1 && !this.opts.loseOnKo && ai?.[k] && !ai[k - 1]) return;
+        if (p.alive) ko[t] = 0;
+      });
+    }
+    return ko;
+  }
+
+  /** Time over: the side with more mean life (in 1/1000, plus 1 standing) wins; null on a tie. */
+  private decideWinner(): number | null {
+    const score = (t: number) => {
+      const ps = this.side(t);
+      if (!ps.length) return 0;
+      const sum = ps.reduce((a, p) => a + Math.trunc((p.life * 1000) / p.lifeMax) + (p.alive ? 1 : 0), 0);
+      return Math.trunc(sum / ps.length);
+    };
+    const sa = score(0);
+    const sb = score(1);
+    return sa === sb ? null : sa > sb ? 0 : 1;
+  }
+
+  /** Match_CheckOver: 0 not over, 1 / 2 the winning side (both: side 1). */
+  private checkOver(): number {
+    const r = this.wins[0]! >= this.teams[0].winsNeeded ? 1 : 0;
+    if (this.wins[1]! < this.teams[1].winsNeeded) return r;
+    return r === 0 ? 2 : 1;
+  }
+
+  /** Team_LifeRecovery: life a turns member gets back after winning a round, in 1/1000. */
+  private lifeRecovery(t: number): number {
+    const ts = this.teams[t]!;
+    const other = this.teams[1 - t]!;
+    const f = Math.fround;
+    let left = f((100 - this.roundTicks / this.cfg.framesPerCount) / 100);
+    if (left < 0) left = 0;
+    const m = other.lifeRatio * ts.recoveryWeight + (1 - ts.recoveryWeight);
+    const rate = f(ts.recoveryRate * left);
+    return Math.trunc(m * rate + ts.recoveryBase);
   }
 
   private scoreRound(): void {
-    const w = this.roundWinner;
-    if (!w) {
-      // A draw past match.maxdrawgames gives both sides a round win.
+    const ws = this.roundWinnerSide;
+    if (ws === null) {
+      // A draw past a side's maximum draws gives it a round win.
       this.draws++;
-      if (this.draws > this.cfg.maxDrawGames) {
-        this.wins[0]!++;
-        this.wins[1]!++;
-      }
-    } else this.wins[w.side]!++;
-    // Match_CheckOver: over once a side has match.wins; both at once: side 1.
-    const w0 = this.wins[0]! >= this.cfg.matchWins;
-    const w1 = this.wins[1]! >= this.cfg.matchWins;
-    if (w0 || w1) {
+      if (this.draws > this.teams[0].drawsMax) this.wins[0]!++;
+      if (this.draws > this.teams[1].drawsMax) this.wins[1]!++;
+    } else this.wins[ws]!++;
+    const over = this.checkOver();
+    if (ws !== null && over === 0) {
+      // Turns: the winners recover some life.
+      const rec = this.lifeRecovery(ws);
+      for (const p of this.side(ws)) p.life = Math.max(0, Math.min(p.lifeMax, Math.trunc((rec * p.lifeMax) / 1000) + p.life));
+    }
+    if (over) {
       this.matchOver = true;
-      this.winner = this.players[w0 ? 0 : 1] ?? null;
+      this.winner = this.leader(over - 1) ?? null;
+    }
+  }
+
+  /** Match_NextRound: a losing turns team sends in its next member, at full life. */
+  private nextMembers(): void {
+    for (let t = 0; t < 2; t++) {
+      if (this.roundWinnerSide === t) continue;
+      const ts = this.teams[t]!;
+      if (ts.plan && ts.cur + 1 < ts.memberCount) {
+        ts.cur++;
+        this.loadMember(t);
+      }
+      this.resetLife(t, true);
     }
   }
 }
