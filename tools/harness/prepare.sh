@@ -6,7 +6,16 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 REF="$HERE/../../ref/mugen-1.1b1"
 WORK="$HERE/work/mugen"
 rm -rf "$HERE/work" && mkdir -p "$WORK" "$HERE/work/out"
-cp -R "$REF/." "$WORK/"
+# Everything but chars/, then only the characters this run uses (the pack is big).
+for f in "$REF"/* "$REF"/.[!.]*; do
+  [ -e "$f" ] || continue
+  [ "$(basename "$f")" = chars ] && continue
+  cp -R "$f" "$WORK/"
+done
+mkdir -p "$WORK/chars"
+for c in kfm kfm720 ${P1:-} ${P2:-} ${P3:-} ${P4:-}; do
+  [ -d "$REF/chars/$c" ] && [ ! -d "$WORK/chars/$c" ] && cp -R "$REF/chars/$c" "$WORK/chars/"
+done
 cp -R "$HERE/overlay/." "$WORK/"
 mkdir -p "$WORK/inputs" && cp "$HERE/inputs/"*.txt "$WORK/inputs/"
 CFG="$WORK/data/mugen.cfg"
