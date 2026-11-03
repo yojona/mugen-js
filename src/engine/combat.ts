@@ -573,6 +573,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     }
     g['fall.recover'] = hd.fallRecover ? 1 : 0;
     g['fall.recovertime'] = hd.fallRecoverTime;
+    g['fall.time'] = 0;
     g['fall.kill'] = hd.fallKill ? 1 : 0;
     if (hd.fallEnvShake) {
       g['fall.envshake.time'] = hd.fallEnvShake.time;

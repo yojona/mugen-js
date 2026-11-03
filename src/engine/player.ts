@@ -1189,9 +1189,10 @@ export class Player {
     // Like the attacker's pause, the shake starts counting next tick.
     if (g.hitshaketime > 0 && !shakeFresh) g.hitshaketime--;
     if (g.hitshaketime <= 0 && !shakeFresh && g.hittime >= 0) g.hittime--;
-    // fall.recovertime also counts down during the hit shake (measured: a
-    // CPU recovers from 5050 one tick earlier than counting after it).
-    if (this.moveType === 'h' && g['fall.recovertime'] > 0) g['fall.recovertime']--;
+    // gethit_fall_time counts while falling in a hit, the hit shake
+    // included (measured: a CPU recovers from 5050 one tick earlier than
+    // counting after it).
+    if (this.moveType === 'h' && g.fall) g['fall.time']++;
     if (!fresh) {
       if (this.moveContact) this.moveContact++;
       if (this.moveHit) this.moveHit++;

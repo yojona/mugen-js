@@ -82,7 +82,7 @@ const NULLARY: Record<string, Fn<P>> = {
   hitover: int((p) => (p.ghv.hittime < 0 ? 1 : 0)),
   hitfall: int((p) => p.ghv.fall),
   hitpausetime: int((p) => p.hitPause),
-  canrecover: int((p) => (p.ghv.fall && p.ghv['fall.recover'] && p.ghv['fall.recovertime'] <= 0 ? 1 : 0)),
+  canrecover: int((p) => (p.ghv['fall.recover'] && p.ghv['fall.time'] >= p.ghv['fall.recovertime'] ? 1 : 0)),
   inguarddist: int((p) => (p.inGuardDist() ? 1 : 0)),
   projcanceltime: int((p) => projTime(p, 0, 'cancel')),
   projcontacttime: int((p) => projTime(p, 0, 'contact')),

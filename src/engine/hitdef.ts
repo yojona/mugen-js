@@ -148,6 +148,8 @@ export interface GetHitVars {
   'fall.yvel': number;
   'fall.recover': number;
   'fall.recovertime': number;
+  /** Ticks fallen (gethit_fall_time): CanRecover once it reaches fall.recovertime. */
+  'fall.time': number;
   'fall.kill': number;
   xveladd: number;
   yveladd: number;
@@ -163,7 +165,7 @@ export interface GetHitVars {
 export function emptyGetHitVars(): GetHitVars {
   return {
     type: 0, animtype: 0, airtype: 0, groundtype: 0, damage: 0, hitcount: 0, fallcount: 0, hitshaketime: 0, hittime: 0, slidetime: 0, ctrltime: 0, recovertime: 0,
-    xvel: 0, yvel: 0, yaccel: 0, chainid: 0, guarded: 0, fall: 0, 'fall.damage': 0, 'fall.xvel': 0, 'fall.yvel': 0, 'fall.recover': 1, 'fall.recovertime': 4, 'fall.kill': 1,
+    xvel: 0, yvel: 0, yaccel: 0, chainid: 0, guarded: 0, fall: 0, 'fall.damage': 0, 'fall.xvel': 0, 'fall.yvel': 0, 'fall.recover': 1, 'fall.recovertime': 4, 'fall.time': 0, 'fall.kill': 1,
     xveladd: 0, yveladd: 0, xoff: 0, yoff: 0, isbound: 0,
     'fall.envshake.time': 0, 'fall.envshake.freq': 60, 'fall.envshake.ampl': -4, 'fall.envshake.phase': 0,
   };
