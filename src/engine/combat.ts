@@ -516,12 +516,14 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     // (measured: 130 -> 150 reports prevstateno 120).
     const prev = d.prevStateNo;
     d.ctrl = false;
-    const oldVel = { x: d.vel.x, y: d.vel.y };
+    // Velocities kept in world space across a turn by the new statedef.
+    const oldFacing = d.facing;
+    const oldVel = { x: d.vel.x * oldFacing, y: d.vel.y };
     d.changeState(d.stateType === 'a' ? 154 : d.stateType === 'c' ? 152 : 150);
     // As with hits, the guard statedef's velset shows once it runs (measured: 154).
-    if (d.vel.x !== oldVel.x || d.vel.y !== oldVel.y) {
-      d.pendingVel = { x: d.vel.x, y: d.vel.y };
-      d.vel.x = oldVel.x;
+    if (d.vel.x * d.facing !== oldVel.x || d.vel.y !== oldVel.y) {
+      d.pendingVel = { x: d.vel.x * d.facing, y: d.vel.y };
+      d.vel.x = oldVel.x * d.facing;
       d.vel.y = oldVel.y;
     }
     // Guarding a hit marks the defender as guarding (mugen.exe 0x43fad3).
@@ -682,7 +684,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     {
       d.returnToOwnStates();
       const oldType = d.stateType;
-      const oldVel = { x: d.vel.x, y: d.vel.y };
+      // World-space velocity (the statedef may turn the player).
+      const oldVel = { x: d.vel.x * d.facing, y: d.vel.y };
       d.entryVelSet = false;
       // A grounded defender hit by ground.type = Trip goes to 5070 (HITTRIP);
       // by statetype only: common1's 5000/5010 switch to air themselves when yvel != 0.
@@ -709,8 +712,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
       // still shows its walk speed that tick; a TargetBind's velocity copy
       // the next tick is still reset by it).
       if (d.entryVelSet) {
-        d.pendingVel = { x: d.vel.x, y: d.vel.y };
-        d.vel.x = oldVel.x;
+        d.pendingVel = { x: d.vel.x * d.facing, y: d.vel.y };
+        d.vel.x = oldVel.x * d.facing;
         d.vel.y = oldVel.y;
       }
     }

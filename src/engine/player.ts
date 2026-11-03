@@ -466,6 +466,7 @@ export class Player {
   pendingStateType: StateType | undefined;
   pendingMoveType: MoveType | undefined;
   /** Statedef velset of a hit state, applied when the state first runs. */
+  /** A statedef velset waiting for the state to run, x in world space. */
   pendingVel: { x: number; y: number } | undefined;
   /** The last statedef applied had a velset. */
   entryVelSet = false;
@@ -819,7 +820,8 @@ export class Player {
       this.pendingMoveType = undefined;
     }
     if (this.pendingVel) {
-      this.vel.x = this.pendingVel.x;
+      // Kept in world space (a turn since does not flip it).
+      this.vel.x = this.pendingVel.x * this.facing;
       this.vel.y = this.pendingVel.y;
       this.pendingVel = undefined;
     }
