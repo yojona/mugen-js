@@ -210,6 +210,12 @@ export class Player {
   // Being hit
   ghv: GetHitVars = emptyGetHitVars();
   defenceMul = 1;
+  /**
+   * hitdef.guard_dist: reset to size.attack.dist on entering a state
+   * without hitdefpersist, set by a HitDef's guard.dist and AttackDist; it
+   * counts whenever the player is attacking (Player_InGuardDist).
+   */
+  guardDist = 0;
   /** AttackMulSet's multiplier (value * data.attack / 100); unset = data.attack / 100. */
   attackMul: number | undefined;
   /** mugen.exe's defence_mul: 100 / defence, DefenceMulSet, SuperPause p2defmul. */
@@ -292,6 +298,7 @@ export class Player {
     readonly side: number,
   ) {
     this.life = this.const('data.life');
+    this.guardDist = this.const('size.attack.dist');
     const first = prog.data.anims.get(0) ?? prog.data.anims.values().next().value;
     if (!first) throw new Error(`${prog.data.def.name}: sin animaciones`);
     this.anim = new AnimPlayer(first);
@@ -430,6 +437,7 @@ export class Player {
     const d = cs.def.params;
     const flag = (k: string) => (parseInt(d.get(k) ?? '0', 10) || 0) !== 0;
     if (!flag('hitdefpersist')) {
+      this.guardDist = this.const('size.attack.dist');
       this.hitDefActive = false;
       this.hitDefSet = false;
       this.hitTargets.clear();
@@ -897,7 +905,7 @@ export class Player {
     for (const e of this.world.allPlayers()) {
       if (e.side === this.side || e.destroyed) continue;
       if (e.moveType === 'a') {
-        const dist = e.hitDefActive && e.hitDef ? e.hitDef.guardDist : e.const('size.attack.dist');
+        const dist = e.guardDist;
         // Distance in the attacker's units.
         const dx = ((this.wx - e.wx) * e.facing) / e.scale;
         if (dx >= 0 && dist > dx) return true;

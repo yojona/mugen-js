@@ -335,7 +335,8 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
       airHitTime: ni('air.hittime') ?? 20,
       guardCtrlTime,
       airGuardCtrlTime: ni('airguard.ctrltime') ?? guardCtrlTime,
-      guardDist: ni('guard.dist') ?? p.const('size.attack.dist'),
+      // -1 = not given: a HitDef keeps the player's, a projectile never threatens.
+      guardDist: ni('guard.dist') ?? -1,
       yaccel: n('yaccel') ?? local(0.35),
       groundVel,
       minDist: [n('mindist', 0), n('mindist', 1)],

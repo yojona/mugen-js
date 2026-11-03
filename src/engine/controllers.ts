@@ -217,6 +217,9 @@ const IMPLS: Record<string, Impl> = {
     const build = compileHitDef(c, env);
     return (p) => {
       p.hitDef = build(p);
+      // guard.dist -1 keeps the previous distance (SCTRL_HITDEF).
+      if (p.hitDef.guardDist === -1) p.hitDef.guardDist = p.guardDist;
+      p.guardDist = p.hitDef.guardDist;
       // The attr's state part is the player's statetype when the HitDef runs
       // (measured: KFM's 1060 "attr = A, SA" reads back as S, SA in mugen.exe,
       // so its HitDefAttr = SC super cancel works).
@@ -260,7 +263,7 @@ const IMPLS: Record<string, Impl> = {
   },
   attackdist: (_c, prm) => (p) => {
     const v = prm.int(p, 'value');
-    if (v !== undefined && p.hitDef) p.hitDef.guardDist = v;
+    if (v !== undefined) p.guardDist = v;
   },
   hitadd: (_c, prm) => (p) => {
     const v = prm.int(p, 'value');

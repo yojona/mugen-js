@@ -178,7 +178,7 @@ export class MugenAI {
   static attackerInRange(att: Player, tgt: Player): boolean {
     if (att.moveType === 'a') {
       const dx = Math.fround((tgt.wx - att.wx) * att.facing);
-      const dist = att.hitDefActive && att.hitDef ? att.hitDef.guardDist : att.const('size.attack.dist');
+      const dist = att.guardDist;
       const lim = Math.fround(dist * att.scale);
       if (!(lim <= dx) && !(dx < 0)) return true;
     }
