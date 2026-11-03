@@ -62,15 +62,16 @@ for (let i = 1; i <= ticks; i++) {
     seeded = true;
   }
   const tr = process.env.TRACE?.split(',').map(Number);
-  if (tr && w.gameTime + 1 >= tr[0]! && w.gameTime + 1 <= tr[1]!) w.randomTrace = [];
+  // Frames, like the mugen.exe capture's frame counter.
+  if (tr && i >= tr[0]! && i <= tr[1]!) w.randomTrace = [];
   const ad = process.env.AIDBG?.split(',').map(Number);
   const dbgOn = ad && w.gameTime + 1 >= ad[0]! && w.gameTime + 1 <= ad[1]!;
   if (dbgOn) setAiDebug([]);
-  if (process.env.EVAL && process.env.EVALAT && w.gameTime + 1 === Number(process.env.EVALAT)) {
+  if (process.env.EVAL && process.env.EVALAT && i === Number(process.env.EVALAT)) {
     // Evaluate expressions on P1 right before this tick (EVAL='a;b;c').
     for (const e of process.env.EVAL.split(';')) {
       const v = compileExpr(e, playerEnv)(p1);
-      console.log(`EVAL gt ${w.gameTime + 1} ${e} = ${v}`);
+      console.log(`EVAL frame ${i} gt ${w.gameTime + 1} ${e} = ${v}`);
     }
   }
   if (go) w.tick([0, 0]);
@@ -82,7 +83,7 @@ for (let i = 1; i <= ticks; i++) {
     const counts = new Map<string, number>();
     if (process.env.TRACERAW) console.log(w.randomTrace.map((k) => `  ${k || '(outside states)'}`).join('\n'));
     for (const k of w.randomTrace) counts.set(k, (counts.get(k) ?? 0) + 1);
-    console.log(`TRACE gt ${w.gameTime}: ${w.randomTrace.length} draws`);
+    console.log(`TRACE gt ${i}: ${w.randomTrace.length} draws`);
     for (const [k, n] of counts) console.log(`  ${n}x ${k || '(outside states)'}`);
     w.randomTrace = undefined;
   }
