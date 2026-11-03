@@ -263,7 +263,7 @@ export class World {
     // MUGEN's order (main tick 0x4130xx): facing sync and human key events,
     // then the CPU AI pass, then every player's input processing.
     this.players.forEach((p, i) => {
-      const raw = this.inputLocked || p.ai ? 0 : (inputs[i] ?? 0);
+      const raw = p.ai ? 0 : (inputs[i] ?? 0); // keys are read in every round state (round.c)
       p.input.push(raw);
       p.cmdInput ??= new CommandInput(p.prog.cmd);
       p.recorder ??= new Recorder(p);
@@ -308,7 +308,7 @@ export class World {
     for (const h of this.helpers) {
       if (!h.keyCtrl || h.destroyed || !h.cmdInput) continue;
       const i = this.players.indexOf(h.root);
-      const raw = this.inputLocked || h.root.ai ? 0 : (inputs[i] ?? 0);
+      const raw = h.root.ai ? 0 : (inputs[i] ?? 0);
       h.cmdInput.ingest(raw, h.facing, !h.root.ai);
       h.cmdInput.update(this.gameTime, this.cmdFloor(h));
       h.commands = h.cmdInput.active();
