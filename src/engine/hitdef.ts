@@ -3,6 +3,7 @@
 import { BOTTOM, compileExprList, R, toInt, type Fn, type TriggerEnv } from '../expr/compile';
 import type { ControllerDef } from './cns';
 import type { Player } from './player';
+import { isPre10 } from './sctrl-params';
 
 type P = Player;
 
@@ -265,6 +266,7 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
     const local = (v: number) => v * (p.prog.data.def.localCoord[0] / 320);
 
     const damage = ni('damage', 0) ?? 0;
+    const pre10 = isPre10(p.prog.data.def.mugenVersion);
     const pause: [number, number] = [ni('pausetime', 0) ?? 0, ni('pausetime', 1) ?? 0];
     const groundVel: [number, number] = [n('ground.velocity', 0) ?? 0, n('ground.velocity', 1) ?? 0];
     const airVel: [number, number] = [n('air.velocity', 0) ?? 0, n('air.velocity', 1) ?? 0];
@@ -319,8 +321,13 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
       priorityType,
       damage: scaleAttack(p, damage),
       guardDamage: scaleAttack(p, ni('damage', 1) ?? 0),
-      pause,
-      guardPause: [ni('guard.pausetime', 0) ?? pause[0], ni('guard.pausetime', 1) ?? pause[1]],
+      // Pre-1.0 characters pause the attacker one tick less (HitDef_Set:
+      // p1 pausetime - 1, not for a ReversalDef; guard p1 pausetime too).
+      pause: [pre10 && pause[0] > 0 && c.type !== 'reversaldef' ? pause[0] - 1 : pause[0], pause[1]],
+      guardPause: [
+        ((g) => (pre10 && g > 0 ? g - 1 : g))(ni('guard.pausetime', 0) ?? pause[0]),
+        ni('guard.pausetime', 1) ?? pause[1],
+      ],
       spark: { own: !!ref('sparkno')?.own, action: spark ?? p.const('data.sparkno') },
       guardSpark: { own: !!ref('guard.sparkno')?.own, action: gspark ?? p.const('data.guard.sparkno') },
       sparkXY: [n('sparkxy', 0) ?? 0, n('sparkxy', 1) ?? 0],
