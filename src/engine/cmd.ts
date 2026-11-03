@@ -83,10 +83,14 @@ export function parseCmd(text: string): CommandSet {
     const elements = parseElements(src);
     if (!elements) continue;
     // mugen.exe 0x439920: names are numbered from 1 in order of first
-    // appearance (duplicates share it); "recovery" uses 0 but still takes a
-    // number. The AI's random command index runs below the final counter.
-    if (!slotOf.has(name)) {
-      slotOf.set(name, name === 'recovery' ? 0 : counter);
+    // appearance (duplicates share it); every "recovery" uses 0 but still
+    // takes a number, a repeated one too. The AI's random command index runs
+    // below the final counter.
+    if (name === 'recovery') {
+      slotOf.set(name, 0);
+      counter++;
+    } else if (!slotOf.has(name)) {
+      slotOf.set(name, counter);
       counter++;
     }
     commands.push({
