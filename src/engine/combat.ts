@@ -245,7 +245,7 @@ export function detectProjectileHits(projs: Projectile[], players: Player[]): Pe
       const k = d.world.gameWidth / d.world.screenWidth;
       const hitBox = intCollide(
         { x: pr.x, y: pr.y, facing: pr.facing, sx: pr.scale[0], sy: pr.scale[1], boxes: pr.anim.current?.clsn1 },
-        { x: d.wx, y: d.wy, facing: d.facing, sx: d.const('size.xscale') * d.scale, sy: d.const('size.yscale') * d.scale, boxes: d.anim.current?.clsn2 },
+        { x: d.clsnX, y: d.clsnY, facing: d.facing, sx: d.const('size.xscale') * d.scale, sy: d.const('size.yscale') * d.scale, boxes: d.anim.current?.clsn2 },
         k,
       );
       if (!hitBox) continue;

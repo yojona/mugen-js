@@ -586,5 +586,5 @@ export function clsnTouchInternal(p: Player, wp: 1 | 2, q: Player, wq: 1 | 2): b
   const lq = boxesOf(q, wq === 1 ? fq?.clsn1 : fq?.clsn2);
   if (!lp || !lq) return false;
   const k = internalScale(p);
-  return boxListsOverlap(p.facing !== 1, q.facing !== 1, lp, lq, ftoi((q.wx - p.wx) * k), ftoi((q.wy - p.wy) * k));
+  return boxListsOverlap(p.facing !== 1, q.facing !== 1, lp, lq, ftoi((q.clsnX - p.clsnX) * k), ftoi((q.clsnY - p.clsnY) * k));
 }

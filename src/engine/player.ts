@@ -275,6 +275,16 @@ export class Player {
   angle = 0;
   drawScale: [number, number] = [1, 1];
   drawOffset: [number, number] = [0, 0];
+  /**
+   * Position plus draw_offset (Offset controller and size.draw.offset, x
+   * by facing), in world units: what the Clsn tests use (PS_DeltaX/Y).
+   */
+  get clsnX(): number {
+    return this.wx + (this.drawOffset[0] + this.const('size.draw.offset.x') * this.facing) * this.scale;
+  }
+  get clsnY(): number {
+    return this.wy + (this.drawOffset[1] + this.const('size.draw.offset.y')) * this.scale;
+  }
   width: { edge?: [number, number]; player?: [number, number] } = {};
   screenBound = true;
   moveCamera: [boolean, boolean] = [true, true];
