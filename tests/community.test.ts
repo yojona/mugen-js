@@ -99,4 +99,14 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('chin-kofa', 'kensou-kofa'))(
+    'Chin vs Kensou, CPU level 4: 9000 frames (HitDef replacing a ReversalDef in the AI records)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'chin-vs-kensou.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['chin-kofa', 'kensou-kofa'], frames: 9000, seed: 16808 });
+      expect(ours.length).toBe(9000);
+      expect(peekDiff(ref, ours, 14, 9000)).toEqual([]);
+    },
+    120_000,
+  );
 });
