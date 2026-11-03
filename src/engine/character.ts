@@ -3,7 +3,7 @@
 import { parseAct } from '../formats/act';
 import { parseAir, type AnimationMap } from '../formats/air';
 import { parseCharDef, type CharDef } from '../formats/chardef';
-import { parseSff, type Sff, type Sprite } from '../formats/sff';
+import { parseSff, parseSffSprites, type Sff, type Sprite } from '../formats/sff';
 import { parseSnd, type Snd } from '../formats/snd';
 import { dirname, type Vfs } from './vfs';
 
@@ -16,6 +16,8 @@ export interface CharacterData {
   snd?: Snd;
   /** Selectable palettes 1..12 (index 0 = palette 1); undefined if absent. */
   palettes: (Uint8Array | undefined)[];
+  /** Only the def and the select-screen sprites (loadCharacterPreview). */
+  preview?: boolean;
   /** Palette to draw a sprite with, given the selected palette number (1-based). */
   paletteFor(sprite: Sprite, selected: number): Uint8Array | undefined;
 }
@@ -32,6 +34,28 @@ export async function loadCharacter(vfs: Vfs, defPath: string): Promise<Characte
     f.sound ? vfs.read(f.sound, dir).then(parseSnd).catch(() => undefined) : Promise.resolve(undefined),
   ]);
 
+  return withPalettes(vfs, defPath, dir, def, sff, anims, snd);
+
+}
+
+/**
+ * What mugen.exe loads of a character for the select screen: the def and
+ * the given sprites (portraits), read by ranges from the SFF. Animations and
+ * sounds are left for loadCharacter when the character is picked.
+ */
+export async function loadCharacterPreview(vfs: Vfs, defPath: string, sprites: readonly (readonly [number, number])[]): Promise<CharacterData> {
+  const dir = dirname(defPath);
+  const def = parseCharDef(await vfs.text(defPath));
+  const f = def.files;
+  if (!f.sprite || !f.anim) throw new Error(`${defPath}: falta sprite o anim en [Files]`);
+  const sff = await parseSffSprites((a, b) => vfs.readRange(f.sprite!, a, b, dir), sprites);
+  const c = await withPalettes(vfs, defPath, dir, def, sff, new Map(), undefined);
+  c.preview = true;
+  return c;
+}
+
+async function withPalettes(vfs: Vfs, defPath: string, dir: string, def: CharDef, sff: Sff, anims: AnimationMap, snd: Snd | undefined): Promise<CharacterData> {
+  const f = def.files;
   // Palette slots: ACT files from the def take priority, then SFF v2 palettes 1,n.
   const palettes: (Uint8Array | undefined)[] = [];
   for (let n = 1; n <= 12; n++) {
