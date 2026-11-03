@@ -374,7 +374,9 @@ function mathTrigger<C>(n: CallNode, args: Fn<C>[]): Fn<C> | undefined {
         if (R.t === BOTTOM) return 0;
         if (R.t === FLOAT) {
           R.t = INT;
-          return toInt(f(x));
+          // trigger.c: out of range clamps to INT_MIN / INT_MAX (not the x86 conversion).
+          const v = f(x);
+          return v < -2147483648 ? -2147483648 : v > 2147483648 ? 2147483647 : toInt(v);
         }
         return x;
       };
