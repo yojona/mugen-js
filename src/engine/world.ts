@@ -189,28 +189,34 @@ export class World {
   }
 
   /** Distance from the player to the front (or back) screen edge, in the player's units. */
+  /** FrontEdgeDist / BackEdgeDist, in the player's units. */
   edgeDist(p: Player, front: boolean): number {
-    // Like EdgeBodyDist (mugen.exe 0x4343d0): from the camera target, to the
-    // stage's screenleft/right limit (measured: KFM's 1028 turns 16 units
-    // from that limit, 31 from the screen edge, with BackEdgeDist < 30).
-    const cam = this.camTarget ?? this.camera.x;
-    const left = cam - this.screenWidth / 2 + this.screenLeft;
-    const right = cam + this.screenWidth / 2 - this.screenRight;
-    const towardRight = (p.facing > 0) === front;
-    return (towardRight ? right - p.wx : p.wx - left) / p.scale;
+    return this.playerEdgeDist(p, false, front);
   }
 
   /** FrontEdgeBodyDist / BackEdgeBodyDist, in the player's units. */
   edgeBodyDist(p: Player, front: boolean): number {
-    // Measured from the camera's target, not from where the camera is
-    // (0x4343d0 reads G+0x11f10), less 1 internal unit in the air and 2
-    // lying down (measured: KFM's 1027 at 20.146 and 9.596 units).
-    const cam = this.camTarget ?? this.camera.x;
-    const extra = ((p.stateType === 'a' ? 1 : p.stateType === 'l' ? 2 : 0) * p.prog.data.def.localCoord[0]) / this.gameWidth;
-    const left = cam - this.screenWidth / 2 + this.screenLeft + p.bodyWidth(p.facing > 0 ? 'back' : 'front', 'edge') * p.scale;
-    const right = cam + this.screenWidth / 2 - this.screenRight - p.bodyWidth(p.facing > 0 ? 'front' : 'back', 'edge') * p.scale;
-    const towardRight = (p.facing > 0) === front;
-    return (towardRight ? right - p.wx : p.wx - left) / p.scale - extra;
+    return this.playerEdgeDist(p, true, front);
+  }
+
+  /**
+   * Player_EdgeDist (playerrel.c 0x4343d0), in internal units: from the
+   * screen_left/right the camera is heading to (the stage's screenleft/right
+   * from the target edges, as ScreenBound stores them); the body variant
+   * adds the rounded Width edge, plus 1 in the air and 2 lying down.
+   */
+  private playerEdgeDist(p: Player, body: boolean, front: boolean): number {
+    const k = this.gameWidth / this.screenWidth;
+    const ce = this.camEdges ?? this.camInit();
+    const sl = Math.fround(this.screenLeft * k + ce.lt);
+    const sr = Math.fround(ce.rt - this.screenRight * k);
+    const add = body ? (p.stateType === 'a' ? 1 : p.stateType === 'l' ? 2 : 0) : 0;
+    const round = (v: number) => Math.floor(Math.fround(v) + 0.5);
+    // The back edge always takes the back width (the original compares facing with -facing).
+    const x = body ? round(p.bodyWidth(front ? 'front' : 'back', 'edge') * p.scale * k) + add : add;
+    const px = p.wx * k;
+    const d = front ? (x * p.facing + px - (p.facing === 1 ? sr : sl)) * -p.facing : (px - x * p.facing - (p.facing === 1 ? sl : sr)) * p.facing;
+    return d / k / p.scale;
   }
 
   /** Pause / SuperPause controllers. */
