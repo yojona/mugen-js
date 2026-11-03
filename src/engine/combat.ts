@@ -407,11 +407,14 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     // Projectiles pause themselves (p1 pausetime) and count their hits.
     proj.hitTargets.add(d);
     // Projectiles_HitPlayer: the p1 pausetime, guarded or not.
-    proj.hitPause = hd.pause[0];
     proj.hitsLeft--;
-    proj.missTimer = proj.missTime;
+    // Projectiles_ApplyHits: the last hit of a removeonhit projectile sets
+    // no pause or miss time.
+    const last = proj.hitsLeft <= 0 && proj.removeOnHit;
+    proj.hitPause = last ? 0 : hd.pause[0];
+    proj.missTimer = last ? 0 : proj.missTime;
     noteProjContact(a, guarded ? 1 : 2, proj.projId);
-    if (proj.hitsLeft <= 0 && proj.removeOnHit) endProjectile(proj, proj.hitAnim);
+    if (last) endProjectile(proj, proj.hitAnim);
   } else {
     a.hitTargets.add(d);
     // Player_Hit: only a hitonce HitDef goes off; others stay active for
@@ -682,7 +685,11 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     world.playHitSound(a, hd.hitSound);
   }
   d.sprPriority = hd.p2SprPriority;
-  if (proj) return;
+  if (proj) {
+    // Projectiles_HitPlayer: a projectile hit's p1stateno changes the owner's state.
+    if (!guarded && hd.p1StateNo >= 0) a.changeState(hd.p1StateNo);
+    return;
+  }
   a.sprPriority = hd.p1SprPriority;
   // p1stateno: the statedef applies when the state first runs (measured: a
   // KFM throw keeps anim 800 and its MoveContact on the hit tick).
