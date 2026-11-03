@@ -96,6 +96,8 @@ export class Match {
   private slowAcc = 0;
   private slowRate = 0;
   private koTicks = 0;
+  /** RoundState 4 lasts until this tick (over.time, pushed back by roundnotover). */
+  private overEndTime = 0;
 
   constructor(
     readonly world: World,
@@ -264,6 +266,7 @@ export class Match {
           this.slowRate = this.slowAcc = 0;
           w.roundState = 4;
           this.enter('over');
+          this.overEndTime = c.overTime;
           // The round counter restarts at 0 and still counts this tick.
           this.phaseTime = 0;
         }
@@ -271,15 +274,23 @@ export class Match {
       }
       case 'over':
         w.roundState = 4;
-        // Winners go to their win pose once everyone has settled.
+        // At over.wintime the winners go to their win pose, the losers still
+        // standing to 170, everyone to 175 on a draw (Round_RunState case 4).
         if (this.phaseTime === c.overWinTime) {
           for (const p of this.players) {
-            if (p === this.roundWinner && p.compiledState(180)) p.changeState(180);
+            if (!p.alive) continue;
+            const no = !this.roundWinner ? 175 : p === this.roundWinner ? 180 : 170;
+            if (p.compiledState(no)) p.changeState(no);
           }
           this.scoreRound();
           if (this.matchOver) this.announce = { kind: 'win', winner: this.roundWinner, age: 0 };
         }
-        if (this.phaseTime >= c.overTime) {
+        // AssertSpecial roundnotover (asserted during the last tick) keeps
+        // the round going for 19 more ticks.
+        if (this.players.some((p) => p.special.has('roundnotover')) || w.helpers.some((h) => h.special.has('roundnotover'))) {
+          this.overEndTime = this.phaseTime + 19;
+        }
+        if (this.phaseTime >= this.overEndTime) {
           // The match ends with the last round's over.time (measured: the
           // victory screen follows 213 frames after RoundState 4).
           if (this.matchOver) {
