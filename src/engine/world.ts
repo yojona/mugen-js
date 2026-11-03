@@ -173,6 +173,66 @@ export class World {
     return n > 0 ? this.seed % n : 0;
   }
 
+  /**
+   * Each side's team mode (TeamMode trigger: single, simul or turns; a team
+   * of several members in turn reads turns).
+   */
+  teamModes: ['single' | 'simul' | 'turns', 'single' | 'simul' | 'turns'] = ['single', 'single'];
+
+  /** players[n] of mugen.exe (1..4): P1, P2, P3 (P1's partner), P4 (P2's). */
+  slot(n: number): Player | undefined {
+    const p = this.players[n - 1];
+    return p && !p.destroyed ? p : undefined;
+  }
+
+  /** Player_GetPartner / CountPartners: the other root players of p's side, in slot order. */
+  partnersOf(p: Player): Player[] {
+    return this.players.filter((t) => !t.destroyed && t.side === p.side && t !== p && t !== p.root);
+  }
+
+  /** Player_GetEnemy / CountEnemies: the root players of the other side, in slot order. */
+  enemiesOf(p: Player): Player[] {
+    return this.players.filter((t) => !t.destroyed && t.side !== p.side);
+  }
+
+  /**
+   * Player_GetNearEnemy: of the two enemy slots (P2/P4 or P1/P3), the nearest
+   * (n = 0) or the other (n = 1) by |DistX|; the second needs both.
+   */
+  nearEnemy(p: Player, n: number): Player | undefined {
+    if (n >= 2 || n < 0) return undefined;
+    const [a, b] = p.side === 0 ? [this.slot(2), this.slot(4)] : [this.slot(1), this.slot(3)];
+    if (!a && !b) return undefined;
+    if (n === 0) {
+      if (a && !b) return a;
+      if (!a) return b;
+    } else if (!a || !b) return undefined;
+    const dist = (t: Player) => Math.abs(Math.fround((t.wx - p.wx) * p.facing));
+    const da = dist(a!);
+    const db = dist(b!);
+    if (db <= da || Number.isNaN(da) || Number.isNaN(db)) return n === 0 ? b : a;
+    return n === 0 ? a : b;
+  }
+
+  /** The P3 (partner) and P4 (other enemy) of the trigger context (trigger.c). */
+  p3p4(p: Player): [Player | undefined, Player | undefined] {
+    const [e1, e2] = p.side === 0 ? [this.slot(2), this.slot(4)] : [this.slot(1), this.slot(3)];
+    const p2 = this.enemyOf(p);
+    let p4: Player | undefined;
+    if (e1 && e2) {
+      if (p2 === e1) p4 = e2;
+      else if (p2 === e2) p4 = e1;
+      else p4 = Math.abs((e2.wx - p.wx) * p.facing) > Math.abs((e1.wx - p.wx) * p.facing) ? e2 : e1;
+    } else if (p2) {
+      p4 = e1;
+      if (p2.isHelper ? p2.root === e1 : p2 === e1) p4 = e2;
+    }
+    const r = p.isHelper ? p.root : p;
+    let idx = r.slotNo + 2;
+    if (idx > 4) idx -= 4;
+    return [this.slot(idx), p4];
+  }
+
   /** P2: the enemy picked at the start of the tick (Round_Tick), or now when there is none yet. */
   enemyOf(p: Player): Player | undefined {
     return p.enemy === undefined ? this.findEnemy(p) : (p.enemy ?? undefined);
@@ -189,7 +249,7 @@ export class World {
     let found: Player | undefined;
     let best = 0;
     const consider = (t: Player) => {
-      if (t === p || t.destroyed || t.isHelper || t.side === side) return;
+      if (t === p || t.destroyed || (t.isHelper && t.helperType !== 1) || t.side === side) return;
       if (t.stateNo === 5150 && t.time !== 0) return;
       const d = Math.abs(bodyDistX(p, t));
       if (!found) {

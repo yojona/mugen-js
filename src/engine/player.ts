@@ -179,7 +179,23 @@ export class Player {
   anim: AnimPlayer;
 
   life: number;
-  power = 0;
+  private ownPower = 0;
+  /**
+   * A simul partner shares its team leader's power (power_ref points at the
+   * leader's: PowerAdd, hits and the Power trigger all use it).
+   */
+  powerLeader: Player | undefined;
+  get power(): number {
+    return this.powerLeader ? this.powerLeader.power : this.ownPower;
+  }
+  set power(v: number) {
+    if (this.powerLeader) this.powerLeader.power = v;
+    else this.ownPower = v;
+  }
+  /** Player slot (mugen.exe players[1..4]: P1, P2, P3 = P1's partner, P4 = P2's), 0 for helpers. */
+  get slotNo(): number {
+    return this.isHelper ? 0 : this.world.players.indexOf(this) + 1;
+  }
   vars = new Int32Array(60);
   fvars = new Float32Array(40);
   sysVars = new Int32Array(5);

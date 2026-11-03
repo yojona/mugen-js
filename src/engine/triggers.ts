@@ -63,8 +63,8 @@ const NULLARY: Record<string, Fn<P>> = {
   ailevel: int((p) => p.root.ai?.level ?? 0),
   ticksperSecond: int(() => 60),
   tickspersecond: int(() => 60),
-  numenemy: int((p) => p.world.players.filter((q) => q.side !== p.root.side).length),
-  numpartner: int(() => 0),
+  numenemy: int((p) => p.world.enemiesOf(p).length),
+  numpartner: int((p) => p.world.partnersOf(p).length),
   // Targets_Count: the target entries, kept while a target is being hit.
   numtarget: int((p) => p.targets.size),
   numexplod: int((p) => p.world.explods.filter((e) => e.owner === p && !e.system).length),
@@ -341,12 +341,13 @@ function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
     case 'p2name':
       return boolOut((p) => p.world.enemyOf(p)?.name.toLowerCase() === word.toLowerCase());
     case 'p3name':
+      return boolOut((p) => p.world.p3p4(p)[0]?.name.toLowerCase() === word.toLowerCase());
     case 'p4name':
-      return boolOut(() => false);
+      return boolOut((p) => p.world.p3p4(p)[1]?.name.toLowerCase() === word.toLowerCase());
     case 'authorname':
       return boolOut((p) => p.prog.data.def.author.toLowerCase() === word.toLowerCase());
     case 'teammode':
-      return boolOut(() => word === 'single');
+      return boolOut((p) => p.world.teamModes[p.side] === word.toLowerCase());
     case 'hitdefattr': {
       // mugen.exe: attack only, and the HitDef's attr must share a state bit
       // and a type bit with the trigger's (bits from HitDefAttr_Parse).
@@ -475,19 +476,12 @@ function redirect(p: P, to: string, _id: number | undefined): P | undefined {
       return undefined;
     }
     case 'partner':
-      return undefined;
+      return p.world.partnersOf(p)[Math.max(0, _id ?? 0)];
     case 'enemy':
       // Player_GetEnemy: the n-th player of the other team, dead or not.
-      return p.world.players.filter((q) => q.side !== p.root.side)[Math.max(0, _id ?? 0)];
-    case 'enemynear': {
-      // Player_GetNearEnemy: the nearest (0) or second nearest (1) by |DistX|.
-      const n = Math.max(0, _id ?? 0);
-      if (n >= 2) return undefined;
-      const es = p.world.players.filter((q) => q.side !== p.root.side);
-      if (es.length < 2) return n === 0 ? es[0] : undefined;
-      const sorted = [...es].sort((a, b) => Math.abs(a.wx - p.wx) - Math.abs(b.wx - p.wx));
-      return sorted[n];
-    }
+      return p.world.enemiesOf(p)[Math.max(0, _id ?? 0)];
+    case 'enemynear':
+      return p.world.nearEnemy(p, Math.max(0, _id ?? 0));
     case 'playerid': {
       // Player_FindById scans every active player, helpers included; a negative ID is 0.
       const id = Math.max(0, _id ?? 0);
