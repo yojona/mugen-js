@@ -319,7 +319,9 @@ export class World {
    */
   cmdFloor(p: Player): boolean {
     const ps = this.superPause ?? this.pause;
-    return !!ps && this.frozen(p) && ps.time < ps.endCmdBufTime;
+    // char.c: pauses[kind][6] < endcmdbuftime, read after gameloop's
+    // per-frame decrement (one less than our count at input time).
+    return !!ps && this.frozen(p) && ps.time - 1 < ps.endCmdBufTime;
   }
 
   /** Is the player frozen by a Pause/SuperPause this tick? */
