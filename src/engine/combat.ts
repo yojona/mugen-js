@@ -319,6 +319,42 @@ export function detectProjectileHits(projs: Projectile[], players: Player[]): Pe
 }
 
 /**
+ * Player_HitProjectiles, for each pair of players both ways: an attacking
+ * player's active HitDef with the P hitflag hits the other's projectiles
+ * (Clsn1 against their Clsn2): the HitDef goes off, its p1stateno runs, the
+ * projectile loses a hit and is removed at none left (removeonhit), else
+ * pauses for its p1 pausetime.
+ */
+export function hitProjectilesByHitDefs(projs: Projectile[], order: Player[]): void {
+  const one = (p: Player, owner: Player) => {
+    const hd = p.hitDef;
+    if (!hd || !(hitFlagBits(hd.hitFlag) & 0x80) || p.moveType === 'i' || !p.hitDefActive) return;
+    for (const pr of projs) {
+      if (pr.owner !== owner || pr.phase !== 'active' || owner.side === p.side) continue;
+      if (pr.hitPause > 0 || pr.missTimer > 0 || pr.hitsLeft <= 0) continue;
+      const k = p.world.gameWidth / p.world.screenWidth;
+      const touch = intCollide(
+        { x: pr.x, y: pr.y, facing: pr.facing, sx: pr.clsnScale[0], sy: pr.clsnScale[1], boxes: pr.anim.current?.clsn2 },
+        { x: p.clsnX, y: p.clsnY, facing: p.facing, sx: p.const('size.xscale') * p.scale, sy: p.const('size.yscale') * p.scale, boxes: p.anim.current?.clsn1 },
+        k,
+      );
+      if (!touch) continue;
+      p.hitDefActive = false;
+      if (hd.p1StateNo >= 0) p.changeState(hd.p1StateNo);
+      pr.hitsLeft--;
+      if (pr.hitsLeft <= 0 && pr.removeOnHit) endProjectile(pr, pr.remAnim, pr.remVel);
+      else pr.hitPause = pr.hd.pause[0];
+    }
+  };
+  for (let i = 0; i < order.length; i++) {
+    for (let j = i + 1; j < order.length; j++) {
+      one(order[i]!, order[j]!);
+      one(order[j]!, order[i]!);
+    }
+  }
+}
+
+/**
  * Projectiles_Collide, for each pair of players in list order: each active
  * projectile of the first meets at most one of the second (Clsn2 against
  * Clsn2); one with priority lower or equal loses a hit (and the other a
