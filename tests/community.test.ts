@@ -58,4 +58,15 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+
+  it.skipIf(!have('andy-kofa', 'chris-kofa'))(
+    'Andy vs Chris, CPU level 4: 9000 frames into round 3 (projectile end animations, landing turns, p2stateno, round resets)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'andy-vs-chris.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['andy-kofa', 'chris-kofa'], frames: 9000, seed: 16808 });
+      expect(ours.length).toBe(9000);
+      expect(peekDiff(ref, ours, 14, 9000)).toEqual([]);
+    },
+    120_000,
+  );
 });
