@@ -277,7 +277,7 @@ export class World {
     // checks the pause menu; measured: AI state time keeps counting).
     {
       postResolvedMessages(this.players);
-      for (const p of this.players) p.ai?.tick(process.env.AIEXP ? this.roundState === 2 : this.aiRoundFight);
+      for (const p of this.players) p.ai?.tick(this.aiRoundFight);
       for (const p of this.players) if (p.ai) p.ai.msgs.length = 0;
     }
     // Automatic turn, after the AI and before input processing (mugen.exe
