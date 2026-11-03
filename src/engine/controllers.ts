@@ -485,15 +485,66 @@ const EXTRA: Record<string, Impl> = {
       t.bind = { to: p, offset: [off[0] * p.scale, off[1] * p.scale], time, byTarget: true };
     });
   },
-  bindtotarget: (_c, prm) => (p) => {
-    const time = prm.int(p, 'time') ?? 1;
-    const off: [number, number] = [prm.num(p, 'pos', 0) ?? 0, prm.num(p, 'pos', 1) ?? 0];
-    let done = false;
-    eachTarget(p, prm, (t) => {
-      if (done) return;
-      done = true;
-      p.bind = { to: t, offset: [off[0] * t.facing * p.scale, off[1] * p.scale], time };
-    });
+  bindtotarget: (c, prm, env) => {
+    // pos = x, y, postype (foot/mid/head): the word is not an expression.
+    let src = c.params.get('pos') ?? '';
+    let postype = 0;
+    const m = /,\s*(foot|mid|head)\s*$/i.exec(src);
+    if (m) {
+      postype = { foot: 0, mid: 1, head: 2 }[m[1]!.toLowerCase() as 'foot' | 'mid' | 'head'];
+      src = src.slice(0, m.index);
+    }
+    let pos: Fn<P>[] = [];
+    try {
+      pos = src.trim() ? compileExprList(src, env) : [];
+    } catch {
+      pos = [];
+    }
+    const comp = (p: P, i: number): number | undefined => {
+      const fn = pos[i];
+      if (!fn) return undefined;
+      const v = fn(p);
+      return R.t === BOTTOM ? undefined : v;
+    };
+    return (p) => {
+      // run_bindtotarget: the first target matching the ID. The player moves
+      // to it now, and the target is bound back to the player (placed at the
+      // end of the player's update like a TargetBind target).
+      const id = prm.int(p, 'id') ?? -1;
+      let t: P | undefined;
+      for (const [q, tid] of p.targets) {
+        if (id === -1 || tid === id) {
+          t = q;
+          break;
+        }
+      }
+      if (!t) return;
+      const w = p.world;
+      const k = w.gameWidth / w.screenWidth;
+      // Foot / mid / head offsets in internal units, truncated.
+      const tk = t.scale * k;
+      const ox = postype === 1 ? Math.trunc(t.const('size.mid.pos.x') * tk) : postype === 2 ? Math.trunc(t.const('size.head.pos.x') * tk) : 0;
+      const oy = postype === 1 ? Math.trunc(t.const('size.mid.pos.y') * tk) : postype === 2 ? Math.trunc(t.const('size.head.pos.y') * tk) : 0;
+      let time = prm.int(p, 'time') ?? 1;
+      if (time < -1) time = 1;
+      const pk = p.scale * k;
+      const prev = t.bind?.byTarget && t.bind.to === p ? t.bind : undefined;
+      const b = prev ?? { to: p, offset: [0, 0] as [number, number], time, byTarget: true };
+      b.time = time;
+      const x = comp(p, 0);
+      if (x !== undefined) {
+        const X = Math.fround(x) * pk + ox;
+        p.setWorldPos((X * t.facing + t.wx * k) / k);
+        b.offset[0] = Math.trunc(-(X * t.facing * p.facing)) / k;
+      }
+      const y = comp(p, 1);
+      if (y !== undefined) {
+        const Y = Math.fround(y) * pk + oy;
+        p.pos.y = (Y + t.wy * k) / k / p.scale;
+        b.offset[1] = Math.trunc(-Y) / k;
+      }
+      t.bind = b;
+    };
   },
   targetstate: (_c, prm) => (p) => {
     const v = prm.int(p, 'value');
