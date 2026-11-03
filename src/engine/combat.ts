@@ -101,7 +101,6 @@ function juggleOk(a: Player, d: Player, cost: number): boolean {
 }
 
 function canHit(a: Player, hd: HitDefData, d: Player, cost: number, proj = false): boolean {
-  if (d.world.superPause?.owner === d && d.world.superPause.unhittable) return false;
   if (d.nohitTime > 0) return false;
   // Player_CanHit: chainID needs the target's last hit to be that ID from
   // this attacker; nochainID refuses it. (A chainID equal to a nochainID

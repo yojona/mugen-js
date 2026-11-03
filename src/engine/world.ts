@@ -397,6 +397,9 @@ export class World {
       p.advance();
       p.pruneTargets();
     }
+    // A frozen player hit or hitting this tick (hitpause_next) is in hit
+    // pause from its next update on: nothing of this tick is left to run.
+    for (const p of this.allPlayers()) if (!active.includes(p)) p.hitPauseFresh = false;
     for (const p of this.allPlayers()) {
       for (const e of p.events) this.sounds.push({ owner: e.common ? null : p, group: e.group, number: e.number });
       p.events.length = 0;

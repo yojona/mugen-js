@@ -411,6 +411,9 @@ const EXTRA: Record<string, Impl> = {
         p2defmul: prm.num(p, 'p2defmul') ?? 1.5,
         endCmdBufTime: prm.int(p, 'endcmdbuftime') ?? 0,
       });
+      // unhittable: nohit_time of at least the pause time + 1 (counting
+      // down in Players_CheckHits like any nohit time).
+      if ((prm.int(p, 'unhittable') ?? 1) !== 0) p.nohitTime = Math.max(p.nohitTime, Math.max(0, prm.int(p, 'time') ?? 30) + 1);
       // The super's current targets take less damage until they recover
       // (Super.TargetDefenceMul; measured: KFM's 155-damage super does 103).
       const mul = prm.num(p, 'p2defmul') ?? 1.5;
