@@ -50,6 +50,7 @@ variable on the leaving screen's last frame). Comparisons use `?pristine=1`
 | Clark vs Kula (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical into round 3: helper projectiles with HitOverride/HitBy, juggle points, a time over, round resets, corner pushes from the air, draw offsets |
 | Athena vs Leona (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical into round 2: helper projectiles owned by the root, several projectiles hitting in one tick, throws with snap and TargetBind, repeated Pause, trades, corner pushes |
 | Andy vs Chris (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical into round 3: projectile end animations, landing turns, p2stateno into idle states (damage dropped), round resets of the get-hit variables |
+| Billy vs Daimon (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical: ReversalDef (p2getp1state movetype, pause timing, hit count), NumTarget, AI learning ticks across pauses |
 
 The parser, the parameter readers and several rules now come from the
 decompilation of the same mugen.exe (`ref/mugen-unleashed`, used only as a
@@ -70,7 +71,7 @@ documentation but not yet compared against the original.
 
 | # | Stage | Goal | State |
 |---|---|---|---|
-| 1 | Community characters | CPU vs CPU with real characters until whole matches match | Five KOF pairs match (Iori/Kyo, Kim/Benimaru, Clark/Kula, Athena/Leona, Andy/Chris); King/Joe open at frame 2070; next: more characters |
+| 1 | Community characters | CPU vs CPU with real characters until whole matches match | Six KOF pairs match (Iori/Kyo, Kim/Benimaru, Clark/Kula, Athena/Leona, Andy/Chris, Billy/Daimon); King/Joe open at frame 2070; next: more characters |
 | 2 | AI coverage | Whole matches at levels 1, 3, 5, 6 and 8; time-over round; draw | Ready to start |
 | 3 | Exact camera | Reproduce the float math at `0x4167xx` (tiny drifts left in round 1) | Optional hardening |
 | 4 | Game modes | Team (simul/turns), Survival, Arcade with AI ramp; demo mode (title idle 600 frames); continue "Yes" path verified | Pending |
