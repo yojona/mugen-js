@@ -194,6 +194,9 @@ export class World {
     // Pause_Apply: time < 0 is 0; a movetime below 0 or past time is 0.
     if (time < 0) time = 0;
     if (moveTime < 0 || moveTime > time) moveTime = 0;
+    // The owner's movetime is its pause_movetime for that kind.
+    if (isSuper) owner.superMoveTime = moveTime;
+    else owner.pauseMoveTime = moveTime;
     const st: PauseState = { owner, time, moveTime, fresh: true, darken: opts.darken ?? false, unhittable: opts.unhittable ?? false, endCmdBufTime: e < 0 || e > time ? 0 : e };
     if (isSuper) this.superPause = time > 0 ? st : undefined;
     else if (this.superPause) this.queuedPause = st;
@@ -213,7 +216,6 @@ export class World {
   private frozen(p: Player): boolean {
     const ps = this.superPause ?? this.pause;
     if (!ps) return false;
-    if (p === ps.owner && ps.moveTime > 0) return false;
     if (this.superPause ? p.superMoveTime !== 0 : p.pauseMoveTime !== 0) return false;
     return true;
   }
@@ -403,11 +405,16 @@ export class World {
     for (const p of this.allPlayers()) {
       for (const e of p.events) this.sounds.push({ owner: e.common ? null : p, group: e.group, number: e.number });
       p.events.length = 0;
-      if (p.superMoveTime > 0 && this.superPause) p.superMoveTime--;
-      if (p.pauseMoveTime > 0 && this.pause) p.pauseMoveTime--;
-      // Outside any pause a player being hit loses what a hit during a pause
-      // gave it (Player_Update: pause_movetime reset when movetype = H).
-      if (!this.pause && !this.superPause && p.moveType === 'h') p.superMoveTime = p.pauseMoveTime = 0;
+      // Player_Update's end: with a pause running (not one starting this
+      // tick) the player's movetime for it counts down; with none, a player
+      // being hit loses its movetimes (a Pause owner hit into H included).
+      const sp = this.superPause && !this.superPause.fresh;
+      const pz = !this.superPause && this.pause && !this.pause.fresh;
+      if (sp) {
+        if (p.superMoveTime > 0 && active.includes(p)) p.superMoveTime--;
+      } else if (pz) {
+        if (p.pauseMoveTime > 0 && active.includes(p)) p.pauseMoveTime--;
+      } else if (p.moveType === 'h') p.superMoveTime = p.pauseMoveTime = 0;
     }
     if (this.helpers.some((h) => h.destroyed)) this.helpers = this.helpers.filter((h) => !h.destroyed);
     this.updateExplods();
