@@ -643,7 +643,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     if (hd.palFx) d.palFx = { time: hd.palFx.time, elapsed: 0, add: hd.palFx.add, mul: hd.palFx.mul, sinAdd: [0, 0, 0], sinPeriod: 0, invertAll: hd.palFx.invertAll, color: hd.palFx.color };
     g.chainid = hd.id;
     d.ghvAttacker = a;
-    g.hitcount = d.moveType === 'h' ? g.hitcount + 1 : 1;
+    // Player_Hit: the count restarts only once the target has been out of
+    // movetype H for more than one update.
+    g.hitcount = d.moveType !== 'h' && d.hitFreeTime > 1 ? 1 : g.hitcount + 1;
     if (kills) g.fall = 1;
     // HitCount once per frame, UniqHitCount per target.
     if (!proj) {

@@ -200,6 +200,7 @@ export class Player {
   hitPauseFresh = false;
   /** Frozen by its own hit pause in its last update (Player.paused, read by its explods). */
   paused = false;
+  hitFreeTime = 0;
   /** Damage from a hit, applied at the end of the next tick (measured). */
   /**
    * Damage held back until the defender's next update (Player_Update
@@ -1230,6 +1231,8 @@ export class Player {
     // included (measured: a CPU recovers from 5050 one tick earlier than
     // counting after it).
     if (this.moveType === 'h' && g.fall) g['fall.time']++;
+    // hit_free_time: updates since the player was last in movetype H.
+    this.hitFreeTime = this.moveType === 'h' ? 0 : this.hitFreeTime + 1;
     if (!fresh) {
       if (this.moveContact) this.moveContact++;
       if (this.moveHit) this.moveHit++;
