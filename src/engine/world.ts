@@ -355,6 +355,8 @@ export class World {
       // Every player takes part, paused ones too (Players_CheckHits only skips
       // inactive players; a Pause stops updates, not hits).
       const hitters = this.allPlayers().filter((p) => !p.destroyed);
+      // Players_CheckHits: nohit_time runs out first.
+      for (const p of hitters) if (p.nohitTime > 0) p.nohitTime--;
       applyHits(detectHits(hitters), hitters, this.frames);
     }
     // Projectiles_Update runs for each player that ran this tick (run[i],

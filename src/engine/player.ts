@@ -202,6 +202,8 @@ export class Player {
    * applies gethit_damage), stamped with the tick of the hit.
    */
   pendingDamage: { amount: number; kill: boolean; tick: number } | undefined;
+  /** nohit_time: ticks during which nothing can hit this player (throws, reversals). */
+  nohitTime = 0;
   /** gethit_attacker: who hit (or was guarded by) this player last. */
   ghvAttacker: Player | undefined;
   /** Tick of the last hit: the shake starts counting at the next update. */

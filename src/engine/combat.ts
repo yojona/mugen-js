@@ -116,6 +116,7 @@ function juggleOk(a: Player, d: Player, cost: number): boolean {
 
 function canHit(a: Player, hd: HitDefData, d: Player, cost: number, proj = false): boolean {
   if (d.world.superPause?.owner === d && d.world.superPause.unhittable) return false;
+  if (d.nohitTime > 0) return false;
   // Player_CanHit: chainID needs the target's last hit to be that ID from
   // this attacker; nochainID refuses it. (A chainID equal to a nochainID
   // clears all three, HitDef_SetFromParams.)
@@ -210,6 +211,10 @@ function applyReversal(r: Player, a: Player): void {
   a.hitDefActive = false;
   a.hitDefSet = false;
   r.moveContact = r.moveHit = 1;
+  // Player_Reverse: the reversed player cannot be hit for the pause (nor the
+  // reverser after a throw reversal).
+  a.nohitTime = rv.hd.pause[0] + 1;
+  if (hitDefAttrBits(rv.hd.attrState, rv.hd.attrType) & 0x1c0) r.nohitTime = rv.hd.pause[0] + 1;
   // Player_Reverse: the reverser counts the hits and gets its power.
   r.hitCount += rv.hd.numHits;
   r.addPower(rv.hd.getPower[0]);
@@ -529,6 +534,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.hitcount = d.moveType === 'h' ? g.hitcount + 1 : 1;
     if (kills) g.fall = 1;
     if (!proj) a.hitCount += hd.numHits;
+    // Player_Hit: after a throw neither player can be hit for the pause.
+    if (!proj && !override && hitDefAttrBits(hd.attrState, hd.attrType) & 0x1c0) d.nohitTime = a.nohitTime = hd.pause[0] + 1;
     a.addPower(hd.getPower[0]);
     d.addPower(hd.givePower[0]);
     const aFacing = proj ? proj.facing : a.facing;
