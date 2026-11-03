@@ -354,7 +354,12 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
   // Player_AddTarget: a new entry starts with the attacker's airjuggle.
   if (!a.targetJuggle.has(d)) a.targetJuggle.set(d, a.const('data.airjuggle'));
   // Explods flagged removeongethit disappear when their owner is hit.
-  if (!guarded) world.explods = world.explods.filter((e) => !(e.owner === d && !e.system && e.removeOnGetHit));
+  // HitDef_Apply: a hit player lets go of its own targets and loses its
+  // removeongethit explods.
+  if (!guarded) {
+    d.releaseTargets();
+    world.explods = world.explods.filter((e) => !(e.owner === d && !e.system && e.removeOnGetHit));
+  }
   if (proj) {
     // Projectiles pause themselves (p1 pausetime) and count their hits.
     proj.hitTargets.add(d);
