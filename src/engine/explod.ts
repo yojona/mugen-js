@@ -25,6 +25,8 @@ export interface Explod {
   bindTime: number;
   bindOffset: [number, number];
   vel: [number, number];
+  /** Direction of vel/accel x: the anchor's facing (not the facing param). */
+  velDir: number;
   accel: [number, number];
   removeTime: number;
   /** Ticks displayed so far. */
@@ -114,7 +116,8 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
     // seed % (r + 1) - ((r + 1) >> 1).
     off[0] += (p.world.random(rnd[0] + 1) - ((rnd[0] + 1) >> 1)) * k;
     off[1] += (p.world.random(rnd[1] + 1) - ((rnd[1] + 1) >> 1)) * k;
-    let facing = (prm.int(p, 'facing') ?? 1) < 0 ? -1 : 1;
+    const faceParam = (prm.int(p, 'facing') ?? 1) < 0 ? -1 : 1;
+    let facing = faceParam;
     const w = p.world;
     let space: Explod['space'] = (prm.raw('space') ?? 'stage').toLowerCase() === 'screen' ? 'screen' : 'stage';
     let x = off[0];
@@ -167,6 +170,7 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
       bindTime: bindTo ? (prm.int(p, 'bindtime') ?? (posType === 'none' ? -1 : 0)) : 0,
       bindOffset: posType === 'p1' || posType === 'p2' ? [off[0] * (bindTo?.facing ?? 1), off[1]] : off,
       vel: [(prm.num(p, 'vel', 0) ?? 0) * k, (prm.num(p, 'vel', 1) ?? 0) * k],
+      velDir: facing * faceParam,
       accel: [(prm.num(p, 'accel', 0) ?? 0) * k, (prm.num(p, 'accel', 1) ?? 0) * k],
       drawScale: anim.common ? 1 : k,
       removeTime: prm.int(p, 'removetime') ?? -2,
@@ -298,7 +302,7 @@ export function compileMakeDust(c: ControllerDef, env: TriggerEnv<P>): (p: P) =>
 export function simpleExplod(p: P, a: Animation, common: boolean, x: number, y: number, sprPriority: number, facing = p.facing): Explod {
   return {
     owner: p, id: -1, anim: new AnimPlayer(a), common, space: 'stage', x, y, facing, vfacing: 1, bindTo: undefined, bindTime: 0, bindOffset: [0, 0],
-    vel: [0, 0], accel: [0, 0], removeTime: -2, age: 0, scale: [1, 1], angle: 0, sprPriority, onTop: false, ownPal: true, removeOnGetHit: false,
+    vel: [0, 0], velDir: facing, accel: [0, 0], removeTime: -2, age: 0, scale: [1, 1], angle: 0, sprPriority, onTop: false, ownPal: true, removeOnGetHit: false,
     ignoreHitPause: true, trans: undefined, superMoveTime: 0, pauseMoveTime: 0, drawScale: common ? 1 : p.scale,
   };
 }
@@ -314,7 +318,7 @@ export function updateExplod(e: Explod): boolean {
   if (time !== -1 && e.age >= time) return false;
   e.anim.tick();
   if (e.age > 0) {
-    e.x += e.vel[0] * e.facing;
+    e.x += e.vel[0] * e.velDir;
     e.y += e.vel[1];
     e.vel[0] += e.accel[0];
     e.vel[1] += e.accel[1];
