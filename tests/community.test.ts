@@ -160,14 +160,12 @@ describe('community characters vs mugen.exe', () => {
     120_000,
   );
   it.skipIf(!have('chizuru&maki-kofa', 'akuma-kofa'))(
-    'Chizuru&Maki vs Akuma, CPU level 4: 8947 frames (helper binds and camera, float helper origins, AnimExist in custom states)',
+    'Chizuru&Maki vs Akuma, CPU level 4: 9000 frames (helper binds and camera, float helper origins, AnimExist in custom states, element held through the attacker hit pause)',
     async () => {
       const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'chizuru-vs-akuma.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['chizuru&maki-kofa', 'akuma-kofa'], frames: 8947, seed: 16808 });
-      expect(ours.length).toBe(8947);
-      // Open: from 8948 Akuma, frozen by its hit pause on a 1-tick element,
-      // keeps its Clsn2 in mugen.exe (it is pushed); ours has moved on.
-      expect(peekDiff(ref, ours, 14, 8947)).toEqual([]);
+      const ours = await peekMatch({ chars: ['chizuru&maki-kofa', 'akuma-kofa'], frames: 9000, seed: 16808 });
+      expect(ours.length).toBe(9000);
+      expect(peekDiff(ref, ours, 14, 9000)).toEqual([]);
     },
     120_000,
   );
