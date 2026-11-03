@@ -153,7 +153,8 @@ const IMPLS: Record<string, Impl> = {
     p.facing = -p.facing;
   },
   statetypeset: (_c, prm) => (p) => {
-    const st = prm.raw('statetype')?.trim().toLowerCase()[0];
+    // `value` is the old name of statetype, read when statetype is absent.
+    const st = (prm.raw('statetype') ?? prm.raw('value'))?.trim().toLowerCase()[0];
     const mt = prm.raw('movetype')?.trim().toLowerCase()[0];
     const ph = prm.raw('physics')?.trim().toLowerCase()[0];
     if (st && 'scal'.includes(st)) p.stateType = st as StateType;
