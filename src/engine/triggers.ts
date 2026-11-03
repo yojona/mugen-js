@@ -455,7 +455,8 @@ function compileSecond(second: NonNullable<ClauseNode['second']>): (p: P, t: num
 function projTime(p: P, id: number, kind: 'hit' | 'contact' | 'guarded' | 'cancel'): number {
   const c = p.projContact;
   const ok = kind === 'contact' ? c === 1 || c === 2 : c === (kind === 'hit' ? 2 : kind === 'cancel' ? 3 : 1);
-  if (!ok || (id !== 0 && p.projContactId !== id)) return -1;
+  // trigger.c: a negative ID is 0 (any projectile).
+  if (!ok || (id > 0 && p.projContactId !== id)) return -1;
   return p.projContactTime;
 }
 
