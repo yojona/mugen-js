@@ -469,7 +469,11 @@ export class Player {
       if (paused && !c.ignoreHitPause) continue;
       // mugen.exe 0x45c209: the command= triggers seen by this controller.
       rec?.beforeController();
-      if (!this.triggered(c)) continue;
+      if (this.world.randomTrace) this.world.traceCtx = `${this.name}${this.isHelper ? ' helper' : ''} ${no} ${c.def.file}:${c.def.line}`;
+      if (!this.triggered(c)) {
+        this.world.traceCtx = '';
+        continue;
+      }
       const isCurrent = no === this.stateNo;
       if (isCurrent && c.persistent !== 1) {
         const n = this.persist.get(c) ?? 0;

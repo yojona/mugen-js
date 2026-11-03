@@ -144,6 +144,12 @@ def main():
         xdo('key', 'Pause')
         time.sleep(0.3)
         for step in range(1, STEPS + 1):
+            if os.environ.get('NOPROBE'):
+                # Any characters: no probe vars to scan for, only PEEKALL reads.
+                out.write(f"P|{step}|" + ",".join(peek(pid, step)) + "\n")
+                xdo('key', 'Scroll_Lock')
+                time.sleep(float(os.environ.get('STEP_DELAY', '0.03')))
+                continue
             if not loc:
                 loc = memread.find(pid)
                 if os.environ.get('PEEK'):

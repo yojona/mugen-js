@@ -1,0 +1,82 @@
+// mugen-web side of a NOPROBE capture (drive.py with NOPROBE=1 and PEEKALL):
+// any two characters, CPU vs CPU, one line per tick with the same fields as
+// tools/harness/peek-fields.txt reads out of mugen.exe:
+//   P|tick|gametime,roundstate,rng,{stateno,time,life,x,y,velx,vely} x2
+// Positions are in character units (MUGEN keeps them as doubles in p+0x1f8).
+//
+// Usage: tsx tools/harness/peek-ours.ts <ticks> <out.log> <char1> <char2> <seed> [ai1,ai2] [stage]
+//   seed: mugen.exe's match RNG right before the first RoundState 2 tick, or
+//   "gt:value" for its RNG after the tick with that gametime (e.g. the first
+//   captured frame, so the intros draw the same numbers).
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { loadCharacter } from '../../src/engine/character';
+import { Match } from '../../src/engine/match';
+import { nodeSource } from '../../src/engine/node-source';
+import { loadProgram, Player } from '../../src/engine/player';
+import { Vfs } from '../../src/engine/vfs';
+import { World } from '../../src/engine/world';
+import { MugenAI } from '../../src/engine/ai';
+import { parseAir } from '../../src/formats/air';
+import { parseSff } from '../../src/formats/sff';
+import { FightHud } from '../../src/motif/fight';
+import { loadStage } from '../../src/stage/stage';
+
+const [ticksArg, out, c1, c2, seedArg, aiArg, stageArg] = process.argv.slice(2);
+if (!ticksArg || !out || !c1 || !c2 || !seedArg) throw new Error('usage: peek-ours.ts ticks out char1 char2 seed [ai1,ai2] [stage]');
+const ROOT = join(import.meta.dirname, '..', '..');
+const vfs = new Vfs(nodeSource(join(ROOT, 'ref', 'mugen-1.1b1')));
+const prog1 = await loadProgram(vfs, await loadCharacter(vfs, `chars/${c1}/${c1}.def`));
+const prog2 = c2 === c1 ? prog1 : await loadProgram(vfs, await loadCharacter(vfs, `chars/${c2}/${c2}.def`));
+const stage = await loadStage(vfs, `stages/${stageArg ?? 'kfm'}.def`);
+const hud = await FightHud.load(vfs, 'data/fight.def');
+const w = new World();
+w.applyStage(stage.info);
+w.fightFx = { anims: parseAir(await vfs.text('data/fightfx.air')), sff: await parseSff(await vfs.read('data/fightfx.sff')) };
+const p1 = new Player(prog1, w, 0);
+const p2 = new Player(prog2, w, 1);
+p2.palNo = 2;
+w.players.push(p1, p2);
+const levels = (aiArg ?? '4,4').split(',').map(Number);
+[p1, p2].forEach((p, i) => (p.ai = new MugenAI(p, levels[i] ?? 4)));
+for (const p of [p1, p2]) p.warn = (m) => console.error(`${p.name}: ${m}`);
+const m = new Match(w, hud.roundConfig(), [
+  { x: stage.info.p1.x, y: stage.info.p1.y, facing: stage.info.p1.facing },
+  { x: stage.info.p2.x, y: stage.info.p2.y, facing: stage.info.p2.facing },
+]);
+const lines: string[] = [];
+let seeded = false;
+const seedAt = seedArg.includes(':') ? (seedArg.split(':').map(Number) as [number, number]) : undefined;
+const ticks = Number(ticksArg);
+if (seedAt && seedAt[0] === 0) {
+  w.seed = seedAt[1];
+  seeded = true;
+}
+for (let i = 1; i <= ticks; i++) {
+  const go = m.tick();
+  if (!seeded && !seedAt && w.roundState === 2) {
+    w.seed = Number(seedArg);
+    seeded = true;
+  }
+  const tr = process.env.TRACE?.split(',').map(Number);
+  if (tr && w.gameTime + 1 >= tr[0]! && w.gameTime + 1 <= tr[1]!) w.randomTrace = [];
+  if (go) w.tick([0, 0]);
+  if (w.randomTrace) {
+    const counts = new Map<string, number>();
+    for (const k of w.randomTrace) counts.set(k, (counts.get(k) ?? 0) + 1);
+    console.log(`TRACE gt ${w.gameTime}: ${w.randomTrace.length} draws`);
+    for (const [k, n] of counts) console.log(`  ${n}x ${k || '(outside states)'}`);
+    w.randomTrace = undefined;
+  }
+  if (seedAt && !seeded && w.gameTime === seedAt[0]) {
+    w.seed = seedAt[1];
+    seeded = true;
+  }
+  const f = (x: number) => x.toFixed(4);
+  const row = [w.gameTime, w.roundState, w.seed];
+  const pl = [p1, p2].flatMap((p: Player) => [p.stateNo, p.time, p.life, f(p.pos.x), f(p.pos.y), f(p.vel.x), f(p.vel.y)]);
+  lines.push(`P|${i}|${[...row, ...pl].join(',')}`);
+  if (m.finished) break;
+}
+writeFileSync(out, lines.join('\n') + '\n');
+console.log(`${lines.length} lines -> ${out}`);
