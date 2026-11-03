@@ -538,9 +538,11 @@ export class Player {
       this.stateChanged = false;
       const custom = !!this.stateOwner;
       c.run(this);
-      if (this.world.randomTrace) this.world.traceCtx = '';
+      if (this.world.randomTrace) {
+        if (this.stateChanged) this.world.randomTrace.push(`=> ${this.stateNo} by ${this.world.traceCtx}`);
+        this.world.traceCtx = '';
+      }
       if (this.stateChanged) {
-        if (this.world.randomTrace) this.world.randomTrace.push(`=> ${this.stateNo} by ${this.world.traceCtx}`);
         // 0x448f50: a command-triggered state change starts a move record
         // and tells the CPU players (not from or into custom states).
         if (rec && !custom && !this.stateOwner) rec.afterStateChange();

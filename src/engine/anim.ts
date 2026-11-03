@@ -136,13 +136,14 @@ export class AnimPlayer {
   animElemTime(n: number): number | undefined {
     const start = this.t.starts[n - 1];
     if (start === undefined) return undefined;
+    // mugen.exe's action time (Anim_Step 0x4648xx): it reaches the total
+    // (AnimTime = 0), then wraps to loop time + 1 on the next step, so it is
+    // never the loop start itself; AnimElemTime is that time minus the
+    // element's start.
     const e = this.time;
-    if (this.t.total < 0 || e < this.t.total) return e - start;
-    // In the looping portion: measured within the current loop, never 0 on the
-    // first tick of a new loop (trigger.html AnimElem notes).
-    const pos = this.t.loopStartTime + ((e - this.t.total) % this.t.loopLen);
-    const v = pos - start;
-    return v === 0 && n - 1 === this.anim.loopStart ? this.t.loopLen : v;
+    const t = this.t;
+    if (t.total < 0 || e <= t.total) return e - start;
+    return t.loopStartTime + ((e - t.total - 1) % t.loopLen) + 1 - start;
   }
 
   /** AnimElemNo(offset): 1-based element displayed `offset` ticks from now. */
