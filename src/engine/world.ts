@@ -345,9 +345,10 @@ export class World {
     // inactive players; a Pause stops updates, not hits).
     const hitters = this.allPlayers().filter((p) => !p.destroyed);
     applyHits(detectHits(hitters), hitters, this.frames);
-    if (!this.superPause && !this.pause) {
-      for (const pr of this.projectiles) updateProjectile(pr);
-    }
+    // Projectiles_Update runs for each player that ran this tick (run[i],
+    // decided before the updates): a Pause started during the tick does not
+    // stop its owner's projectiles until the next one.
+    for (const pr of this.projectiles) if (active.includes(pr.owner)) updateProjectile(pr);
     applyHits(detectProjectileHits(this.projectiles, active));
     this.projectiles = this.projectiles.filter((pr) => pr.phase !== 'dead');
     // The second push pass (mugen.exe 0x43de16; measured: walking into a
