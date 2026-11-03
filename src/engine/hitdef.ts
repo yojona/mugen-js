@@ -393,10 +393,23 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
 }
 
 /** A HitDef's attr in mugen.exe's layout: S/C/A = 1/2/4, then N/S/H x A/T/P. */
+/**
+ * One attr type ("NA", "ST", "HP", a lone "N"/"S"/"H"/"A", or "AA"...) as
+ * HitDefAttr_Parse reads it: the bits are grouped by kind (NA SA HA 0x8..0x20,
+ * NT ST HT 0x40..0x100, NP SP HP 0x200..0x800); a lone class letter means all
+ * three kinds, and a lone "A" gives the value of "H" (original bug).
+ */
+export function hitAttrTypeBits(type: string): number {
+  const t = type.toLowerCase();
+  const row = ({ n: [0x248, 0x008, 0x040, 0x200], s: [0x490, 0x010, 0x080, 0x400], h: [0x920, 0x020, 0x100, 0x800], a: [0x920, 0x038, 0x1c0, 0xe00] } as Record<string, number[]>)[t[0] ?? ''];
+  if (!row) return 0;
+  const k = t[1];
+  if (k === undefined) return row[0]!;
+  const i = 'atp'.indexOf(k);
+  return i < 0 ? 0 : row[i + 1]!;
+}
+
 export function hitDefAttrBits(state: string, type: string): number {
-  let b = state === 's' ? 1 : state === 'c' ? 2 : state === 'a' ? 4 : 0;
-  const cls = 'nsh'.indexOf(type[0] ?? '');
-  const kind = 'atp'.indexOf(type[1] ?? '');
-  if (cls >= 0 && kind >= 0) b |= 8 << (kind * 3 + cls);
-  return b;
+  const b = state === 's' ? 1 : state === 'c' ? 2 : state === 'a' ? 4 : 0;
+  return b | hitAttrTypeBits(type);
 }

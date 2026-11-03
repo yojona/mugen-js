@@ -10,6 +10,7 @@
 // a move it has a record for, guards it when the recorded hitbox would reach
 // it, and picks its own recorded moves to counter.
 
+import { hitAttrTypeBits } from './hitdef';
 import type { Player } from './player';
 
 /** Stat16 {mean, min, max, dev}; only the mean and deviation are ever read. */
@@ -224,20 +225,14 @@ export function guardFlagBits(flags: string): number {
   return b;
 }
 
-/** attr: bits 1/2/4 = S/C/A, then one bit per class (N/S/H) and kind (A/T/P). */
+/** attr: bits 1/2/4 = S/C/A, then one bit per kind (A/T/P) and class (N/S/H). */
 export function attrBits(list: readonly string[]): number {
   let b = 0;
   const st = list[0] ?? '';
   if (st.includes('s')) b |= 1;
   if (st.includes('c')) b |= 2;
   if (st.includes('a')) b |= 4;
-  for (const t of list.slice(1)) {
-    if (t.length < 2) continue;
-    const kind = 'atp'.indexOf(t[1]!);
-    if (kind < 0) continue;
-    const classes = t[0] === 'a' ? [0, 1, 2] : ['nsh'.indexOf(t[0]!)];
-    for (const c of classes) if (c >= 0) b |= 8 << (c * 3 + kind);
-  }
+  for (const t of list.slice(1)) b |= hitAttrTypeBits(t);
   return b;
 }
 

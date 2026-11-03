@@ -9,7 +9,7 @@
 // (ai-learn.ts): the AI watches opponent moves it has records for, guards
 // them and counters with its own recorded moves.
 
-import { attackWouldHit, cloneRecord, type AiMessage, type AttackRecord } from './ai-learn';
+import { attackWouldHit, attrBits, cloneRecord, type AiMessage, type AttackRecord } from './ai-learn';
 import type { Player } from './player';
 
 const K_U = 1;
@@ -581,7 +581,8 @@ export class MugenAI {
     let r1 = this.rand(6) + 5;
     let r2 = this.rand(6) + 5;
     // The opponent started a command move: back to idle.
-    if (level === 9 ? this.msg(1, opp, true) : this.msg(0, opp, false)) return this.toState(0);
+    // Level 9 first takes a move message, then (any level) a state message.
+    if ((level === 9 && this.msg(1, opp, true)) || this.msg(0, opp, false)) return this.toState(0);
     if (this.rand(100) === 0) r1 = 11;
     // 0x431d62: the delayed button survives only 1 time in 8.
     if (r2 === r1 || this.rand(8) !== 0) r2 = 0;
@@ -650,9 +651,9 @@ export class MugenAI {
       let thr = Math.trunc(((level + 6) * base) / 14);
       if (p.moveType === 'h') thr = Math.trunc(thr / 10);
       if (this.rand(1000) < thr) {
-        // attr & 0x6d8: a normal or special (not hyper) attack.
-        const notHyper = p.hitDef ? p.hitDef.attrType[0] !== 'h' : false;
-        const cthr = this.contactKind === 2 ? (notHyper ? 250 : 500) : 750;
+        // attr & 0x6d8: a normal or special (not hyper) HitDef of any kind.
+        const at = p.hitDef ? attrBits([p.hitDef.attrState, p.hitDef.attrType]) & 0x6d8 : 0;
+        const cthr = this.contactKind === 2 ? (at ? 250 : 500) : 750;
         if (this.rand(1000) < cthr) {
           const b = this.rand(6) + 5;
           this.push(this.held(b) ? b | REL : b);
