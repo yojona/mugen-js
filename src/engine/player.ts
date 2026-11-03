@@ -194,8 +194,13 @@ export class Player {
   /** Set on the tick a hit pause starts: that tick still advances normally. */
   hitPauseFresh = false;
   /** Damage from a hit, applied at the end of the next tick (measured). */
-  pendingDamage: { amount: number; kill: boolean; delay: number } | undefined;
-  shakeFresh = false;
+  /**
+   * Damage held back until the defender's next update (Player_Update
+   * applies gethit_damage), stamped with the tick of the hit.
+   */
+  pendingDamage: { amount: number; kill: boolean; tick: number } | undefined;
+  /** Tick of the last hit: the shake starts counting at the next update. */
+  shakeTick = -1;
   private pauseAtLastTickStart = 0;
   moveContact = 0;
   moveHit = 0;
@@ -975,7 +980,7 @@ export class Player {
     if (this.moveType !== 'h') this.superDefMul = 1;
     for (const s of this.hitBy) if (s.time > 0) s.time--;
     for (const o of this.hitOverrides) if (o && o.time > 0) o.time--;
-    if (this.pendingDamage && this.pendingDamage.delay-- <= 0) this.applyPendingDamage();
+    if (this.pendingDamage && this.pendingDamage.tick < this.world.gameTime) this.applyPendingDamage();
     if (this.hitPause > 0 && !this.hitPauseFresh) {
       this.hitPause--;
       return;
@@ -988,8 +993,7 @@ export class Player {
     // after control returns (measured: a guard hit's HitOver turns 1 three
     // ticks into the jump that ended it; a throw with hittime 0 is not over
     // during its shake).
-    const shakeFresh = this.shakeFresh;
-    this.shakeFresh = false;
+    const shakeFresh = this.shakeTick === this.world.gameTime;
     // Like the attacker's pause, the shake starts counting next tick.
     if (g.hitshaketime > 0 && !shakeFresh) g.hitshaketime--;
     if (g.hitshaketime <= 0 && !shakeFresh && g.hittime >= 0) g.hittime--;

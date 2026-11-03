@@ -262,8 +262,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
 
   if (guarded) {
     const dmg = scaleDamage(a, d, hd.guardDamage);
-    d.pendingDamage = { amount: dmg, kill: hd.guardKill, delay: 1 };
-    d.shakeFresh = true;
+    d.pendingDamage = { amount: dmg, kill: hd.guardKill, tick: world.gameTime };
+    d.shakeTick = world.gameTime;
     g.guarded = 1;
     g.damage = dmg;
     // A guarded hit never falls (measured: the CPU skips its air-recovery
@@ -301,8 +301,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
   } else {
     const dmg = scaleDamage(a, d, hd.damage);
     // Damage lands on the following tick (measured against MUGEN 1.1).
-    d.pendingDamage = { amount: dmg, kill: hd.kill, delay: 1 };
-    d.shakeFresh = true;
+    d.pendingDamage = { amount: dmg, kill: hd.kill, tick: world.gameTime };
+    d.shakeTick = world.gameTime;
     // A crouching defender stands for a forcestand HitDef or a killing hit
     // (mugen.exe 0x43f1bb: the kill flag also selects 5000 over 5010).
     const killsNow = hd.kill && d.life - dmg <= 0;
@@ -328,6 +328,10 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.airtype = hd.airType;
     g.type = inAir ? hd.airType : hd.groundType;
     g.hitshaketime = hd.pause[1];
+    // A hit during a Pause / SuperPause lets the target move for its shake
+    // (HitDef_Apply: pause_movetime = max(pause_movetime, p2 pausetime)).
+    if (world.superPause) d.superMoveTime = Math.max(d.superMoveTime, hd.pause[1]);
+    else if (world.pause) d.pauseMoveTime = Math.max(d.pauseMoveTime, hd.pause[1]);
     // Falling hits use air.hittime too (measured: KFM's throw, fall = 1 and
     // no hittime given, sets 20).
     g.hittime = inAir || vel[1] !== 0 || willFall ? hd.airHitTime : hd.groundHitTime;

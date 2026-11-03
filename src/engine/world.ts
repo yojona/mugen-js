@@ -264,7 +264,9 @@ export class World {
         update(h);
       }
     }
-    applyHits(detectHits(active));
+    // Every player takes part, paused ones too (Players_CheckHits only skips
+    // inactive players; a Pause stops updates, not hits).
+    applyHits(detectHits(this.allPlayers().filter((p) => !p.destroyed)));
     if (!this.superPause && !this.pause) {
       for (const pr of this.projectiles) updateProjectile(pr);
     }
