@@ -59,6 +59,7 @@ variable on the leaving screen's last frame). Comparisons use `?pristine=1`
 | Cool Choi vs Bebum Ryo (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | Whole match (8006 frames) identical: floor dust on the round state clock |
 | Kensou EX vs Geese NW (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical after the systematic port of the decompiled core (camera, hits, projectiles, controllers, triggers, round rules) |
 | Asura Rugal vs Geo Kensou (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | Whole match (4726 frames) identical at full precision: pause movetime lost in a custom hit state, velocities kept in world space across a statedef turn |
+| Chizuru&Maki vs Akuma (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 8947 of 9000 frames identical at full precision (helper binds move the camera, float helper origins and bind anchors, AnimExist in custom states). Open at 8948: animation freeze of an attacker on a 1-tick element in its hit pause |
 
 The parser, the parameter readers and several rules now come from the
 decompilation of the same mugen.exe (`ref/mugen-unleashed`, used only as a
