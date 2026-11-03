@@ -251,7 +251,12 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
   const conv = a.scale / d.scale;
   const sparkXY: [number, number] = [hd.sparkXY[0] * a.scale, hd.sparkXY[1] * a.scale];
   const facesA = d.facing === towardA;
-  const xdir = facesA ? 1 : -1; // converts "away from attacker" velocities into d's frame
+  // Hit and guard velocities push along the attacker's facing (the
+  // projectile's for projectiles; p1facing = -1 turns it), whichever side
+  // the defender is on (mugen.exe HitDef_Apply / Player_Guard: vel x times
+  // -dir, dir = attacker facing). xdir turns that into d's own frame.
+  const dir = (proj ? proj.facing : a.facing) * (!proj && hd.p1Facing === -1 ? -1 : 1);
+  const xdir = -dir * d.facing === 1 ? 1 : -1;
   const airborne = d.stateType === 'a';
   const g = d.ghv;
 
@@ -470,8 +475,13 @@ function placeDefender(a: Player, d: Player, hd: HitDefData): void {
   if (x !== d.wx || y !== d.wy) d.setWorldPos(x, y);
 }
 
-function scaleDamage(a: Player, d: Player, dmg: number): number {
-  const att = a.attackFactor;
-  const def = 100 / Math.max(1, d.const('data.defence'));
-  return Math.trunc((dmg * att * def * d.defenceMul) / d.superDefMul);
+/**
+ * Player_HitDamage (0x43F930): the HitDef's damage (already scaled by the
+ * attacker's attack when it ran) times the defender's defence multiplier,
+ * rounded; at least 1 for a positive damage.
+ */
+function scaleDamage(_a: Player, d: Player, dmg: number): number {
+  const def = Math.fround(Math.fround(100 / Math.max(1, d.const('data.defence'))) * d.defenceMul / d.superDefMul);
+  const n = Math.trunc(def * dmg + 0.5);
+  return dmg >= 1 && n === 0 ? 1 : n;
 }

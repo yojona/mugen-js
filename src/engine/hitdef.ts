@@ -187,6 +187,17 @@ function parseRef(raw: string | undefined): { own: boolean; rest: string } | und
   return { own, rest: /^[sf]/i.test(t) ? t.slice(1) : t };
 }
 
+/**
+ * Player_ScaleDamage (0x434AC0), applied when the HitDef runs: damage times
+ * the attack multiplier as a float, rounded; at least 1 for a positive
+ * damage unless the multiplier is 0.
+ */
+function scaleAttack(p: P, damage: number): number {
+  const mul = Math.fround(p.attackFactor);
+  const n = Math.floor(Math.fround(damage * mul) + 0.5);
+  return damage >= 1 && n === 0 && mul !== 0 ? 1 : n;
+}
+
 export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => HitDefData {
   const lists = new Map<string, Fn<P>[]>();
   const get = (k: string) => {
@@ -305,8 +316,8 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
       fallAnimType,
       priority: parseInt(prio[0] ?? '4', 10) || 4,
       priorityType,
-      damage,
-      guardDamage: ni('damage', 1) ?? 0,
+      damage: scaleAttack(p, damage),
+      guardDamage: scaleAttack(p, ni('damage', 1) ?? 0),
       pause,
       guardPause: [ni('guard.pausetime', 0) ?? pause[0], ni('guard.pausetime', 1) ?? pause[1]],
       spark: { own: !!ref('sparkno')?.own, action: spark ?? p.const('data.sparkno') },
