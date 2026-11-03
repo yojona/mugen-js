@@ -269,8 +269,19 @@ export class Player {
   bind: { to: Player; offset: [number, number]; time: number; byTarget?: boolean } | undefined;
   reversal: { attrs: string[]; hd: HitDefData } | undefined;
 
-  /** When in another player's states (p2stateno / TargetState). */
-  stateOwner: Player | undefined;
+  /**
+   * When in another player's states (p2stateno / TargetState). Like
+   * Player_SetCustomState / Player_ClearCustomState, the player's commands
+   * switch to the owner's .cmd list (and back), with the buffer cleared.
+   */
+  get stateOwner(): Player | undefined {
+    return this._stateOwner;
+  }
+  set stateOwner(o: Player | undefined) {
+    this._stateOwner = o;
+    this.cmdInput?.useSet((o ?? this).prog.cmd);
+  }
+  private _stateOwner: Player | undefined;
 
   // Per-tick flags (reset every tick before state processing)
   special = new Set<string>();

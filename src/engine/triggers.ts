@@ -301,7 +301,7 @@ function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
         // The same in another character's states (custom states).
         const from = (R.from as P | undefined) ?? p;
         const owner = from.stateOwner ?? from;
-        if (owner.prog.cmd !== p.prog.cmd) {
+        if (p.cmdInput && owner.prog.cmd !== p.cmdInput.commandSet) {
           const slot = commandSlot(owner, name);
           if (slot < 0 || p.noInputStates || !p.cmdInput?.slotActive(slot)) return false;
           const fired = p.recorder?.fired;

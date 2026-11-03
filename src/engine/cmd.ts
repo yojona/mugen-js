@@ -234,6 +234,24 @@ export class CommandInput {
   private buffer: Uint8Array;
   private last: Float64Array;
 
+  /**
+   * Switch to another command list (custom states): the active labels are
+   * cleared, their last activation frames kept.
+   */
+  useSet(set: CommandSet): void {
+    if (set === this.set) return;
+    this.set = set;
+    this.buffer = new Uint8Array(Math.max(1, set.size));
+    const last = new Float64Array(Math.max(1, set.size)).fill(-Infinity);
+    last.set(this.last.subarray(0, Math.min(this.last.length, last.length)));
+    this.last = last;
+  }
+
+  /** The command list in use. */
+  get commandSet(): CommandSet {
+    return this.set;
+  }
+
   constructor(private set: CommandSet) {
     this.buffer = new Uint8Array(Math.max(1, set.size));
     this.last = new Float64Array(Math.max(1, set.size)).fill(-Infinity);
