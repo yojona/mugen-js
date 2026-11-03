@@ -502,7 +502,10 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     if (d.stateType === 'c' && (hd.forceStand || killsNow)) d.stateType = 's';
     const wasFalling = d.moveType === 'h' && g.fall !== 0;
     const override = d.hitOverrides.find((o) => o && o.time !== 0 && attrMatches(o.attrs, hd.attrState, hd.attrType) && hd.p1StateNo < 0 && !(hd.p2StateNo >= 0 && hd.p2GetP1State));
-    const inAir = d.stateType === 'a' || !!override?.forceAir;
+    // HitDef_Apply: lying on the floor takes the down.* values (5080); lying
+    // above it counts as in the air.
+    const lying = d.stateType === 'l' && d.wy === 0 && !override?.forceAir;
+    const inAir = d.stateType === 'a' || !!override?.forceAir || (d.stateType === 'l' && d.wy !== 0);
     // Juggle points (Player_Hit): a hit on a falling target, a fall = 1 hit or an air.fall
     // hit in the air, spends the HitDef's juggle from the attacker's target
     // entry; the HitDef then costs nothing more until a state sets it.
@@ -510,7 +513,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
       a.targetJuggle.set(d, (a.targetJuggle.get(d) ?? a.const('data.airjuggle')) - Math.max(0, a.juggleCost));
       a.juggleCost = 0;
     }
-    const vel = inAir ? hd.airVel : hd.groundVel;
+    const vel = lying ? hd.downVel : inAir ? hd.airVel : hd.groundVel;
     g.guarded = 0;
     g.damage = dmg;
     // Knock-down hits use fall.animtype (MUGEN shows anim 5030 for KFM's palm).
@@ -532,7 +535,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     else if (!world.superPause && world.pause && !world.pause.fresh) d.pauseMoveTime = Math.max(d.pauseMoveTime, hd.pause[1]);
     // Falling hits use air.hittime too (measured: KFM's throw, fall = 1 and
     // no hittime given, sets 20).
-    g.hittime = inAir || vel[1] !== 0 || willFall ? hd.airHitTime : hd.groundHitTime;
+    g.hittime = lying ? (vel[1] !== 0 ? hd.airHitTime : hd.downHitTime) : inAir || vel[1] !== 0 || willFall ? hd.airHitTime : hd.groundHitTime;
     g.slidetime = hd.groundSlideTime;
     let [vx, vy] = vel;
     // A killing hit throws the defender (mugen.exe 0x43f29a): ground hits
@@ -548,7 +551,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.yvel = vy * conv;
     // HitDef_Apply: a falling ground hit with no y velocity gets -0.001
     // (internal units), so the hit state sends it into the air.
-    if (!inAir && willFall && g.yvel === 0) g.yvel = Math.fround(-0.001) / (d.scale * (world.gameWidth / world.screenWidth));
+    if (!inAir && !lying && willFall && g.yvel === 0) g.yvel = Math.fround(-0.001) / (d.scale * (world.gameWidth / world.screenWidth));
     g.yaccel = hd.yaccel * conv;
     g.fall = willFall ? 1 : 0;
     if (proj) {
@@ -563,6 +566,11 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g['fall.damage'] = hd.fallDamage;
     g['fall.xvel'] = hd.fallXVel === undefined ? Number.NaN : hd.fallXVel * conv;
     g['fall.yvel'] = hd.fallYVel * conv;
+    // A down hit with y velocity and down.bounce = 0 does not bounce.
+    if (lying && vel[1] !== 0 && !hd.downBounce) {
+      g['fall.xvel'] = Number.NaN;
+      g['fall.yvel'] = 0;
+    }
     g['fall.recover'] = hd.fallRecover ? 1 : 0;
     g['fall.recovertime'] = hd.fallRecoverTime;
     g['fall.kill'] = hd.fallKill ? 1 : 0;
@@ -625,7 +633,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
       // A grounded defender hit by ground.type = Trip goes to 5070 (HITTRIP);
       // by statetype only: common1's 5000/5010 switch to air themselves when yvel != 0.
       // air.type = Trip sends an airborne target to 5070 too (HitDef_Apply).
-      const hitState = (inAir ? hd.airType : hd.groundType) === 3 ? 5070 : inAir ? 5020 : d.stateType === 'c' ? 5010 : 5000;
+      const hitState = lying ? 5080 : (inAir ? hd.airType : hd.groundType) === 3 ? 5070 : inAir ? 5020 : d.stateType === 'c' ? 5010 : 5000;
       if (override && override.stateNo >= 0) d.changeState(override.stateNo);
       else if (hd.p2StateNo >= 0) {
         // HitDef_Apply sets only the number of the common hit state, then
@@ -653,7 +661,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
       }
     }
     d.moveType = 'h';
-    if (!proj) cornerPush(a, d, inAir ? hd.airCornerPush : hd.groundCornerPush);
+    if (!proj) cornerPush(a, d, lying ? hd.downCornerPush : inAir ? hd.airCornerPush : hd.groundCornerPush);
     world.spawnSpark(a, d, hd.spark, sparkXY, src);
     world.playHitSound(a, hd.hitSound);
   }

@@ -357,7 +357,7 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
       airVel,
       airGuardVel: [n('airguard.velocity', 0) ?? airVel[0] * 1.5, n('airguard.velocity', 1) ?? airVel[1] / 2],
       downVel: [n('down.velocity', 0) ?? airVel[0], n('down.velocity', 1) ?? airVel[1]],
-      downHitTime: ni('down.hittime') ?? 0,
+      downHitTime: ni('down.hittime') ?? 20,
       downBounce: (ni('down.bounce') ?? 0) !== 0,
       p1SprPriority: ni('p1sprpriority') ?? 1,
       p2SprPriority: ni('p2sprpriority') ?? 0,
