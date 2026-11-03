@@ -5,14 +5,23 @@ import { ElementInstance, parseElement, drawText } from '../motif/element';
 import { BUTTONS } from './input';
 import { fader, MotifBackground, motifSound, type AppContext, type Screen } from './screen';
 
-export type GameMode = 'arcade' | 'versus' | 'training' | 'watch';
+export type GameMode = 'arcade' | 'versus' | 'teamarcade' | 'teamversus' | 'teamcoop' | 'survival' | 'survivalcoop' | 'training' | 'watch';
 
-/** Menu items in MUGEN's order; only modes this engine supports are listed. */
-const ITEMS: { key: string; mode: GameMode }[] = [
-  { key: 'arcade', mode: 'arcade' },
-  { key: 'versus', mode: 'versus' },
-  { key: 'training', mode: 'training' },
-  { key: 'watch', mode: 'watch' },
+/**
+ * Menu items in MUGEN's order (motif.c title_item_keys) with the names used
+ * when [Title Info] has no menu.itemname.<key> (title_item_defaults).
+ * Options and exit are not modes of this engine.
+ */
+const ITEMS: { key: GameMode; name: string }[] = [
+  { key: 'arcade', name: 'Arcade' },
+  { key: 'versus', name: 'VS Mode' },
+  { key: 'teamarcade', name: 'Team Arcade' },
+  { key: 'teamversus', name: 'Team Versus' },
+  { key: 'teamcoop', name: 'Team Co-op' },
+  { key: 'survival', name: 'Survival' },
+  { key: 'survivalcoop', name: 'Survival Co-op' },
+  { key: 'training', name: 'Training' },
+  { key: 'watch', name: 'Watch' },
 ];
 
 export class TitleScreen implements Screen {
@@ -30,7 +39,7 @@ export class TitleScreen implements Screen {
   ) {
     this.bg = new MotifBackground(ctx, 'title');
     this.fade = fader(ctx, 'Title Info');
-    this.items = ITEMS.map((i) => ({ name: this.v(`menu.itemname.${i.key}`)?.replace(/^"|"$/g, '') ?? i.key.toUpperCase(), mode: i.mode })).filter((i) => i.name !== '');
+    this.items = ITEMS.map((i) => ({ name: this.v(`menu.itemname.${i.key}`)?.replace(/^"|"$/g, '') ?? i.name, mode: i.key })).filter((i) => i.name !== '');
     this.cursor = Math.min(start, this.items.length - 1);
   }
 
