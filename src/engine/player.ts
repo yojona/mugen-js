@@ -198,6 +198,8 @@ export class Player {
   get slotNo(): number {
     return this.isHelper ? 0 : (this.slotNoSet ?? this.world.players.indexOf(this) + 1);
   }
+  /** The human pad driving this player (index into the keyboard pads), none for the CPU. */
+  pad: number | undefined;
   /** Slot given by the match (a team without its P3 still has P4). */
   slotNoSet: number | undefined;
   vars = new Int32Array(60);

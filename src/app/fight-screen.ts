@@ -5,7 +5,7 @@
 // HUD is drawn in the motif's (fight.def's) coordinate space.
 
 import { MugenAI, type DummySettings } from '../engine/ai';
-import { Match } from '../engine/match';
+import { Match, type TeamMode, type TeamPlan } from '../engine/match';
 import { pickVictoryQuote, Player, type CharacterProgram } from '../engine/player';
 import { World, type FightFx } from '../engine/world';
 import type { FightHud } from '../motif/fight';
@@ -30,6 +30,19 @@ export interface FightSetup {
   training: boolean;
   /** Match RNG seed (mugen.exe 0x425540, from the session RNG). */
   seed?: number;
+  /** Team modes: each side's mode, characters (programs and picks, in order) and who plays them. */
+  teams?: [FightTeam, FightTeam];
+  /** [Options] Life, Team.1VS2Life, Team.LoseOnKO. */
+  options?: { life?: number; team1vs2Life?: number; loseOnKo?: boolean };
+}
+
+export interface FightTeam {
+  mode: TeamMode;
+  /** Characters: simul 2, turns the order's length. */
+  progs: CharacterProgram[];
+  picks: Pick[];
+  /** Per character: the human pad playing it, or undefined for the CPU. */
+  pads: (number | undefined)[];
 }
 
 export interface FightResult {
@@ -63,26 +76,47 @@ export class FightScreen implements Screen {
     w.screenWidth = Math.round(w.screenHeight * (mw / mh));
     w.fightFx = s.fightFx;
     if (s.seed !== undefined) w.seed = s.seed;
-    const p1 = new Player(s.progs[0], w, 0);
-    const p2 = new Player(s.progs[1], w, 1);
-    p1.palNo = s.p1.pal;
-    p2.palNo = s.p2.pal;
-    w.players.push(p1, p2);
     const info = s.stage.info;
     const cfg = s.hud.roundConfig();
     if (s.training) cfg.roundSeconds = -1;
-    this.match = new Match(w, cfg, [
-      { x: info.p1.x, y: info.p1.y, facing: info.p1.facing },
-      { x: info.p2.x, y: info.p2.y, facing: info.p2.facing },
-    ]);
+    const starts = [info.p1, info.p2, info.p3, info.p4];
+    if (s.teams) {
+      // Team_CreatePlayers: each slot's character, palette and controller.
+      const plans = s.teams.map((t, side): TeamPlan => ({
+        mode: t.mode,
+        count: t.progs.length,
+        ai: t.pads.map((pad) => pad === undefined),
+        faces: t.picks.map((pk) => ({ data: pk.char.data!, pal: pk.pal })),
+        spawn: (member, k) => {
+          const i = t.mode === 'simul' ? k : member;
+          const p = new Player(t.progs[i]!, w, side);
+          p.palNo = t.picks[i]!.pal;
+          p.pad = t.pads[i];
+          if (p.pad === undefined) p.ai = new MugenAI(p, ctx.aiLevel);
+          return p;
+        },
+      })) as [TeamPlan, TeamPlan];
+      this.match = new Match(w, cfg, starts, { teams: plans, ...s.options });
+    } else {
+      const p1 = new Player(s.progs[0], w, 0);
+      const p2 = new Player(s.progs[1], w, 1);
+      p1.palNo = s.p1.pal;
+      p2.palNo = s.p2.pal;
+      w.players.push(p1, p2);
+      this.match = new Match(w, cfg, starts, s.options);
+      // CPU sides run MUGEN's own AI; in training it is MUGEN's dummy.
+      [p1, p2].forEach((p, i) => {
+        if (s.human[i]) {
+          // One human playing P2 alone uses the first pad.
+          p.pad = i === 1 && !s.human[0] ? 0 : i;
+          return;
+        }
+        p.ai = new MugenAI(p, ctx.aiLevel);
+        if (s.training) p.ai.dummy = this.dummy;
+      });
+    }
     this.match.autoRematch = false;
     this.bg = new StageRuntime(s.stage);
-    // CPU sides run MUGEN's own AI; in training it is MUGEN's dummy.
-    [p1, p2].forEach((p, i) => {
-      if (s.human[i]) return;
-      p.ai = new MugenAI(p, ctx.aiLevel);
-      if (s.training) p.ai.dummy = this.dummy;
-    });
     if (s.training) this.showDummy();
   }
 
@@ -102,7 +136,7 @@ export class FightScreen implements Screen {
     if (this.s.training) this.dummyKeys();
     const m = this.match;
     const w = this.world;
-    const inputs = w.players.map((_, i) => (this.s.human[i] ? this.ctx.keys.pads[i === 1 && !this.s.human[0] ? 0 : i]!.bits : 0));
+    const inputs = w.players.map((p) => (p.pad !== undefined ? (this.ctx.keys.pads[p.pad]?.bits ?? 0) : 0));
     if (m.tick()) {
       w.tick(inputs);
       if (!w.superPause && !w.pause) this.bg.tick();
