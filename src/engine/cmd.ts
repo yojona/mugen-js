@@ -533,7 +533,9 @@ export class CommandInput {
         if (strict) return undefined;
         strict = false;
       }
-      if (elapsed > c.time && !(els[k]!.bits & F_HOLD)) return undefined;
+      // Cmd_Match's second window test is the other way round: past the
+      // time, a hold step ends the search (mugen.exe 0x478c22: test 0x20000, jne).
+      if (elapsed > c.time && els[k]!.bits & F_HOLD) return undefined;
       if (j === this.qStart) return undefined;
     }
   }
