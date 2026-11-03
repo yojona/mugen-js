@@ -205,12 +205,15 @@ const IMPLS: Record<string, Impl> = {
     const iv = prm.int(p, 'value');
     const fv = prm.num(p, 'fvalue');
     const first = prm.int(p, 'first') ?? 0;
+    // An out-of-range range does nothing (warning) in mugen.exe.
     if (iv !== undefined) {
       const last = prm.int(p, 'last') ?? 59;
-      for (let i = Math.max(0, first); i <= Math.min(59, last); i++) p.vars[i] = iv;
+      if (first < 0 || last > 59 || first > last) return;
+      for (let i = first; i <= last; i++) p.vars[i] = iv;
     } else if (fv !== undefined) {
       const last = prm.int(p, 'last') ?? 39;
-      for (let i = Math.max(0, first); i <= Math.min(39, last); i++) p.fvars[i] = fv;
+      if (first < 0 || last > 39 || first > last) return;
+      for (let i = first; i <= last; i++) p.fvars[i] = fv;
     }
   },
 
@@ -259,7 +262,8 @@ const IMPLS: Record<string, Impl> = {
   hitfalldamage: () => (p) => {
     const dmg = p.ghv['fall.damage'];
     if (!dmg) return;
-    p.life = Math.max(p.ghv['fall.kill'] ? 0 : Math.min(p.life, 1), p.life - dmg);
+    // SetLife only clamps to 0..max (fall.kill is not read here).
+    p.life = Math.max(0, Math.min(p.const('data.life'), p.life - dmg));
     p.ghv['fall.damage'] = 0;
   },
   // mugen.exe: attack_mul = value * data.attack / 100.
@@ -567,9 +571,11 @@ const EXTRA: Record<string, Impl> = {
     });
   },
   targetfacing: (_c, prm) => (p) => {
-    const v = prm.int(p, 'value') ?? 1;
+    // 0 (the default) does nothing; > 0 faces like p, < 0 away from it.
+    const v = prm.int(p, 'value') ?? 0;
+    if (v === 0) return;
     eachTarget(p, prm, (t) => {
-      t.facing = v >= 0 ? p.facing : -p.facing;
+      t.facing = v > 0 ? p.facing : -p.facing;
     });
   },
   targetlifeadd: (_c, prm) => (p) => {

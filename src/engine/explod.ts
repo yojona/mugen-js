@@ -285,7 +285,8 @@ export function compileMakeDust(c: ControllerDef, env: TriggerEnv<P>): (p: P) =>
   const prm = params(c, env);
   return (p) => {
     const spacing = Math.max(1, prm.int(p, 'spacing') ?? 3);
-    if (p.time % spacing !== 0) return;
+    // The round state clock, like the floor dust (not the state's Time).
+    if ((p.world.roundClock ?? p.world.fightTime) % spacing !== 0) return;
     const a = p.world.fightFx?.anims.get(120);
     if (!a) return;
     for (const k of ['pos', 'pos2']) {

@@ -189,6 +189,9 @@ export class World {
   /** Pause / SuperPause controllers. */
   startPause(owner: Player, time: number, moveTime: number, isSuper: boolean, opts: { darken?: boolean; unhittable?: boolean; p2defmul?: number; endCmdBufTime?: number } = {}): void {
     const e = opts.endCmdBufTime ?? 0;
+    // Pause_Apply: time < 0 is 0; a movetime below 0 or past time is 0.
+    if (time < 0) time = 0;
+    if (moveTime < 0 || moveTime > time) moveTime = 0;
     const st: PauseState = { owner, time, moveTime, fresh: true, darken: opts.darken ?? false, unhittable: opts.unhittable ?? false, endCmdBufTime: e < 0 || e > time ? 0 : e };
     if (isSuper) this.superPause = time > 0 ? st : undefined;
     else if (this.superPause) this.queuedPause = st;
