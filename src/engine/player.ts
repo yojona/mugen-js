@@ -250,6 +250,8 @@ export class Player {
   hitBy: { mask: number; time: number }[] = [];
   /** HitOverride slots (0..7). */
   hitOverrides: ({ attrs: string[]; stateNo: number; time: number; forceAir: boolean } | undefined)[] = [];
+  /** Round over (no_input_states): no commands and no built-in transitions. */
+  noInputStates = false;
   /** Juggle cost of the current attack state (statedef `juggle`). */
   juggleCost = 0;
   posFreeze = false;
@@ -837,7 +839,7 @@ export class Player {
 
   /** Hard-coded transitions MUGEN performs for players with control. */
   private engineTransitions(): void {
-    if (this.isHelper) return;
+    if (this.isHelper || this.noInputStates) return;
     // mugen.exe 0x435144: one action from the held directions.
     const cmd = this.commands;
     const no = this.stateNo;

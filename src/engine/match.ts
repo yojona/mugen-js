@@ -132,6 +132,8 @@ export class Match {
       p.ctrl = false;
       p.returnToOwnStates();
       p.targets.clear();
+      p.targetJuggle.clear();
+      p.noInputStates = false;
       p.recorder?.resetRound();
       p.ai?.resetRound();
       p.hitDefActive = false;
@@ -253,7 +255,11 @@ export class Match {
           w.roundState = 3;
           // G+0x12760 restarts at 0 and still counts the KO tick.
           this.koTicks = 1;
-          this.slowRate = this.slowAcc = 500;
+          // No slow motion on a time over or with AssertSpecial nokoslow.
+          const noKoSlow = this.players.some((p) => p.special.has('nokoslow')) || w.helpers.some((h) => h.special.has('nokoslow'));
+          this.slowRate = this.slowAcc = timeUp || noKoSlow ? 0 : 500;
+          // A time over stops everyone's input at once (no_input_states).
+          if (timeUp) for (const p of this.players) p.noInputStates = true;
           this.enter('ko');
         }
         break;
@@ -277,11 +283,15 @@ export class Match {
           this.slowRate = r;
           this.slowAcc = r;
         };
-        if (k === 5 && k < Math.trunc((st * 5) / 10)) setRate(200);
-        if (k === Math.trunc((st * 5) / 10)) setRate(100);
-        if (k === Math.trunc((st * 7) / 10)) setRate(50);
-        if (k === Math.trunc((st * 9) / 10)) setRate(25);
+        if (w.winType !== 2) {
+          if (k === 5 && k < Math.trunc((st * 5) / 10)) setRate(200);
+          if (k === Math.trunc((st * 5) / 10)) setRate(100);
+          if (k === Math.trunc((st * 7) / 10)) setRate(50);
+          if (k === Math.trunc((st * 9) / 10)) setRate(25);
+        }
         if (k >= st) setRate(0);
+        // At over.waittime nobody takes input any more (no_input_states).
+        if (k === c.overWaitTime) for (const p of this.players) p.noInputStates = true;
         // Round end (0x414d20): after over.waittime ticks run, once every
         // player has settled (ctrl, standing and idle, or lying in 5150 with
         // time > 0), or after 900 ticks regardless.
@@ -306,6 +316,7 @@ export class Match {
         if (this.phaseTime === c.overWinTime) {
           for (const p of this.players) {
             if (!p.alive) continue;
+            if (p === this.roundWinner) p.noInputStates = false;
             const no = !this.roundWinner ? 175 : p === this.roundWinner ? 180 : 170;
             if (p.compiledState(no)) p.changeState(no);
           }

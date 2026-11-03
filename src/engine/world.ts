@@ -259,7 +259,7 @@ export class World {
       const hold = p.hitPauseLastTick;
       p.hitPauseLastTick = p.hitPause > 0;
       p.cmdInput!.update(this.gameTime, this.cmdFloor(p), p.ai?.cmds, hold);
-      p.commands = p.cmdInput!.active();
+      p.commands = p.noInputStates ? new Set() : p.cmdInput!.active();
       p.keyEventRecovery();
     }
     // Keyctrl helpers read the keys into their own command state (copied
