@@ -386,3 +386,191 @@ export function lz5(src: Uint8Array, n: number): Uint8Array {
 function bytesKey(b: Uint8Array): string {
   return String.fromCharCode(...b);
 }
+
+// ---------------------------------------------------------------------------
+// Partial read: only some sprites (select screen portraits)
+
+/** Reads bytes [start, end) of the file; fewer at its end. */
+export type RangeReader = (start: number, end: number) => Promise<Uint8Array>;
+
+/**
+ * An SFF holding only the `wanted` sprites (first occurrence of each), read
+ * through ranges instead of the whole file: what mugen.exe loads of each
+ * character for the select screen. Palettes keep the full parse's rules
+ * (v1: the first sprite's palette is the shared one; v2: all palettes).
+ */
+export async function parseSffSprites(read: RangeReader, wanted: readonly (readonly [number, number])[]): Promise<Sff> {
+  const head = new Reader(await read(0, 512));
+  const sig = head.str(12);
+  if (sig !== SIGNATURE) throw new FormatError('SFF', `bad signature "${sig}"`);
+  const v3 = head.u8();
+  const v2 = head.u8();
+  const v1 = head.u8();
+  const v0 = head.u8();
+  const versionText = `${v0}.${v1}${v2}${v3 ? v3 : ''}`;
+  const want = new Set(wanted.map(([g, n]) => g * 65536 + n));
+  if (v0 === 1) return finish(await partialV1(head, read, want), 1, versionText);
+  if (v0 === 2) return finish(await partialV2(head, read, want), 2, versionText);
+  throw new FormatError('SFF', `unsupported version ${versionText}`);
+}
+
+/** A growing prefix of the file, fetched in doubling chunks. */
+class Prefix {
+  bytes = new Uint8Array(0);
+  private eof = false;
+  private chunk = 1 << 18;
+  constructor(private read: RangeReader) {}
+  async ensure(end: number): Promise<boolean> {
+    while (this.bytes.length < end && !this.eof) {
+      const want = Math.max(end, this.bytes.length + this.chunk);
+      const more = await this.read(this.bytes.length, want);
+      if (more.length < want - this.bytes.length) this.eof = true;
+      const b = new Uint8Array(this.bytes.length + more.length);
+      b.set(this.bytes);
+      b.set(more, this.bytes.length);
+      this.bytes = b;
+      this.chunk = Math.min(this.chunk * 2, 1 << 22);
+    }
+    return this.bytes.length >= end;
+  }
+}
+
+async function partialV1(head: Reader, read: RangeReader, want: Set<number>): Promise<Partial_> {
+  head.pos = 20;
+  const count = head.u32();
+  let next = head.u32();
+  const f = new Prefix(read);
+  const sprites: Sprite[] = [];
+  const palettes: Uint8Array[] = [];
+  const palKeys = new Map<string, number>();
+  const addPalette = (rgb: Uint8Array): number => {
+    const key = bytesKey(rgb);
+    const found = palKeys.get(key);
+    if (found !== undefined) return found;
+    const pal = new Uint8Array(1024);
+    for (let i = 0; i < 256; i++) {
+      pal[i * 4] = rgb[i * 3]!;
+      pal[i * 4 + 1] = rgb[i * 3 + 1]!;
+      pal[i * 4 + 2] = rgb[i * 3 + 2]!;
+      pal[i * 4 + 3] = i === 0 ? 0 : 255;
+    }
+    palettes.push(pal);
+    palKeys.set(key, palettes.length - 1);
+    return palettes.length - 1;
+  };
+  // Per sprite: where its PCX data is and where its palette comes from.
+  const info: { data: number; len: number; pal: number }[] = [];
+  let lastPal = -1;
+  const found = new Set<number>();
+  let shared = 0;
+  for (let i = 0; i < count && next > 0 && found.size < want.size; i++) {
+    if (!(await f.ensure(next + 32))) break;
+    const r = new Reader(f.bytes, next);
+    const start = next;
+    next = r.u32();
+    const length = r.u32();
+    const axisX = r.s16();
+    const axisY = r.s16();
+    const group = r.u16();
+    const number = r.u16();
+    const linked = r.u16();
+    const samePalette = r.u8() !== 0 && i > 0;
+    const k = group * 65536 + number;
+    const src = length === 0 ? info[linked] : { data: start + 32, len: length, pal: samePalette && lastPal >= 0 ? lastPal : start + 32 + length - 768 };
+    if (!src) break;
+    info.push(src);
+    lastPal = src.pal;
+    // The first sprite's palette is the character's shared palette.
+    const take = want.has(k) && !found.has(k);
+    if (i > 0 && !take) continue;
+    if (!(await f.ensure(src.data + src.len))) break;
+    const palette = addPalette(f.bytes.subarray(src.pal, src.pal + 768));
+    if (i === 0) shared = palette;
+    if (!take) continue;
+    found.add(k);
+    const pcx = decodePcx(f.bytes.subarray(src.data, src.data + src.len));
+    sprites.push({ group, number, axisX, axisY, palette, width: pcx.width, height: pcx.height, indices: pcx.indices });
+  }
+  return { sprites, palettes, paletteIds: palettes.map(() => undefined), sharedPalette: shared };
+}
+
+async function partialV2(head: Reader, read: RangeReader, want: Set<number>): Promise<Partial_> {
+  head.pos = 36;
+  const spriteOff = head.u32();
+  const spriteCount = head.u32();
+  const palOff = head.u32();
+  const palCount = head.u32();
+  const ldataOff = head.u32();
+  /* ldata length */ head.u32();
+  const tdataOff = head.u32();
+  const [palTab, sprTab] = await Promise.all([read(palOff, palOff + palCount * 16), read(spriteOff, spriteOff + spriteCount * 28)]);
+  const pr = new Reader(palTab);
+  const rawPal: { group: number; number: number; linked: number; off: number; len: number }[] = [];
+  for (let i = 0; i < palCount; i++) {
+    const group = pr.u16();
+    const number = pr.u16();
+    /* cols */ pr.u16();
+    const linked = pr.u16();
+    rawPal.push({ group, number, linked, off: pr.u32(), len: pr.u32() });
+  }
+  // All palettes (they are small and pick the selectable slots 1,n).
+  const real = rawPal.filter((p) => p.len > 0);
+  const lo = Math.min(...real.map((p) => p.off));
+  const hi = Math.max(...real.map((p) => p.off + p.len));
+  const palData = real.length ? await read(ldataOff + lo, ldataOff + hi) : new Uint8Array(0);
+  const palettes: Uint8Array[] = [];
+  for (const p of rawPal) {
+    let pal: Uint8Array;
+    if (p.len === 0) pal = palettes[p.linked] ?? new Uint8Array(1024);
+    else {
+      pal = new Uint8Array(1024);
+      const src = palData.subarray(p.off - lo, p.off - lo + p.len);
+      const n = Math.min(256, src.length >> 2);
+      for (let c = 0; c < n; c++) {
+        pal[c * 4] = src[c * 4]!;
+        pal[c * 4 + 1] = src[c * 4 + 1]!;
+        pal[c * 4 + 2] = src[c * 4 + 2]!;
+        pal[c * 4 + 3] = c === 0 ? 0 : 255;
+      }
+    }
+    palettes.push(pal);
+  }
+  const sr = new Reader(sprTab);
+  const raw: { s: Sprite; linked: number; fmt: number; off: number; len: number; flags: number }[] = [];
+  for (let i = 0; i < spriteCount; i++) {
+    const group = sr.u16();
+    const number = sr.u16();
+    const width = sr.u16();
+    const height = sr.u16();
+    const axisX = sr.s16();
+    const axisY = sr.s16();
+    const linked = sr.u16();
+    const fmt = sr.u8();
+    /* color depth */ sr.u8();
+    const off = sr.u32();
+    const len = sr.u32();
+    const palette = sr.u16();
+    const flags = sr.u16();
+    raw.push({ s: { group, number, width, height, axisX, axisY, palette }, linked, fmt, off, len, flags });
+  }
+  const sprites: Sprite[] = [];
+  const seen = new Set<number>();
+  for (let i = 0; i < raw.length; i++) {
+    const e = raw[i]!;
+    const k = e.s.group * 65536 + e.s.number;
+    if (!want.has(k) || seen.has(k)) continue;
+    seen.add(k);
+    // A linked sprite takes its target's pixels.
+    const d = e.len === 0 && e.linked < i ? raw[e.linked]! : e;
+    if (d.len === 0) continue;
+    const base = d.flags & 1 ? tdataOff : ldataOff;
+    const s = e.s;
+    if (d !== e) {
+      s.width = d.s.width;
+      s.height = d.s.height;
+    }
+    await decodeV2Sprite(s, d.fmt, await read(base + d.off, base + d.off + d.len));
+    sprites.push(s);
+  }
+  return { sprites, palettes, paletteIds: rawPal.map((p) => ({ group: p.group, number: p.number })), sharedPalette: 0 };
+}
