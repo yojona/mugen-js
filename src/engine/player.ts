@@ -572,6 +572,10 @@ export class Player {
     const d = this.pendingDamage;
     if (!d) return;
     this.pendingDamage = undefined;
+    // Player_Update: once RoundState 3 has run over.hittime ticks, the
+    // living take no more damage (the result cannot change).
+    const w = this.world;
+    if (w.roundState === 3 && this.alive && (w.roundClock ?? 0) >= w.overHitTime) return;
     // The kill = 0 limit was applied when the hit landed (Player_HitDamage).
     this.life = Math.max(0, Math.min(this.const('data.life'), this.life - d.amount));
     if (this.life <= 0) this.ghv.fall = 1;

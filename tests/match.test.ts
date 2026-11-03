@@ -67,6 +67,9 @@ describe('match flow', () => {
   it('KO ends the round, the winner scores and round 2 starts with full life', () => {
     const { w, p1, p2, m, step, untilFight } = setup();
     untilFight();
+    // A KO before ctrl.time waits for it (Round_RunState).
+    for (let i = 0; i < 200 && !p1.ctrl; i++) step();
+    step();
     p2.life = 0;
     // P2's own update finds it out of life; the round sees the KO next tick.
     step();

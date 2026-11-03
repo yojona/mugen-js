@@ -79,6 +79,8 @@ export class World {
   inputLocked = false;
   /** hits_enabled: Players_CheckHits (push, hits, projectile hits) runs. */
   hitsEnabled = true;
+  /** fight.def over.hittime: in RoundState 3 from then on the living take no damage. */
+  overHitTime = Infinity;
   shadow: { intensity: number; color: [number, number, number]; yscale: number; fadeRange: [number, number] } | undefined;
   seed = 1;
   fightFx?: FightFx;

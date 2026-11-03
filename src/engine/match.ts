@@ -109,6 +109,7 @@ export class Match {
     readonly starts: [StartPos, StartPos],
   ) {
     world.framesDriven = true;
+    world.overHitTime = cfg.overHitTime;
     this.clock = cfg.roundSeconds < 0 ? -1 : (cfg.roundSeconds + 1) * cfg.framesPerCount - 1;
     this.startRound();
   }
@@ -274,7 +275,9 @@ export class Match {
         }
         // KO: players their own update found out of life (p->alive).
         const dead = this.players.filter((p) => !p.alive);
-        if (dead.length || timeUp) {
+        // Not before ctrl.time, nor with AssertSpecial noko.
+        const noKo = this.players.some((p) => p.special.has('noko')) || w.helpers.some((h) => h.special.has('noko'));
+        if ((dead.length || timeUp) && this.phaseTime > c.ctrlTime && !noKo) {
           if (dead.length === 2) this.announce = { kind: 'dko', age: 0 };
           else if (dead.length) this.announce = { kind: 'ko', age: 0 };
           else this.announce = { kind: 'to', age: 0 };
@@ -411,17 +414,30 @@ export class Match {
   private decideWinner(): Player | null {
     const [a, b] = this.players;
     if (!a || !b) return null;
-    if (a.life === b.life) return null;
-    return a.life > b.life ? a : b;
+    // Round_RunState: each side's life in 1/1000 of its maximum, plus 1 alive.
+    const score = (p: Player) => Math.trunc((p.life * 1000) / p.const('data.life')) + (p.alive ? 1 : 0);
+    const sa = score(a);
+    const sb = score(b);
+    if (sa === sb) return null;
+    return sa > sb ? a : b;
   }
 
   private scoreRound(): void {
     const w = this.roundWinner;
-    if (!w) this.draws++;
-    else this.wins[w.side]!++;
-    if (this.wins[0] >= this.cfg.matchWins || this.wins[1] >= this.cfg.matchWins || this.draws > this.cfg.maxDrawGames) {
+    if (!w) {
+      // A draw past match.maxdrawgames gives both sides a round win.
+      this.draws++;
+      if (this.draws > this.cfg.maxDrawGames) {
+        this.wins[0]!++;
+        this.wins[1]!++;
+      }
+    } else this.wins[w.side]!++;
+    // Match_CheckOver: over once a side has match.wins; both at once: side 1.
+    const w0 = this.wins[0]! >= this.cfg.matchWins;
+    const w1 = this.wins[1]! >= this.cfg.matchWins;
+    if (w0 || w1) {
       this.matchOver = true;
-      this.winner = this.wins[0] === this.wins[1] ? null : this.players[this.wins[0] > this.wins[1] ? 0 : 1] ?? null;
+      this.winner = this.players[w0 ? 0 : 1] ?? null;
     }
   }
 }
