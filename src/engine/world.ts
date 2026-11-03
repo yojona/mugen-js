@@ -294,20 +294,9 @@ export class World {
         p.hitPause = 0;
         p.hitPauseFresh = false;
       }
-      // A bound player is moved at the start of its own update (mugen.exe
-      // 0x43c480 -> 0x4349b0; measured: a thrown P2 already shows the
-      // TargetBind position its thrower set this tick).
-      if (this.placeBound(p) && p.bind?.byTarget) {
-        // TargetBind also copies the binder's velocity and freezes the
-        // target's own movement for the tick (pos_freeze).
-        const b = p.bind.to;
-        const k = b.scale / p.scale;
-        p.vel.x = b.vel.x * b.facing * p.facing * k;
-        p.vel.y = b.vel.y * k;
-        p.posFreeze = true;
-        // ...and drops the target's pending mindist/maxdist offsets.
-        p.pendingPlacement = undefined;
-      }
+      // BindToTarget/Parent/Root: the player is moved at the start of its
+      // own update (TargetBind targets are placed by their binder).
+      if (!p.bind?.byTarget) this.placeBound(p);
       const frozen = p.hitPause > 0;
       p.runStates();
       // mugen.exe Player_Update: the projectile contact clock runs after the
@@ -321,6 +310,19 @@ export class World {
       // MUGEN moves the camera after every player's physics, then once more
       // at the end of the tick (mugen.exe 0x43d43a / 0x413d95).
       this.stepCameraX();
+      // Player_Update ends placing the targets it binds (TargetBind) that are
+      // being hit: position, the binder's velocity, pos_freeze, and their
+      // pending mindist/maxdist offsets dropped.
+      for (const t of p.targets.keys()) {
+        const b = t.bind;
+        if (!b?.byTarget || b.to !== p || b.time === 0 || t.moveType !== 'h') continue;
+        this.placeBound(t);
+        const k = p.scale / t.scale;
+        t.vel.x = p.vel.x * p.facing * t.facing * k;
+        t.vel.y = p.vel.y * k;
+        t.posFreeze = true;
+        t.pendingPlacement = undefined;
+      }
     };
     // Players that existed when the tick began (frozen ones included).
     const updated = new Set<Player>(this.allPlayers());
