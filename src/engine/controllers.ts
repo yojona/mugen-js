@@ -279,16 +279,16 @@ const IMPLS: Record<string, Impl> = {
 
   playsnd: (_c, prm) => {
     // value = [F|S]group, number   (F = common sound file, S = own; Cns_ParseSoundRef)
-    const raw = prm.raw('value') ?? '';
-    const m = /^\s*([fs]?)\s*([^,]*),(.*)$/i.exec(raw);
-    const common = m?.[1]?.toLowerCase() === 'f';
-    const groupFn = m ? compileExpr(m[2]!, playerEnvRef!) : null;
-    const numFn = m ? compileExpr(m[3]!, playerEnvRef!) : null;
+    const raw = (prm.raw('value') ?? '').trim();
+    const common = /^f/i.test(raw);
+    const fns = compileExprList(/^[fs]/i.test(raw) ? raw.slice(1) : raw, playerEnvRef!);
+    const [groupFn, numFn] = fns;
     return (p) => {
-      if (!groupFn || !numFn) return;
+      if (!groupFn) return;
       const g = groupFn(p);
       if (R.t === BOTTOM) return;
-      const n = numFn(p);
+      // "S5" alone: number 0.
+      const n = numFn ? numFn(p) : 0;
       if ((R.t as number) === BOTTOM) return;
       p.events.push({ kind: 'sound', group: g | 0, number: n | 0, common, channel: prm.int(p, 'channel') ?? -1 });
     };
