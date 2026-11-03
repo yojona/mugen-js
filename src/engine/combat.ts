@@ -205,9 +205,15 @@ function applyReversal(r: Player, a: Player): void {
   r.world.spawnSpark(r, a, rv.hd.spark, [(rv.hd.sparkXY[0] + (a.hitDef?.sparkXY[0] ?? 0)) * r.scale, (rv.hd.sparkXY[1] + (a.hitDef?.sparkXY[1] ?? 0)) * r.scale], { x: r.wx, y: r.wy });
   r.world.playHitSound(r, rv.hd.hitSound);
   if (rv.hd.p1StateNo >= 0) r.changeState(rv.hd.p1StateNo);
+  // Player_Reverse: p2getp1state makes the attacker a hit player right away
+  // (its new statedef only applies after the hit pause).
+  if (rv.hd.p2GetP1State) {
+    a.stateOwner = r;
+    a.moveType = 'h';
+  }
   if (rv.hd.p2StateNo >= 0) {
-    if (rv.hd.p2GetP1State) a.stateOwner = r;
     a.changeState(rv.hd.p2StateNo);
+    a.ctrl = false;
   }
 }
 
