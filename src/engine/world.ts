@@ -590,11 +590,17 @@ export class World {
 
   /** The x range the screen allows a player (screenleft/right plus edge widths). */
   screenLimits(p: Player): [number, number] {
-    const left = this.camera.x - this.screenWidth / 2;
-    const right = this.camera.x + this.screenWidth / 2;
-    // Stage [Bound] screenleft/right plus any Width controller edge width.
-    const leftDist = this.screenLeft + p.bodyWidth(p.facing > 0 ? 'back' : 'front', 'edge') * p.scale;
-    const rightDist = this.screenRight + p.bodyWidth(p.facing > 0 ? 'front' : 'back', 'edge') * p.scale;
+    // Player_ScreenBound: from the edges the camera is heading to
+    // (screen_left/right_target), not where it is.
+    const cam = this.camTarget ?? this.camera.x;
+    const left = cam - this.screenWidth / 2;
+    const right = cam + this.screenWidth / 2;
+    // Stage [Bound] screenleft/right plus any Width controller edge width,
+    // rounded to whole internal pixels.
+    const k = this.gameWidth / this.screenWidth;
+    const edge = (side: 'front' | 'back') => Math.floor(Math.fround(p.bodyWidth(side, 'edge') * p.scale * k) + 0.5) / k;
+    const leftDist = this.screenLeft + edge(p.facing > 0 ? 'back' : 'front');
+    const rightDist = this.screenRight + edge(p.facing > 0 ? 'front' : 'back');
     return [left + leftDist, right - rightDist];
   }
 
