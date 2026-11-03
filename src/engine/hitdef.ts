@@ -302,7 +302,8 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
       return { time, freq, ampl: ni(`${prefix}.ampl`) ?? Math.trunc(local(-4)), phase: n(`${prefix}.phase`) ?? (freq >= 90 ? 90 : 0) };
     };
     const palTime = ni('palfx.time') ?? 0;
-    const groundCornerPush = n('ground.cornerpush.veloff') ?? (attrState === 'a' ? 0 : 1.3 * guardVel);
+    // Default: guard.velocity times the float 1.3f, rounded to float (Expr_MulFloat).
+    const groundCornerPush = n('ground.cornerpush.veloff') ?? (attrState === 'a' ? 0 : Math.fround(guardVel * Math.fround(1.3)));
     const guardCornerPush = n('guard.cornerpush.veloff') ?? groundCornerPush;
 
     return {
