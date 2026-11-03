@@ -4,6 +4,7 @@
 // time over), 4 over (win poses). Timings mirror the [Round] parameters; the
 // exact tick alignment still has to be checked against the reference binary.
 
+import { newAfterImage, newPalFx } from './fx';
 import { emptyGetHitVars } from './hitdef';
 import type { Player } from './player';
 import type { World } from './world';
@@ -152,6 +153,8 @@ export class Match {
       p.nohitTime = 0;
       p.defMul = undefined;
       p.cornerPushVel = 0;
+      p.palFx = newPalFx();
+      p.afterImage = newAfterImage();
       // ...and clears the get-hit variables (hit count, fall...).
       p.ghv = emptyGetHitVars();
       p.ghv.recovertime = p.const('data.liedown.time');
@@ -177,6 +180,7 @@ export class Match {
       p.ctrl = false;
     });
     w.explods = [];
+    w.resetRoundFx();
     w.projectiles = [];
     w.helpers = [];
     w.helperSlots = [];

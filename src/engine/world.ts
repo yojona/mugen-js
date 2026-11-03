@@ -96,6 +96,13 @@ export class World {
   /** A Pause requested during a SuperPause starts when the SuperPause ends. */
   private queuedPause: PauseState | undefined;
 
+  /** Round_Reset: no pause, EnvShake or palette effect carries into a new round. */
+  resetRoundFx(): void {
+    this.pause = this.superPause = this.queuedPause = undefined;
+    this.envShake = undefined;
+    this.bgPalFx = newPalFx();
+  }
+
   /** Root players followed by helpers. */
   allPlayers(): Player[] {
     return this.helpers.length ? [...this.players, ...this.helpers] : this.players;
