@@ -608,12 +608,13 @@ export class World {
 
   /** Player push: players whose bodies overlap vertically are pushed apart. */
   private pushPlayers(): void {
-    const ps = this.players;
+    // Players_CheckHits: every active player slot (helpers included) in the hit list.
+    const ps = this.allPlayers().filter((p) => !p.destroyed);
     for (let i = 0; i < ps.length; i++) {
       for (let j = i + 1; j < ps.length; j++) {
         const a = ps[i]!;
         const b = ps[j]!;
-        if (a.side === b.side || !a.pushEnabled || !b.pushEnabled || a.bind || b.bind) continue;
+        if (a.side === b.side || !a.pushEnabled || !b.pushEnabled) continue;
         // Push needs touching Clsn2 boxes first (mugen.exe 0x43de40), then the
         // size-based check below.
         if (!clsn2TouchInternal(a, b)) continue;
