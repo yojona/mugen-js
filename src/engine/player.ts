@@ -891,12 +891,23 @@ export class Player {
 
   /** InGuardDist: an opponent is attacking within its guard distance. */
   inGuardDist(): boolean {
-    for (const e of this.world.players) {
-      if (e.side === this.side || e.moveType !== 'a') continue;
-      const dist = e.hitDefActive && e.hitDef ? e.hitDef.guardDist : e.const('size.attack.dist');
-      // Distance in the attacker's units.
-      const dx = ((this.wx - e.wx) * e.facing) / e.scale;
-      if (dx >= 0 && dx <= dist) return true;
+    // Player_InEnemyGuardDist / Player_InGuardDist (0x4347A0): any enemy
+    // player or helper that is attacking, or any of its projectiles with an
+    // active HitDef, with this player in front within the guard distance.
+    for (const e of this.world.allPlayers()) {
+      if (e.side === this.side || e.destroyed) continue;
+      if (e.moveType === 'a') {
+        const dist = e.hitDefActive && e.hitDef ? e.hitDef.guardDist : e.const('size.attack.dist');
+        // Distance in the attacker's units.
+        const dx = ((this.wx - e.wx) * e.facing) / e.scale;
+        if (dx >= 0 && dist > dx) return true;
+      }
+    }
+    for (const pr of this.world.projectiles) {
+      const e = pr.owner;
+      if (e.side === this.side || pr.phase !== 'active') continue;
+      const dx = ((this.wx - pr.x) * pr.facing) / e.scale;
+      if (dx >= 0 && pr.hd.guardDist > dx) return true;
     }
     return false;
   }
