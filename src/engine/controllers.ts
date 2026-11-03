@@ -476,7 +476,8 @@ const EXTRA: Record<string, Impl> = {
     const off: [number, number] = [prm.num(p, 'pos', 0) ?? 0, prm.num(p, 'pos', 1) ?? 0];
     eachTarget(p, prm, (t) => {
       // Offsets are in the binder's units; binds are stored in world units.
-      t.bind = { to: p, offset: [off[0] * p.facing * p.scale, off[1] * p.scale], time, byTarget: true };
+      // x follows the binder's facing when placed (end of its update, after a Turn).
+      t.bind = { to: p, offset: [off[0] * p.scale, off[1] * p.scale], time, byTarget: true };
     });
   },
   bindtotarget: (_c, prm) => (p) => {

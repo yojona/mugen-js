@@ -424,7 +424,7 @@ export class World {
     const b = p.bind;
     if (!b || b.time === 0) return false;
     // Bind offsets are stored in world units.
-    p.setWorldPos(b.to.wx + b.offset[0], b.to.wy + b.offset[1]);
+    p.setWorldPos(b.to.wx + b.offset[0] * (b.byTarget ? b.to.facing : 1), b.to.wy + b.offset[1]);
     return true;
   }
 
