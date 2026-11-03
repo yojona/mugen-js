@@ -243,7 +243,8 @@ function call(node: CallNode, args: Fn<P>[]): Fn<P> | undefined {
         if (id === undefined) return bottom();
         R.t = INT;
         let n = 0;
-        for (const tid of p.targets.values()) if (id === -1 || tid === id) n++;
+        // Targets_Count: by the target's current gethit_id.
+        for (const t of p.targets.keys()) if (id === -1 || t.ghv.chainid === id) n++;
         return n;
       };
     case 'playeridexist':
@@ -462,7 +463,8 @@ function redirect(p: P, to: string, _id: number | undefined): P | undefined {
     case 'helper':
       return p.world.helpersOf(p, _id)[0];
     case 'target': {
-      for (const [t, tid] of p.targets) if (_id === undefined || tid === _id) return t;
+      // Targets_Find: by the target's current gethit_id.
+      for (const t of p.targets.keys()) if (_id === undefined || _id === -1 || t.ghv.chainid === _id) return t;
       return undefined;
     }
     case 'partner':

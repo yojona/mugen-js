@@ -326,7 +326,9 @@ function palFxFrom(prm: Params, p: P): PalFxState {
 
 function eachTarget(p: P, prm: Params, f: (t: P) => void): void {
   const id = prm.int(p, 'id') ?? -1;
-  for (const [t, tid] of p.targets) if (id === -1 || tid === id) f(t);
+  // target_matches: not guarding, hit by a HitDef of the ID (the target's
+  // current gethit_id).
+  for (const t of p.targets.keys()) if (!t.guardFlag && (id === -1 || t.ghv.chainid === id)) f(t);
 }
 
 const EXTRA: Record<string, Impl> = {
@@ -516,8 +518,8 @@ const EXTRA: Record<string, Impl> = {
       // end of the player's update like a TargetBind target).
       const id = prm.int(p, 'id') ?? -1;
       let t: P | undefined;
-      for (const [q, tid] of p.targets) {
-        if (id === -1 || tid === id) {
+      for (const q of p.targets.keys()) {
+        if (!q.guardFlag && (id === -1 || q.ghv.chainid === id)) {
           t = q;
           break;
         }
