@@ -165,7 +165,9 @@ export function endProjectile(pr: Projectile, anim: number, vel?: [number, numbe
   pr.accel = [0, 0];
   pr.velMul = [1, 1];
   if (a) {
-    pr.anim.set(a);
+    // Anim_SetAction keeps the time when the action does not change
+    // (projhitanim = projanim: the end counts from where it is).
+    if (a !== pr.anim.anim) pr.anim.set(a);
     pr.phase = 'ending';
   } else pr.phase = 'removing';
 }
@@ -187,7 +189,9 @@ export function updateProjectile(pr: Projectile): void {
   pr.x += pr.vel[0] * pr.facing;
   pr.y += pr.vel[1];
   if (pr.phase === 'ending') {
-    if (pr.anim.totalTime >= 0 && pr.anim.animTime() >= 0) pr.phase = 'dead';
+    // Projectiles_Update: an end animation with no length (or endless:
+    // total_time <= 0) removes the projectile at once.
+    if (pr.anim.totalTime <= 0 || pr.anim.animTime() >= 0) pr.phase = 'dead';
     return;
   }
   pr.vel = [pr.vel[0] * pr.velMul[0] + pr.accel[0], pr.vel[1] * pr.velMul[1] + pr.accel[1]];
