@@ -139,4 +139,14 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('kensou-ex-kofa', 'geese-nw-kofa'))(
+    'Kensou EX vs Geese NW, CPU level 4: 9000 frames (camera port, screen bounds in Camera_Update, SuperPause unhittable)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kensouex-vs-geesenw.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['kensou-ex-kofa', 'geese-nw-kofa'], frames: 9000, seed: 16808 });
+      expect(ours.length).toBe(9000);
+      expect(peekDiff(ref, ours, 14, 9000)).toEqual([]);
+    },
+    120_000,
+  );
 });
