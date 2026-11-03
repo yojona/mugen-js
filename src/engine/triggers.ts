@@ -66,7 +66,8 @@ const NULLARY: Record<string, Fn<P>> = {
   numpartner: int(() => 0),
   numtarget: int((p) => (p.hitTargets.size > 0 && p.hitCount > 0 ? p.hitTargets.size : 0)),
   numexplod: int((p) => p.world.explods.filter((e) => e.owner === p).length),
-  numproj: int((p) => p.world.projectiles.filter((pr) => pr.owner === p && pr.phase !== 'dead').length),
+  // Only live projectiles (state 1), not ones playing their hit/remove anim.
+  numproj: int((p) => p.world.projectiles.filter((pr) => pr.owner === p && pr.phase === 'active').length),
   numhelper: int((p) => p.world.helpersOf(p).length),
   hitcount: int((p) => p.hitCount),
   uniqhitcount: int((p) => p.hitCount),
@@ -237,7 +238,7 @@ function call(node: CallNode, args: Fn<P>[]): Fn<P> | undefined {
     case 'numprojid':
       return (p) => {
         const id = argInt(a, p);
-        return id === undefined ? bottom() : ((R.t = INT), p.world.projectiles.filter((pr) => pr.owner === p && pr.phase !== 'dead' && pr.projId === id).length);
+        return id === undefined ? bottom() : ((R.t = INT), p.world.projectiles.filter((pr) => pr.owner === p && pr.phase === 'active' && pr.projId === (id < 0 ? 0 : id)).length);
       };
     case 'numtarget':
       return (p) => {
