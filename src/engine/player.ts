@@ -497,7 +497,9 @@ export class Player {
     this.entryVelSet = v0 !== undefined;
     if (v0 !== undefined) {
       this.vel.x = v0;
-      this.vel.y = num('velset', 1) ?? 0;
+      // y only when given (the statedef keeps the other component).
+      const v1 = num('velset', 1);
+      if (v1 !== undefined) this.vel.y = v1;
     }
     const ctrl = num('ctrl');
     if (ctrl !== undefined) this.ctrl = ctrl !== 0;
@@ -716,7 +718,9 @@ export class Player {
     if (this.hitPause > 0) {
       // Frozen by hit pause: only ignorehitpause controllers run.
       for (const special of this.specialStates()) this.runState(special);
-      this.runState(this.stateNo);
+      // Player_RunState still loops on a ChangeState (the new state's
+      // ignorehitpause controllers run this tick).
+      for (let guard = 0; guard < 16; guard++) if (!this.runState(this.stateNo)) break;
       return;
     }
     // Helpers skip -3/-2, and -1 unless they read input (cns.html).
@@ -1003,16 +1007,17 @@ export class Player {
   }
 
   physicsStep(): void {
-    // Guard states keep the guard flag up (mugen.exe 0x43c980 / 0x43ca01).
-    const no = this.stateNo;
-    if (no === 120 || (no >= 130 && no <= 132) || no === 140 || (no >= 150 && no <= 155)) this.guardFlag = true;
-    if (no === 40 && this.time === 0) this.airJumpsLeft = this.const('movement.airjump.num');
     // HitDef placement lands after P2's next states (measured: one tick later).
     if (this.pendingPlacement) {
       this.pendingPlacement();
       this.pendingPlacement = undefined;
     }
     if (this.hitPause > 0) return;
+    // Player_Update's state switch (skipped in hit pause): guard states keep
+    // the guard flag up (mugen.exe 0x43c980 / 0x43ca01), 40 refills air jumps.
+    const no = this.stateNo;
+    if (no === 120 || (no >= 130 && no <= 132) || no === 140 || (no >= 150 && no <= 155)) this.guardFlag = true;
+    if (no === 40 && this.time === 0) this.airJumpsLeft = this.const('movement.airjump.num');
     // Player_Update after the states (not in hit pause): a turn from a hit.
     if (this.nextFacing) {
       if (this.facing !== this.nextFacing) this.facing = this.nextFacing;
@@ -1126,12 +1131,14 @@ export class Player {
 
   /** End of tick: advance state time. */
   advance(): void {
-    for (const s of this.hitBy) if (s.time > 0) s.time--;
     for (const o of this.hitOverrides) if (o && o.time > 0) o.time--;
     if (this.hitPause > 0 && !this.hitPauseFresh) {
       this.hitPause--;
       return;
     }
+    // HitBy / NotHitBy run out only outside hit pause (Player_Update's
+    // unfrozen tail); HitOverride slots count down regardless.
+    for (const s of this.hitBy) if (s.time > 0) s.time--;
     const fresh = this.hitPauseFresh;
     this.hitPauseFresh = false;
     const g = this.ghv;
