@@ -1200,8 +1200,15 @@ export class Player {
       this.skipAnimTick = false;
       return;
     }
-    if (frozen) return;
-    this.anim.tick();
+    // The lagged step that starts a freeze is mugen.exe's last Anim_Step
+    // before it: the element shown is the one of the time before the step
+    // (an attacker's 1-tick hitting element keeps its Clsn2 through its own
+    // hit pause). The element catches up on the first tick out of the freeze.
+    if (frozen) {
+      if (this.hitPause <= 0) this.anim.resync();
+      return;
+    }
+    this.anim.tick(this.hitPause > 0);
   }
 
   /** End of tick: advance state time. */

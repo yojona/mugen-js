@@ -93,8 +93,18 @@ export class AnimPlayer {
     return this.t.total;
   }
 
-  tick(): void {
+  /**
+   * One step. `holdElem`: the time moves on but the shown element stays
+   * (Anim_Step seeks the element before moving the time, so a step followed
+   * by a freeze keeps showing the element of the previous time).
+   */
+  tick(holdElem = false): void {
     this.time++;
+    if (!holdElem) this.update();
+  }
+
+  /** Show the element of the current time again (after a held step). */
+  resync(): void {
     this.update();
   }
 
