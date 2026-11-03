@@ -149,4 +149,14 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('asura-rugal-kofa', 'geo-kensou-kofa'))(
+    'Asura Rugal vs Geo Kensou, CPU level 4: the whole match (pause movetime in custom hit states, world-space velocities across turns)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'rugal-vs-kensou.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['asura-rugal-kofa', 'geo-kensou-kofa'], frames: 9000, seed: 16808 });
+      expect(ours.length).toBe(4726);
+      expect(peekDiff(ref, ours, 14, 4725)).toEqual([]);
+    },
+    120_000,
+  );
 });
