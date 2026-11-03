@@ -284,6 +284,12 @@ export class World {
     const order = [...active.filter((p) => p.moveType === 'a'), ...active.filter((p) => p.moveType !== 'a')];
     const update = (p: Player) => {
       p.changedStateThisTick = false;
+      // Player_Update: a player shaking from a hit has no hit pause of its
+      // own (a trade's attacker pause is dropped).
+      if (p.ghv.hitshaketime > 0) {
+        p.hitPause = 0;
+        p.hitPauseFresh = false;
+      }
       // A bound player is moved at the start of its own update (mugen.exe
       // 0x43c480 -> 0x4349b0; measured: a thrown P2 already shows the
       // TargetBind position its thrower set this tick).
