@@ -11,13 +11,14 @@ const have = (...chars: string[]) => chars.every((c) => existsSync(join(REF_DIR,
 
 describe('community characters vs mugen.exe', () => {
   it.skipIf(!have('iori-yagami-kofa', 'kyo-kofa'))(
-    'Iori (ikaruga) vs EX-Kyo, CPU level 4: the whole first round, KO and win pose',
+    'Iori (ikaruga) vs EX-Kyo, CPU level 4: the whole match, two rounds to the last win pose frame',
     async () => {
       const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'iori-vs-kyo.mugen.log.gz'))).toString('latin1');
       // -sessionseed 1: the match RNG starts at the first session draw + 1.
-      const ours = await peekMatch({ chars: ['iori-yagami-kofa', 'kyo-kofa'], frames: 2343, seed: 16808 });
-      expect(ours.length).toBe(2343);
-      expect(peekDiff(ref, ours, 14, 2343)).toEqual([]);
+      const ours = await peekMatch({ chars: ['iori-yagami-kofa', 'kyo-kofa'], frames: 5000, seed: 16808 });
+      // mugen.exe starts the next match on frame 4722; ours ends there.
+      expect(ours.length).toBe(4722);
+      expect(peekDiff(ref, ours, 14, 4721)).toEqual([]);
     },
     120_000,
   );
