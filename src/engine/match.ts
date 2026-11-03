@@ -112,6 +112,13 @@ export interface MatchOptions {
   loseOnKo?: boolean;
   /** Quick VS (command line): no life multiplier between unequal teams. */
   quickVs?: boolean;
+  /**
+   * Survival: the human side; the other side's plan spawns a new random
+   * team for every member number (Team_Randomize after each round).
+   */
+  survivalSide?: number;
+  /** Survival: the match RNG is seeded again for every round (Match_SeedRng). */
+  reseed?: () => number;
 }
 
 /** TeamSel: a side's members and round rules (Match_Start). */
@@ -198,7 +205,8 @@ export class Match {
       return {
         plan,
         mode,
-        memberCount: mode === 'turns' ? plan!.count : 1,
+        // Team_Randomize: the survival opponent always has a next member.
+        memberCount: mode === 'turns' ? plan!.count : opts.survivalSide !== undefined && opts.survivalSide !== t ? 2 : 1,
         slots: mode === 'simul' ? Math.min(2, plan!.count) : 1,
         cur: 0,
         lifeMul: 1,
@@ -235,7 +243,8 @@ export class Match {
     w.players = w.players.filter((p) => p.side !== t);
     const made: Player[] = [];
     for (let k = 0; k < ts.slots; k++) {
-      const p = plan.spawn(ts.mode === 'turns' ? ts.cur : 0, k);
+      const member = ts.mode === 'turns' ? ts.cur : this.opts.survivalSide !== undefined && this.opts.survivalSide !== t ? this.survivalNo : 0;
+      const p = plan.spawn(member, k);
       p.slotNoSet = t + 1 + 2 * k;
       if (k > 0) p.powerLeader = made[0];
       made.push(p);
@@ -271,6 +280,20 @@ export class Match {
       q = f(1 / q);
     }
     this.teams[weak]!.lifeMul = this.opts.quickVs ? 1 : f(1 / q);
+    const sv = this.opts.survivalSide;
+    if (sv !== undefined) {
+      // Survival: endless wins for the player's team; with several members
+      // less life each and a smaller recovery.
+      const me = this.teams[sv]!;
+      const n = me.memberCount;
+      me.winsNeeded = 999999;
+      if (n < 2) this.teams[1 - sv]!.winsNeeded = 1;
+      else {
+        me.lifeMul = f(1 - (n - 1) * 0.1);
+        me.recoveryBase = Math.trunc((1 / n) * me.recoveryBase);
+        me.recoveryRate = f((1 / (n - 0.5)) * me.recoveryRate);
+      }
+    }
     for (const p of this.players) p.power = 0;
   }
 
@@ -711,16 +734,28 @@ export class Match {
     }
   }
 
-  /** Match_NextRound: a losing turns team sends in its next member, at full life. */
+  /** Survival: the opponents fought so far (the member number given to its plan's spawn). */
+  private survivalNo = 0;
+
+  /**
+   * Match_NextRound: a losing turns team sends in its next member, at full
+   * life. In survival a beaten opponent team is replaced by a new random one
+   * (Team_Randomize) and the match RNG is seeded again.
+   */
   private nextMembers(): void {
+    const sv = this.opts.survivalSide;
     for (let t = 0; t < 2; t++) {
       if (this.roundWinnerSide === t) continue;
       const ts = this.teams[t]!;
-      if (ts.plan && ts.cur + 1 < ts.memberCount) {
+      if (sv !== undefined && t !== sv) {
+        this.survivalNo++;
+        this.loadMember(t);
+      } else if (ts.plan && ts.cur + 1 < ts.memberCount) {
         ts.cur++;
         this.loadMember(t);
       }
       this.resetLife(t, true);
     }
+    if (sv !== undefined && this.opts.reseed) this.world.seed = this.opts.reseed();
   }
 }
