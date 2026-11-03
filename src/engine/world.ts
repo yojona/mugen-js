@@ -246,8 +246,9 @@ export class World {
     for (const p of this.players) {
       if (this.frozen(p)) continue;
       const no = p.stateNo;
-      const lastElem = p.anim.elem >= (p.anim.anim?.elements.length ?? 0) - 1;
-      if (no === 0 || no === 11 || no === 20 || no === 40 || (no === 52 && lastElem)) this.tickTurn(p);
+      // Landing (52) turns on the last tick of its animation: time >= total - 1.
+      const landEnd = p.anim.totalTime === -1 || p.anim.animTime() >= -1;
+      if (no === 0 || no === 11 || no === 20 || no === 40 || (no === 52 && landEnd)) this.tickTurn(p);
     }
     this.aiRoundFight = this.roundState === 2;
     for (const p of this.players) {
