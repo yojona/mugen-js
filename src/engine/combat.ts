@@ -175,6 +175,32 @@ function projBoxes(pr: Projectile, which: 1 | 2): Box[] {
 }
 
 /**
+ * Clsn_Collide (0x479B80) as mugen.exe computes it: boxes truncated to
+ * internal (GameWidth) units relative to each origin, mirrored by facing,
+ * the target offset by the truncated distance between origins; touching
+ * edges collide.
+ */
+function intCollide(
+  a: { x: number; y: number; facing: number; sx: number; sy: number; boxes: Clsn[] | null | undefined },
+  t: { x: number; y: number; facing: number; sx: number; sy: number; boxes: Clsn[] | null | undefined },
+  k: number,
+): boolean {
+  if (!a.boxes?.length || !t.boxes?.length) return false;
+  const rel = (o: typeof a) =>
+    o.boxes!.map((b) => {
+      const x1 = Math.trunc(b.x1 * o.sx * k);
+      const x2 = Math.trunc(b.x2 * o.sx * k);
+      const y1 = Math.trunc(b.y1 * o.sy * k);
+      const y2 = Math.trunc(b.y2 * o.sy * k);
+      return o.facing < 0 ? { x1: -x2, x2: -x1, y1, y2 } : { x1, x2, y1, y2 };
+    });
+  const dx = Math.trunc((t.x - a.x) * k);
+  const dy = Math.trunc((t.y - a.y) * k);
+  for (const p of rel(a)) for (const q of rel(t)) if (q.x2 + dx >= p.x1 && q.x1 + dx <= p.x2 && q.y2 + dy >= p.y1 && q.y1 + dy <= p.y2) return true;
+  return false;
+}
+
+/**
  * Projectile collisions: opposing projectiles cancel by priority (equal: both
  * cancel; otherwise the stronger loses one priority point), then projectiles
  * hit players' Clsn2 boxes.
@@ -206,7 +232,13 @@ export function detectProjectileHits(projs: Projectile[], players: Player[]): Pe
     if (!atk.length) continue;
     for (const d of players) {
       if (d.side === pr.owner.side || pr.hitTargets.has(d) || (!d.alive && d.stateType === 'l')) continue;
-      if (!overlap(atk, worldBoxes(d, d.anim.current?.clsn2 ?? null))) continue;
+      const k = d.world.gameWidth / d.world.screenWidth;
+      const hitBox = intCollide(
+        { x: pr.x, y: pr.y, facing: pr.facing, sx: pr.scale[0], sy: pr.scale[1], boxes: pr.anim.current?.clsn1 },
+        { x: d.wx, y: d.wy, facing: d.facing, sx: d.const('size.xscale') * d.scale, sy: d.const('size.yscale') * d.scale, boxes: d.anim.current?.clsn2 },
+        k,
+      );
+      if (!hitBox) continue;
       if (!canHit(pr.owner, pr.hd, d)) continue;
       const guarded = isGuarding(d) && stanceOk(pr.hd.guardFlag, d);
       hits.push({ attacker: pr.owner, defender: d, hd: pr.hd, guarded, proj: pr });

@@ -126,7 +126,7 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
       edgeBound: (int(p, 'projedgebound') ?? Math.trunc(40 * local)) * k,
       stageBound: (int(p, 'projstagebound') ?? Math.trunc(40 * local)) * k,
       heightBound: [(int(p, 'projheightbound', 0) ?? Math.trunc(-240 * local)) * k, (int(p, 'projheightbound', 1) ?? Math.trunc(1 * local)) * k],
-      hd: hdBuild(p),
+      hd: projHitDef(hdBuild(p), p),
       phase: 'active',
       fresh: true,
       age: 0,
@@ -138,6 +138,12 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
     // mugen.exe 0x44a2bd: the move being recorded fired this projectile.
     if (p.recorder) p.recorder.projPending = projId;
   };
+}
+
+/** Projectile_Fire: a projectile's HitDef without guard.dist uses size.proj.attack.dist. */
+function projHitDef(hd: HitDefData, p: P): HitDefData {
+  if (hd.guardDist === -1) hd.guardDist = p.const('size.proj.attack.dist');
+  return hd;
 }
 
 /** Note a projectile contact on its owner (mugen.exe: one record per player). */
@@ -164,15 +170,13 @@ export function endProjectile(pr: Projectile, anim: number, vel?: [number, numbe
 /** Move, age and bound-check one projectile. */
 export function updateProjectile(pr: Projectile): void {
   if (pr.phase === 'dead') return;
-  if (pr.fresh) {
-    pr.fresh = false;
-    return;
-  }
+  const fresh = pr.fresh;
+  pr.fresh = false;
   if (pr.hitPause > 0) {
     pr.hitPause--;
     return;
   }
-  pr.anim.tick();
+  if (!fresh) pr.anim.tick();
   pr.x += pr.vel[0] * pr.facing;
   pr.y += pr.vel[1];
   if (pr.phase === 'ending') {
@@ -180,7 +184,9 @@ export function updateProjectile(pr: Projectile): void {
     return;
   }
   pr.vel = [pr.vel[0] * pr.velMul[0] + pr.accel[0], pr.vel[1] * pr.velMul[1] + pr.accel[1]];
-  pr.age++;
+  // Projectiles_Update: bounds, miss time and removetime are checked with
+  // the time before this tick's increment (time++ comes last).
+  const age = pr.age++;
   if (pr.missTimer > 0 && --pr.missTimer === 0) pr.hitTargets.clear();
   const w = pr.owner.world;
   const left = w.camera.x - w.screenWidth / 2;
@@ -192,5 +198,5 @@ export function updateProjectile(pr: Projectile): void {
     pr.phase = 'dead';
     return;
   }
-  if (pr.removeTime >= 0 && pr.age >= pr.removeTime) endProjectile(pr, pr.remAnim, pr.remVel);
+  if (pr.removeTime >= 0 && age >= pr.removeTime) endProjectile(pr, pr.remAnim, pr.remVel);
 }
