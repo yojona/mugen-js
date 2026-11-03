@@ -34,4 +34,17 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+
+  it.skipIf(!have('clark-kofa', 'kula-kofa'))(
+    'Clark vs Kula, CPU level 4: 9000 frames into round 3 (helper projectiles, juggles, time over, round resets)',
+    async () => {
+      // Frame 7385 of the capture is a read in the middle of a frame (its RNG
+      // value is not a frame's end) and is left out.
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'clark-vs-kula.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['clark-kofa', 'kula-kofa'], frames: 9000, seed: 16808 });
+      expect(ours.length).toBe(9000);
+      expect(peekDiff(ref, ours, 14, 9000)).toEqual([]);
+    },
+    120_000,
+  );
 });
