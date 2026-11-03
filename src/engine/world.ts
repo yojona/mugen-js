@@ -251,7 +251,8 @@ export class World {
       // at the end of the tick (mugen.exe 0x43d43a / 0x413d95).
       this.stepCameraX();
     };
-    const updated = new Set<Player>(order);
+    // Players that existed when the tick began (frozen ones included).
+    const updated = new Set<Player>(this.allPlayers());
     for (const p of order) update(p);
     // Helpers created during the updates are updated in the same tick, again
     // until no more appear (round.c: the player_tick[64] loop).
