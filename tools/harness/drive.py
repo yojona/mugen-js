@@ -232,6 +232,9 @@ def main():
                 if os.environ.get('RNGLOG') and step == 1:
                     read_rnglog(pid)
                 out.write(f"P|{step}|" + ",".join(peek(pid, step)) + "\n")
+                # SHOTS=step,step,...: dump the X display after those steps (xwd2png.py makes PNGs).
+                if str(step) in os.environ.get('SHOTS', '').split(','):
+                    subprocess.run(['xwd', '-root', '-silent', '-out', f'/out/shot-{step}.xwd'], check=False)
                 if os.environ.get('RNGLOG') and step > 1:
                     out.write(f"R|{step}|" + ";".join(f"{a:x},{b:x},{c:x},{d:x}" for a, b, c, d in read_rnglog(pid)) + "\n")
                 xdo('key', 'Scroll_Lock')
