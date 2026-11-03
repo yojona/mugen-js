@@ -1,6 +1,7 @@
 // Explods (sctrls.html Explod, ModifyExplod, RemoveExplod, ExplodBindTime,
 // GameMakeAnim, MakeDust): free-standing animations owned by a player.
 
+import { isPre10 } from './sctrl-params';
 import { BOTTOM, compileExprList, R, toInt, type Fn, type TriggerEnv } from '../expr/compile';
 import type { Animation, Blend } from '../formats/air';
 import { parseBlend } from '../formats/air';
@@ -97,7 +98,9 @@ function lookupAnim(p: P, common: boolean, no: number): Animation | undefined {
 export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => void {
   const prm = params(c, env);
   const anim = animRef(c, 'anim', env);
-  const legacy = (p: P) => parseFloat(p.prog.data.def.mugenVersion) < 1.1 || !p.prog.data.def.mugenVersion;
+  // sctrl.c Explod: default postype p1 below mugenversion 1.1 (dates "y,m,d"
+  // parse as 0), none from 1.1 on, whatever the space.
+  const legacy = (p: P) => isPre10(p.prog.data.def.mugenVersion) || parseFloat(p.prog.data.def.mugenVersion) < 1.1;
   return (p) => {
     if (!anim) return;
     const no = anim.fn(p);
@@ -107,7 +110,7 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
       p.warn(`Explod: animación ${anim.common ? 'F' : ''}${toInt(no)} no existe`);
       return;
     }
-    const posType = (prm.raw('postype') ?? (legacy(p) && !prm.has('space') ? 'p1' : 'none')).toLowerCase();
+    const posType = (prm.raw('postype') ?? (legacy(p) ? 'p1' : 'none')).toLowerCase();
     // Explods live in world units; parameters are in the owner's units.
     const k = p.scale;
     const off: [number, number] = [(prm.num(p, 'pos', 0) ?? 0) * k, (prm.num(p, 'pos', 1) ?? 0) * k];
