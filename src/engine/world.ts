@@ -331,6 +331,8 @@ export class World {
         p.hitPause = 0;
         p.hitPauseFresh = false;
       }
+      // Player_Update's paused flag (frozen by its own hit pause this update).
+      p.paused = p.hitPause > 0;
       // BindToTarget/Parent/Root: the player is moved at the start of its
       // own update (TargetBind targets are placed by their binder).
       if (!p.bind?.byTarget) this.placeBound(p);
@@ -492,7 +494,7 @@ export class World {
       const pz = !sp && this.pause && !this.pause.fresh ? this.pause : undefined;
       const t = sp ? e.superMoveTime : pz ? e.pauseMoveTime : -1;
       if ((sp || pz) && t !== -1 && e.age > t) return true;
-      if (!e.ignoreHitPause && e.owner.hitPause > 0) return true;
+      if (!e.ignoreHitPause && e.owner.paused) return true;
       return updateExplod(e);
     });
   }

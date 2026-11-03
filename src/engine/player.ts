@@ -198,6 +198,8 @@ export class Player {
   hitPause = 0;
   /** Set on the tick a hit pause starts: that tick still advances normally. */
   hitPauseFresh = false;
+  /** Frozen by its own hit pause in its last update (Player.paused, read by its explods). */
+  paused = false;
   /** Damage from a hit, applied at the end of the next tick (measured). */
   /**
    * Damage held back until the defender's next update (Player_Update
