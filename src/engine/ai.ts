@@ -29,6 +29,9 @@ class DelayRing {
     this.w = (this.w + 1) % 30;
     if (this.w === this.r) this.r = (this.r + 1) % 30;
   }
+  get size(): number {
+    return (this.w - this.r + 30) % 30;
+  }
   pop(): number {
     if (this.r === this.w) return 0;
     const v = this.ring[this.r]!;
@@ -72,6 +75,10 @@ export class MugenAI {
   /** Messages received this tick (max 10), cleared after the AI pass. */
   msgs: AiMessage[] = [];
   private delayed = new DelayRing();
+  /** Keys waiting in the delay ring (harness logging). */
+  get queued(): number {
+    return this.delayed.size;
+  }
   private inGuardDist = false;
   // Watching an opponent's move (p+0x16b8..0x1b78).
   private watched: Player | undefined;

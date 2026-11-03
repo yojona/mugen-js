@@ -16,6 +16,8 @@ import { nodeSource } from '../../src/engine/node-source';
 import { loadProgram, Player } from '../../src/engine/player';
 import { Vfs } from '../../src/engine/vfs';
 import { World } from '../../src/engine/world';
+import { compileExpr } from '../../src/expr/compile';
+import { playerEnv } from '../../src/engine/triggers';
 import { MugenAI, setAiDebug } from '../../src/engine/ai';
 import * as aiMod from '../../src/engine/ai';
 import { parseAir } from '../../src/formats/air';
@@ -64,6 +66,13 @@ for (let i = 1; i <= ticks; i++) {
   const ad = process.env.AIDBG?.split(',').map(Number);
   const dbgOn = ad && w.gameTime + 1 >= ad[0]! && w.gameTime + 1 <= ad[1]!;
   if (dbgOn) setAiDebug([]);
+  if (process.env.EVAL && process.env.EVALAT && w.gameTime + 1 === Number(process.env.EVALAT)) {
+    // Evaluate expressions on P1 right before this tick (EVAL='a;b;c').
+    for (const e of process.env.EVAL.split(';')) {
+      const v = compileExpr(e, playerEnv)(p1);
+      console.log(`EVAL gt ${w.gameTime + 1} ${e} = ${v}`);
+    }
+  }
   if (go) w.tick([0, 0]);
   if (dbgOn) {
     console.log(`AI gt ${w.gameTime}: ${aiMod.DEBUG!.join(' ')}`);
@@ -71,6 +80,7 @@ for (let i = 1; i <= ticks; i++) {
   }
   if (w.randomTrace) {
     const counts = new Map<string, number>();
+    if (process.env.TRACERAW) console.log(w.randomTrace.map((k) => `  ${k || '(outside states)'}`).join('\n'));
     for (const k of w.randomTrace) counts.set(k, (counts.get(k) ?? 0) + 1);
     console.log(`TRACE gt ${w.gameTime}: ${w.randomTrace.length} draws`);
     for (const [k, n] of counts) console.log(`  ${n}x ${k || '(outside states)'}`);
@@ -83,12 +93,15 @@ for (let i = 1; i <= ticks; i++) {
   const f = (x: number) => x.toFixed(4);
   const row = [w.gameTime, w.roundState, w.seed];
   const pl = [p1, p2].flatMap((p: Player) => [p.stateNo, p.time, p.life, f(p.pos.x), f(p.pos.y), f(p.vel.x * p.facing), f(p.vel.y)]);
-  if (process.env.VARS) {
+  if (process.env.AIQ) {
+    const q = [p1, p2].flatMap((p) => [p.stateNo, p.time, p.hitPause, p.ai!.state, p.ai!.stateTime, p.ai!.queued, p.moveContact]);
+    lines.push(`P|${i}|${[w.gameTime, w.roundState, w.seed, ...q].join(',')}`);
+  } else if (process.env.VARS) {
     // mugen.exe's enums: statetype S=1 C=2 A=3 L=4, movetype I=0 A=1 H=2.
     const st = { s: 1, c: 2, a: 3, l: 4 }[p1.stateType as string] ?? 0;
     const mt = { i: 0, a: 1, h: 2 }[p1.moveType as string] ?? 0;
     const fv = Array.from(p1.fvars, (x) => x.toFixed(4));
-    lines.push(`P|${i}|${[w.gameTime, w.roundState, w.seed, p1.stateNo, p1.ctrl ? 1 : 0, st, mt, p1.power, ...p1.vars, ...fv].join(',')}`);
+    lines.push(`P|${i}|${[w.gameTime, w.roundState, w.seed, p1.stateNo, p1.ctrl ? 1 : 0, st, mt, p1.power, ...p1.vars, ...fv, p1.inGuardDist() ? 1 : 0, (p1.pos.y * 2).toFixed(4)].join(',')}`);
   } else lines.push(`P|${i}|${[...row, ...pl].join(',')}`);
   if (m.finished) break;
 }
