@@ -77,6 +77,8 @@ export class World {
   screenRight = 15;
   /** Set by the match flow outside RoundState 2. */
   inputLocked = false;
+  /** Stage autoturn: ChangeState turns a player with control towards the enemy. */
+  autoTurn = true;
   /** hits_enabled: Players_CheckHits (push, hits, projectile hits) runs. */
   hitsEnabled = true;
   /** fight.def over.hittime: in RoundState 3 from then on the living take no damage. */
@@ -925,6 +927,7 @@ export class World {
     this.screenWidth = info.localCoord[0];
     this.screenHeight = info.localCoord[1];
     this.shadow = info.shadow;
+    this.autoTurn = info.autoTurn;
   }
 }
 

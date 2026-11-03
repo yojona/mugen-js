@@ -142,7 +142,8 @@ export async function loadStage(vfs: Vfs, defPath: string): Promise<Stage> {
     screenRight: num(g(bound, 'screenright'), 15),
     zoffset: num(g(si, 'zoffset'), 200),
     zoffsetLink: g(si, 'zoffsetlink') !== undefined ? num(g(si, 'zoffsetlink'), 0) : undefined,
-    autoTurn: num(g(si, 'autoturn'), 1) !== 0,
+    // matchload.c: autoturn defaults to 0.
+    autoTurn: num(g(si, 'autoturn'), 0) !== 0,
     resetBG: num(g(si, 'resetbg'), 1) !== 0,
     localCoord: nums(g(si, 'localcoord'), [320, 240]) as [number, number],
     scale: [num(g(si, 'xscale'), 1), num(g(si, 'yscale'), 1)],
