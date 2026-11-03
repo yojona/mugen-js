@@ -486,6 +486,19 @@ export class Player {
     if (anim !== undefined) this.changeAnim(anim, 0, true);
   }
 
+  /**
+   * Rd_ResetToOwnStates: back to the player's own state 0 by number; its
+   * statedef applies when it runs (this tick: the round code runs first).
+   */
+  resetToOwnState0(): void {
+    this.stateOwner = undefined;
+    this.prevStateNo = this.stateNo;
+    this.stateNo = 0;
+    this.time = 0;
+    this.persist.clear();
+    this.pendingEntry = true;
+  }
+
   /** SelfState / being hit normally: return to own states. */
   returnToOwnStates(): void {
     this.stateOwner = undefined;

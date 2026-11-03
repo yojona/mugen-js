@@ -216,7 +216,15 @@ export class Match {
       }
       case 'fight': {
         w.roundState = 2;
-        if (this.phaseTime === c.ctrlTime) for (const p of this.players) p.ctrl = true;
+        // ctrl.time (Round_RunState case 2): control for everyone alive, and
+        // whoever is not in state 0 goes back to its own state 0.
+        if (this.phaseTime === c.ctrlTime) {
+          for (const p of this.players) {
+            if (!p.alive) continue;
+            p.ctrl = true;
+            if (p.stateNo !== 0) p.resetToOwnState0();
+          }
+        }
         if (this.phaseTime === c.fightSndTime) this.sounds.push([1, 0]);
         if (this.clock > 0) this.clock--;
         const dead = this.players.filter((p) => p.life <= 0);
