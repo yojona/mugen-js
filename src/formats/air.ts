@@ -40,7 +40,7 @@ export interface Animation {
   elements: AnimElement[];
   /** Index of the element the animation loops back to. */
   loopStart: number;
-  /** Sum of element times, or -1 if any element lasts forever. */
+  /** mugen.exe's total time: restarts at -1 on a -1 element, then adds the rest. */
   totalTime: number;
 }
 
@@ -93,13 +93,11 @@ export function parseAir(text: string): AnimationMap {
     // Interpolate lines before the first element apply to last -> first wrap.
     const last = cur.elements[cur.elements.length - 1];
     if (last) last.interp = { ...interpBeforeFirst };
+    // mugen.exe: a -1 element sets the total to -1, later elements add on.
     let total = 0;
     for (const e of cur.elements) {
-      if (e.time < 0) {
-        total = -1;
-        break;
-      }
-      total += e.time;
+      if (e.time === -1) total = -1;
+      else total += e.time;
     }
     cur.totalTime = total;
     if (cur.loopStart >= cur.elements.length) cur.loopStart = 0;

@@ -37,18 +37,23 @@ const timingCache = new WeakMap<Animation, Timing>();
 function timing(anim: Animation): Timing {
   let t = timingCache.get(anim);
   if (t) return t;
+  // As mugen.exe's Anim loader: each element starts where the previous one
+  // ends (a -1 element counts as -1), and the total restarts at -1 on a -1
+  // element, then keeps adding the elements after it (so an action with a -1
+  // element in the middle still has a finite total and loops).
   const starts: number[] = [];
   let acc = 0;
   let literal = 0;
-  let infinite = false;
+  let total = 0;
   for (const e of anim.elements) {
-    starts.push(acc);
+    starts.push(literal);
     literal += e.time;
-    if (e.time < 0) infinite = true;
-    else acc += e.time;
+    if (e.time === -1) total = -1;
+    else total += e.time;
+    if (e.time >= 0) acc += e.time;
   }
   const loopStartTime = starts[anim.loopStart] ?? 0;
-  t = { starts, total: infinite ? -1 : acc, finite: acc, literal, loopStartTime, loopLen: Math.max(1, acc - loopStartTime) };
+  t = { starts, total, finite: acc, literal, loopStartTime, loopLen: Math.max(1, total - loopStartTime) };
   timingCache.set(anim, t);
   return t;
 }
@@ -103,15 +108,13 @@ export class AnimPlayer {
   private elementAt(pos: number): { elem: number; elemTime: number } {
     const { starts } = this.t;
     const els = this.anim.elements;
+    // Anim_SeekElem: the last element, in order, that started by now.
     let i = 0;
     for (let k = 0; k < els.length; k++) {
-      const e = els[k]!;
-      if (pos >= starts[k]! && (e.time < 0 || pos < starts[k]! + e.time)) {
-        i = k;
-        return { elem: i, elemTime: pos - starts[k]! };
-      }
+      if (starts[k]! > pos) break;
+      i = k;
     }
-    return { elem: Math.max(0, els.length - 1), elemTime: 0 };
+    return { elem: i, elemTime: pos - starts[i]! };
   }
 
   private update(): void {
