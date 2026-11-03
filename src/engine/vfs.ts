@@ -69,7 +69,10 @@ export class Vfs {
 /** Files served over HTTP under `baseUrl`, with a JSON listing at `listUrl`. */
 export async function httpSource(baseUrl: string, listUrl: string): Promise<FileSource> {
   const files: string[] = await (await fetch(listUrl)).json();
-  const url = (p: string) => `${baseUrl}/${p.split('/').map(encodeURIComponent).join('/')}`;
+  // Characters valid in a URL path stay literal: Vite's static server does
+  // not decode them (chars/chizuru%26maki-kofa answers with index.html).
+  const seg = (s: string) => encodeURIComponent(s).replace(/%(21|24|26|27|28|29|2A|2B|2C|3B|3D|40)/gi, (m) => decodeURIComponent(m));
+  const url = (p: string) => `${baseUrl}/${p.split('/').map(seg).join('/')}`;
   return {
     list: () => files,
     read: async (p) => {
