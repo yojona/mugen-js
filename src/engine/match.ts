@@ -437,6 +437,9 @@ export class Match {
         // intro.time (the intro end is seen 2 ticks into this phase count).
         const fightAt = c.introTime - 2;
         if (t >= fightAt) {
+          // Round_RunState case 1 -> 2: Round_PlacePlayers puts everyone back
+          // at the stage start (velocity 0, the stage's facing).
+          this.placePlayers();
           this.announce = { kind: 'fight', age: 0 };
           w.inputLocked = false;
           w.roundState = 2;
@@ -620,6 +623,16 @@ export class Match {
   teamView(t: number): TeamView {
     const ts = this.teams[t]!;
     return { mode: ts.mode, memberCount: ts.memberCount, cur: ts.cur, winsNeeded: ts.winsNeeded, faces: ts.plan?.faces };
+  }
+
+  /** Round_PlacePlayers: start positions and facings of the four slots, velocity 0. */
+  private placePlayers(): void {
+    for (const p of this.players) {
+      const s = this.starts[p.slotNo - 1] ?? this.starts[p.side]!;
+      p.vel.x = p.vel.y = 0;
+      if (p.facing !== s.facing) p.facing = s.facing;
+      p.setWorldPos(s.x, s.y);
+    }
   }
 
   /** The side's leader on the screen (P1 / P2, the current turns member). */
