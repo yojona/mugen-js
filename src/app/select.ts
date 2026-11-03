@@ -232,6 +232,8 @@ export class SelectScreen implements Screen {
     const gap = this.int('cell.spacing', 2);
     const cellBg = spr('cell.bg.spr');
     const random = spr('cell.random.spr');
+    const bgScale = this.pair('cell.bg.scale', [1, 1]);
+    const rndScale = this.pair('cell.random.scale', [1, 1]);
     const portraitSpr = this.pair('portrait.spr', [9000, 0]);
     const portraitOff = this.pair('portrait.offset');
     const portraitScale = this.pair('portrait.scale', [1, 1]);
@@ -243,8 +245,8 @@ export class SelectScreen implements Screen {
         const entry = this.roster[row * this.cols + col];
         if (!entry && !showEmpty) continue;
         const [x, y] = cellPos(row, col);
-        if (cellBg) r.draw({ sprite: cellBg, palette: sff.palettes[cellBg.palette], x, y, scaleX: 1, scaleY: 1 });
-        if (entry?.entry.def === 'randomselect' && random) r.draw({ sprite: random, palette: sff.palettes[random.palette], x, y, scaleX: 1, scaleY: 1 });
+        if (cellBg) r.draw({ sprite: cellBg, palette: sff.palettes[cellBg.palette], x, y, scaleX: bgScale[0], scaleY: bgScale[1] });
+        if (entry?.entry.def === 'randomselect' && random) r.draw({ sprite: random, palette: sff.palettes[random.palette], x, y, scaleX: rndScale[0], scaleY: rndScale[1] });
         const d = entry?.data;
         const s = d?.sff.get(portraitSpr[0], portraitSpr[1]);
         const k = d ? this.charScale(d) : 1;
