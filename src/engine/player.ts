@@ -1144,7 +1144,6 @@ export class Player {
         // State 105 (hop back) is exempt: it lands through its own
         // ChangeState (mugen.exe 0x43cd63 compares stateno with 105).
         if (this.pos.y >= 0 && this.vel.y > 0 && this.stateNo !== 105) {
-          this.pos.y = 0;
           // Landing enters state 52 and runs it in the same tick (measured:
           // MUGEN shows Time = 1 and vel y = 0 on the next tick).
           this.inStates = true;
