@@ -99,11 +99,14 @@ export class Match {
   /** RoundState 4 lasts until this tick (over.time, pushed back by roundnotover). */
   private overEndTime = 0;
 
+  private frameNo = 0;
+
   constructor(
     readonly world: World,
     readonly cfg: RoundConfig,
     readonly starts: [StartPos, StartPos],
   ) {
+    world.framesDriven = true;
     this.clock = cfg.roundSeconds < 0 ? -1 : cfg.roundSeconds * cfg.framesPerCount;
     this.startRound();
   }
@@ -167,6 +170,8 @@ export class Match {
 
   /** Advance one tick: returns true if the world should simulate this tick. */
   tick(): boolean {
+    // Frames shown before this one (mugen.exe counts at the end of a frame).
+    this.world.frames = this.frameNo++;
     this.sounds = [];
     if (this.announce) this.announce.age++;
     const simulate = this.step();

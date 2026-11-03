@@ -31,6 +31,13 @@ export class World {
   /** Stage localcoord width: the world's coordinate unit. */
   localWidth = 320;
   gameTime = 0;
+  /**
+   * mugen.exe's frame counter (g->frames), what the GameTime trigger reads:
+   * it runs on through round intros, transitions and the KO slowdown. A Match
+   * drives it once per frame; a bare World counts its own ticks.
+   */
+  frames = 0;
+  framesDriven = false;
   roundState = 2; // 2 = fighting
   roundNo = 1;
   /** How the round ended (mugen.exe G win_type): 0 not yet, 1 KO, 2 time over. */
@@ -311,6 +318,7 @@ export class World {
     tickPalFx(this.bgPalFx);
     if (this.envShake && this.envShake.time > 0) this.envShake.time--;
     this.gameTime++;
+    if (!this.framesDriven) this.frames++;
   }
 
   private tickPauses(): void {
