@@ -609,6 +609,13 @@ export class Player {
 
   /** Drop targets that are no longer being hit. */
   pruneTargets(): void {
+    // Player_UpdateCombo: a target still being hit (or a ReversalDef up) keeps the side's combo going.
+    for (const [t] of this.targets) {
+      if ((t.moveType === 'h' && (t.stateNo !== 5150 || t.time === 0)) || (this.reversal && this.hitDefActive)) {
+        this.world.comboOngoing[this.side] = true;
+        break;
+      }
+    }
     for (const [t] of this.targets) if (t.moveType !== 'h' || t.world !== this.world) this.targets.delete(t);
     for (const [t] of this.targetJuggle) if (!this.targets.has(t)) this.targetJuggle.delete(t);
   }

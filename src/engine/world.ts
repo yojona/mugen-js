@@ -84,6 +84,12 @@ export class World {
   /** fight.def over.hittime: in RoundState 3 from then on the living take no damage. */
   overHitTime = Infinity;
   shadow: { intensity: number; color: [number, number, number]; yscale: number; fadeRange: [number, number] } | undefined;
+  /**
+   * Combo counters per side: hits added this tick (Combo_AddHits) and
+   * whether a combo is still going (Player_UpdateCombo); the HUD runs the rest.
+   */
+  comboAdded: [number, number] = [0, 0];
+  comboOngoing: [boolean, boolean] = [false, false];
   /** [Reflection] intensity (0..256): players mirrored on the floor. */
   reflection = 0;
   seed = 1;
@@ -340,6 +346,8 @@ export class World {
 
   /** Feed this tick's raw inputs (one bitmask per player) and advance one tick. */
   tick(inputs: number[]): void {
+    this.comboAdded = [0, 0];
+    this.comboOngoing = [false, false];
     // gameloop.c: envcolor_time counts down before the tick.
     if (this.envColor && this.envColor.time > 0 && --this.envColor.time === 0) this.envColor = undefined;
     // Before the round starts (and after it ends) input is ignored and nobody has control.

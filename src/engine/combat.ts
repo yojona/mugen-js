@@ -211,6 +211,7 @@ function applyReversal(r: Player, a: Player): void {
   // Player_Reverse: the reverser counts the hits and gets its power.
   r.hitCount += rv.hd.numHits;
   r.uniqHitCount += rv.hd.numHits;
+  r.world.comboAdded[r.side]! += rv.hd.numHits;
   r.addPower(rv.hd.getPower[0]);
   // hitpause_next on both sides: the pause starts counting next tick.
   r.hitPause = rv.hd.pause[0];
@@ -650,6 +651,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     // movetype H for more than one update.
     g.hitcount = d.moveType !== 'h' && d.hitFreeTime > 1 ? 1 : g.hitcount + 1;
     if (kills) g.fall = 1;
+    // Combo_AddHits: the attacker's side (a projectile's owner's too).
+    world.comboAdded[a.side]! += hd.numHits;
     // HitCount once per frame, UniqHitCount per target.
     if (!proj) {
       if (a.hitFrame < world.frames) a.hitCount += hd.numHits;
