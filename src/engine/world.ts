@@ -686,6 +686,15 @@ export class World {
    */
   private stepCameraX(): void {
     if (this.cameraMode <= 1) return;
+    // Camera_Update starts with Player_UpdateDrawParams(p, 1) for every
+    // active player: ScreenBound (only) for those with it on, so a player
+    // that just turned is bound with its new edge widths before it moves.
+    for (const p of this.allPlayers()) {
+      if (p.destroyed || !p.screenBound) continue;
+      const [lo, hi] = this.screenLimits(p);
+      if (p.wx < lo) p.setWorldPos(lo);
+      else if (p.wx > hi) p.setWorldPos(hi);
+    }
     const snap = this.cameraMode === 2;
     const f = Math.fround;
     const k = this.gameWidth / this.screenWidth;

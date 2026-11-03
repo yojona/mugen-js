@@ -718,9 +718,11 @@ export class Player {
     this.drawScale = [1, 1];
     this.drawOffset = [0, 0];
     this.width = {};
-    this.screenBound = true;
-    this.moveCamera = [true, true];
-    this.pushEnabled = true;
+    // Helpers (not helpertype = player) start every tick without screen
+    // bounds, camera moves or push (Player_Update).
+    this.screenBound = !this.isHelper;
+    this.moveCamera = [!this.isHelper, !this.isHelper];
+    this.pushEnabled = !this.isHelper;
   }
 
   /**
