@@ -59,7 +59,8 @@ describe('match flow', () => {
     const { m, step, untilFight } = setup();
     untilFight();
     expect(m.clockSeconds).toBe(99);
-    step(61);
+    // The clock starts at ctrl.time (30): 100 * 60 - 1 ticks, 99 shown.
+    step(30 + 60);
     expect(m.clockSeconds).toBe(98);
   });
 
@@ -96,7 +97,7 @@ describe('match flow', () => {
     const { p1, m, step, untilFight } = setup();
     untilFight();
     p1.life = 500;
-    step(99 * 60 + 2);
+    step(30 + 100 * 60 + 1);
     expect(m.announce?.kind).toBe('to');
     step(400);
     expect(m.wins).toEqual([0, 1]);

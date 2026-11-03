@@ -77,7 +77,7 @@ export class Match {
   round = 1;
   wins: [number, number] = [0, 0];
   draws = 0;
-  /** Ticks remaining on the round clock (-1 = infinite). */
+  /** Ticks remaining on the round clock (-1 = infinite): (Time + 1) * framespercount - 1 at the start, as mugen.exe's round_time. */
   clock: number;
   announce: Announce | undefined;
   /** Sounds from fight.snd requested this tick ([group, number]). */
@@ -107,7 +107,7 @@ export class Match {
     readonly starts: [StartPos, StartPos],
   ) {
     world.framesDriven = true;
-    this.clock = cfg.roundSeconds < 0 ? -1 : cfg.roundSeconds * cfg.framesPerCount;
+    this.clock = cfg.roundSeconds < 0 ? -1 : (cfg.roundSeconds + 1) * cfg.framesPerCount - 1;
     this.startRound();
   }
 
@@ -117,7 +117,7 @@ export class Match {
 
   /** Seconds shown on the round clock. */
   get clockSeconds(): number {
-    return this.clock < 0 ? -1 : Math.ceil(this.clock / this.cfg.framesPerCount);
+    return this.clock < 0 ? -1 : Math.floor(this.clock / this.cfg.framesPerCount);
   }
 
   private startRound(): void {
@@ -157,7 +157,7 @@ export class Match {
     w.fightTime = 0;
     w.camera.x = 0;
     w.camTarget = undefined;
-    this.clock = this.cfg.roundSeconds < 0 ? -1 : this.cfg.roundSeconds * this.cfg.framesPerCount;
+    this.clock = this.cfg.roundSeconds < 0 ? -1 : (this.cfg.roundSeconds + 1) * this.cfg.framesPerCount - 1;
     this.phase = 'wait';
     this.phaseTime = 0;
     this.announce = undefined;
@@ -231,9 +231,17 @@ export class Match {
           }
         }
         if (this.phaseTime === c.fightSndTime) this.sounds.push([1, 0]);
-        if (this.clock > 0) this.clock--;
+        // Round_RunState: the clock runs from ctrl.time on, not during a
+        // Pause / SuperPause or while AssertSpecial timerfreeze holds; time
+        // is over when it reaches 0 after ctrl.time.
+        let timeUp = false;
+        const timerFreeze = this.players.some((p) => p.special.has('timerfreeze')) || w.helpers.some((h) => h.special.has('timerfreeze'));
+        if (!w.pause && !w.superPause && !timerFreeze && this.phaseTime >= c.ctrlTime && this.clock > 0) {
+          this.clock--;
+          timeUp = this.clock === 0 && this.phaseTime > c.ctrlTime;
+        }
         const dead = this.players.filter((p) => p.life <= 0);
-        if (dead.length || this.clock === 0) {
+        if (dead.length || timeUp) {
           if (dead.length === 2) this.announce = { kind: 'dko', age: 0 };
           else if (dead.length) this.announce = { kind: 'ko', age: 0 };
           else this.announce = { kind: 'to', age: 0 };
