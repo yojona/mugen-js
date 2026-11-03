@@ -291,8 +291,8 @@ export class Player {
     return this.stateOwner?.prog ?? this.prog;
   }
 
-  compiledState(no: number): CompiledState | undefined {
-    const prog = this.stateProg;
+  compiledState(no: number, own = false): CompiledState | undefined {
+    const prog = own ? this.prog : this.stateProg;
     let cs = prog.compiled.get(no);
     if (cs) return cs;
     const def = prog.states.get(no);
@@ -488,7 +488,9 @@ export class Player {
 
   /** Run one state's controllers. Returns true if the state was changed. */
   private runState(no: number): boolean {
-    const cs = this.compiledState(no);
+    // Special states always come from the player's own files
+    // (Player_RunSpecialState RUNSTATE_OWN).
+    const cs = this.compiledState(no, no < 0);
     if (!cs) {
       // A missing current state (Player_RunState): on its first tick the hit
       // counts, move contact and HitDef attr are cleared; nothing else runs.
@@ -520,6 +522,7 @@ export class Player {
       this.stateChanged = false;
       const custom = !!this.stateOwner;
       c.run(this);
+      if (this.world.randomTrace) this.world.traceCtx = '';
       if (this.stateChanged) {
         if (this.world.randomTrace) this.world.randomTrace.push(`=> ${this.stateNo} by ${this.world.traceCtx}`);
         // 0x448f50: a command-triggered state change starts a move record
@@ -584,18 +587,34 @@ export class Player {
     this.pushEnabled = true;
   }
 
+  /**
+   * Player_Update: -3 and -2 for players (not normal helpers), -1 with key
+   * control; in someone else's states only -2 runs (-3 and -1 lack
+   * RUNSTATE_CUSTOM).
+   */
+  private specialStates(): number[] {
+    const custom = !!this.stateOwner;
+    const out: number[] = [];
+    if (!this.isHelper) {
+      if (!custom) out.push(-3);
+      out.push(-2);
+    }
+    if (this.keyCtrl && !custom) out.push(-1);
+    return out;
+  }
+
   private runStatesInner(): void {
     this.resetTickFlags();
     // Helpers with keyctrl read their root's command buffer.
     if (this.isHelper) this.commands = this.keyCtrl ? this.root.commands : new Set();
     if (this.hitPause > 0) {
       // Frozen by hit pause: only ignorehitpause controllers run.
-      const sp = this.isHelper ? (this.keyCtrl ? [-1] : []) : [-3, -2, -1];
+      const sp = this.specialStates();
       for (const special of [...sp, this.stateNo]) this.runState(special);
       return;
     }
     // Helpers skip -3/-2, and -1 unless they read input (cns.html).
-    const specials = this.isHelper ? (this.keyCtrl ? [-1] : []) : [-3, -2, -1];
+    const specials = this.specialStates();
     // A ChangeState ends only the pass of its own special state; the next
     // one still runs (mugen.exe Player_Update: -3, -2 and -1 are separate
     // Player_RunSpecialState calls).
