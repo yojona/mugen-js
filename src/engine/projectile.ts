@@ -43,6 +43,8 @@ export interface Projectile {
   phase: 'active' | 'ending' | 'removing' | 'dead';
   /** Created this tick: it first moves (and animates) next tick (measured). */
   fresh: boolean;
+  /** Velocity from the next ending tick on (remvelocity). */
+  endVel?: [number, number];
   age: number;
   hitPause: number;
   superMoveTime: number;
@@ -163,8 +165,10 @@ export function noteProjContact(p: P, kind: 1 | 2 | 3, id: number): void {
 export function endProjectile(pr: Projectile, anim: number, vel?: [number, number]): void {
   if (pr.phase !== 'active') return;
   const a = anim >= 0 ? pr.owner.prog.data.anims.get(anim) : undefined;
-  if (vel) pr.vel = [...vel];
-  else pr.vel = [0, 0];
+  // Projectiles_Update: an ending projectile (removed, cancelled or hit)
+  // still moves by its old velocity on its first ending tick, then by
+  // projremvelocity.
+  pr.endVel = vel ? [...vel] : [...pr.remVel];
   pr.accel = [0, 0];
   pr.velMul = [1, 1];
   if (a) {
@@ -185,6 +189,8 @@ export function updateProjectile(pr: Projectile): void {
   const fresh = pr.fresh;
   pr.fresh = false;
   if (pr.hitPause > 0) {
+    // Projectiles_Update: in hit pause the animation still steps.
+    if (!fresh) pr.anim.tick();
     pr.hitPause--;
     return;
   }
@@ -192,6 +198,10 @@ export function updateProjectile(pr: Projectile): void {
   pr.x += pr.vel[0] * pr.facing;
   pr.y += pr.vel[1];
   if (pr.phase === 'ending') {
+    if (pr.endVel) {
+      pr.vel = pr.endVel;
+      pr.endVel = undefined;
+    }
     // Projectiles_Update: an end animation with no length (or endless:
     // total_time <= 0) removes the projectile at once.
     if (pr.anim.totalTime <= 0 || pr.anim.animTime() >= 0) pr.phase = 'dead';
@@ -214,11 +224,27 @@ export function updateProjectile(pr: Projectile): void {
     (pr.x > w.boundRight + w.screenWidth / 2 + pr.stageBound && wvx > 0) ||
     (pr.y > pr.heightBound[1] && wvy > 0);
   const outScreen = pr.x < left - pr.edgeBound || pr.x > right + pr.edgeBound;
-  if (outStage || outScreen) {
+  if (outStage || outScreen) return removeNow(pr);
+  // Then the miss time, then removetime (with the time before this tick's increment).
+  if (pr.missTimer > 0 && --pr.missTimer === 0) pr.hitTargets.clear();
+  if (pr.removeTime >= 0 && age >= pr.removeTime) removeNow(pr);
+}
+
+/**
+ * Projectiles_Update removing a projectile in its own update (bounds or
+ * removetime, state 2): it moves once more by its velocity, then takes
+ * projremvelocity and projremanim; without one it is gone at once.
+ */
+function removeNow(pr: Projectile): void {
+  const a = pr.remAnim >= 0 ? pr.owner.prog.data.anims.get(pr.remAnim) : undefined;
+  if (!a) {
     pr.phase = 'dead';
     return;
   }
-  // Then the miss time, then removetime (with the time before this tick's increment).
-  if (pr.missTimer > 0 && --pr.missTimer === 0) pr.hitTargets.clear();
-  if (pr.removeTime >= 0 && age >= pr.removeTime) endProjectile(pr, pr.remAnim, pr.remVel);
+  pr.x += pr.vel[0] * pr.facing;
+  pr.y += pr.vel[1];
+  endProjectile(pr, pr.remAnim, pr.remVel);
+  pr.vel = [...pr.remVel];
+  pr.endVel = undefined;
+  if (pr.anim.totalTime <= 0) pr.phase = 'dead';
 }
