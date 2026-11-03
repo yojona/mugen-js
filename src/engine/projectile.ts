@@ -37,7 +37,8 @@ export interface Projectile {
   heightBound: [number, number];
   hd: HitDefData;
   /** active: flying; ending: playing hit/remove/cancel anim; dead: to be deleted. */
-  phase: 'active' | 'ending' | 'dead';
+  /** removing: ended without an animation; stays listed (InGuardDist) until the next update (Projectiles_Update). */
+  phase: 'active' | 'ending' | 'removing' | 'dead';
   /** Created this tick: it first moves (and animates) next tick (measured). */
   fresh: boolean;
   age: number;
@@ -102,7 +103,9 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
     const ps = pair(p, 'projscale', [1, 1]);
     const projId = int(p, 'projid') ?? 0;
     w.projectiles.push({
-      owner: p,
+      // SCTRL_PROJECTILE: a helper's projectile belongs to its root (its list,
+      // NumProj, ProjHit, InGuardDist, juggle and hits).
+      owner: p.root,
       projId,
       anim: new AnimPlayer(a),
       hitAnim,
@@ -164,12 +167,16 @@ export function endProjectile(pr: Projectile, anim: number, vel?: [number, numbe
   if (a) {
     pr.anim.set(a);
     pr.phase = 'ending';
-  } else pr.phase = 'dead';
+  } else pr.phase = 'removing';
 }
 
 /** Move, age and bound-check one projectile. */
 export function updateProjectile(pr: Projectile): void {
   if (pr.phase === 'dead') return;
+  if (pr.phase === 'removing') {
+    pr.phase = 'dead';
+    return;
+  }
   const fresh = pr.fresh;
   pr.fresh = false;
   if (pr.hitPause > 0) {

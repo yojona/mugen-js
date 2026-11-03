@@ -57,7 +57,7 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
   }
 
   for (const pr of w.projectiles) {
-    if (pr.phase === 'dead') continue;
+    if (pr.phase === 'dead' || pr.phase === 'removing') continue;
     list.push({
       priority: pr.sprPriority,
       order: order++,
