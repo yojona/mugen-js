@@ -69,4 +69,14 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('billy-kofa', 'daimon-kofa'))(
+    'Billy vs Daimon, CPU level 4: 9000 frames (ReversalDef, NumTarget, AI learning across pauses)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'billy-vs-daimon.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['billy-kofa', 'daimon-kofa'], frames: 9000, seed: 16808 });
+      expect(ours.length).toBe(9000);
+      expect(peekDiff(ref, ours, 14, 9000)).toEqual([]);
+    },
+    120_000,
+  );
 });
