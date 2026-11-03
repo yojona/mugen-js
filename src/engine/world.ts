@@ -24,6 +24,8 @@ interface PauseState {
   fresh?: boolean;
   darken: boolean;
   unhittable: boolean;
+  /** endcmdbuftime: in its last frames the paused players' commands stay active (floor 2). */
+  endCmdBufTime: number;
 }
 
 export class World {
@@ -176,11 +178,21 @@ export class World {
   }
 
   /** Pause / SuperPause controllers. */
-  startPause(owner: Player, time: number, moveTime: number, isSuper: boolean, opts: { darken?: boolean; unhittable?: boolean; p2defmul?: number } = {}): void {
-    const st: PauseState = { owner, time, moveTime, fresh: true, darken: opts.darken ?? false, unhittable: opts.unhittable ?? false };
+  startPause(owner: Player, time: number, moveTime: number, isSuper: boolean, opts: { darken?: boolean; unhittable?: boolean; p2defmul?: number; endCmdBufTime?: number } = {}): void {
+    const e = opts.endCmdBufTime ?? 0;
+    const st: PauseState = { owner, time, moveTime, fresh: true, darken: opts.darken ?? false, unhittable: opts.unhittable ?? false, endCmdBufTime: e < 0 || e > time ? 0 : e };
     if (isSuper) this.superPause = time > 0 ? st : undefined;
     else if (this.superPause) this.queuedPause = st;
     else this.pause = time > 0 ? st : undefined;
+  }
+
+  /**
+   * Command timers of a paused player stop at 2 (char.c floor) only in the
+   * pause's last endcmdbuftime frames: by default they run out as usual.
+   */
+  cmdFloor(p: Player): boolean {
+    const ps = this.superPause ?? this.pause;
+    return !!ps && this.frozen(p) && ps.time < ps.endCmdBufTime;
   }
 
   /** Is the player frozen by a Pause/SuperPause this tick? */
@@ -246,7 +258,7 @@ export class World {
       // expires).
       const hold = p.hitPauseLastTick;
       p.hitPauseLastTick = p.hitPause > 0;
-      p.cmdInput!.update(this.gameTime, this.frozen(p), p.ai?.cmds, hold);
+      p.cmdInput!.update(this.gameTime, this.cmdFloor(p), p.ai?.cmds, hold);
       p.commands = p.cmdInput!.active();
       p.keyEventRecovery();
     }
@@ -258,7 +270,7 @@ export class World {
       const i = this.players.indexOf(h.root);
       const raw = this.inputLocked || h.root.ai ? 0 : (inputs[i] ?? 0);
       h.cmdInput.ingest(raw, h.facing, !h.root.ai);
-      h.cmdInput.update(this.gameTime, this.frozen(h));
+      h.cmdInput.update(this.gameTime, this.cmdFloor(h));
       h.commands = h.cmdInput.active();
     }
     // Built-in transitions for everyone first, then each player runs its

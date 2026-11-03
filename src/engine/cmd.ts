@@ -356,13 +356,13 @@ export class CommandInput {
    * mugen.exe 0x434db0 (input part). `aiCmds` (command indices pushed by the
    * CPU this tick) are set after matching, active for this tick only (0x42f750).
    */
-  update(time: number, frozen: boolean, aiCmds?: readonly number[], holdBuffers = false): void {
+  update(time: number, floor2: boolean, aiCmds?: readonly number[], holdBuffers = false): void {
     const ev = this.popKey();
     this.lastEvent = ev;
     let held = 0;
     for (let i = 1; i < 12; i++) if (this.held[i]) held |= KEY_BITS[i]!;
     this.heldBits = held;
-    const floor = frozen ? 2 : 0;
+    const floor = floor2 ? 2 : 0;
     // In hit pause the buffers do not count down (mugen.exe 0x434fbc), so a
     // command entered during the pause fires when it ends (measured).
     if (!holdBuffers) for (let i = 0; i < this.buffer.length; i++) {

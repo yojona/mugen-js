@@ -376,7 +376,7 @@ const EXTRA: Record<string, Impl> = {
     g['fall.envshake.time'] = 0;
   },
   pause: (_c, prm) => (p) => {
-    p.world.startPause(p, prm.int(p, 'time') ?? 0, prm.int(p, 'movetime') ?? 0, false);
+    p.world.startPause(p, prm.int(p, 'time') ?? 0, prm.int(p, 'movetime') ?? 0, false, { endCmdBufTime: prm.int(p, 'endcmdbuftime') ?? 0 });
   },
   superpause: (c, prm) => {
     const animRaw = prm.raw('anim') ?? '30';
@@ -391,6 +391,7 @@ const EXTRA: Record<string, Impl> = {
         darken: (prm.int(p, 'darken') ?? 1) !== 0,
         unhittable: (prm.int(p, 'unhittable') ?? 1) !== 0,
         p2defmul: prm.num(p, 'p2defmul') ?? 1.5,
+        endCmdBufTime: prm.int(p, 'endcmdbuftime') ?? 0,
       });
       // The super's current targets take less damage until they recover
       // (Super.TargetDefenceMul; measured: KFM's 155-damage super does 103).
