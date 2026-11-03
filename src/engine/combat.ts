@@ -568,7 +568,10 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     // hit in the air, spends the HitDef's juggle from the attacker's target
     // entry; the HitDef then costs nothing more until a state sets it.
     if (!proj && !override && (wasFalling || hd.fall || (hd.airFall && d.stateType === 'a'))) {
-      a.targetJuggle.set(d, (a.targetJuggle.get(d) ?? a.const('data.airjuggle')) - Math.max(0, a.juggleCost));
+      // The amount is hitdef_juggle, which Player_CanHit only sets without
+      // AssertSpecial nojugglecheck (else it stays 0 from the tick start).
+      const spend = a.special.has('nojugglecheck') ? 0 : Math.max(0, a.juggleCost);
+      a.targetJuggle.set(d, (a.targetJuggle.get(d) ?? a.const('data.airjuggle')) - spend);
       a.juggleCost = 0;
     }
     const vel = lying ? hd.downVel : inAir ? hd.airVel : hd.groundVel;
