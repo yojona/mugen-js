@@ -104,6 +104,8 @@ export class Player {
 
   // Helper hierarchy
   isHelper = false;
+  /** Helper type: 0 normal, 1 player (behaves like a player), 2 proj. */
+  helperType = 0;
   helperId = 0;
   parent: Player | undefined;
   /** Root player (self for root players). */
@@ -723,9 +725,10 @@ export class Player {
     this.width = {};
     // Helpers (not helpertype = player) start every tick without screen
     // bounds, camera moves or push (Player_Update).
-    this.screenBound = !this.isHelper;
-    this.moveCamera = [!this.isHelper, !this.isHelper];
-    this.pushEnabled = !this.isHelper;
+    const plain = this.isHelper && this.helperType !== 1;
+    this.screenBound = !plain;
+    this.moveCamera = [!plain, !plain];
+    this.pushEnabled = !plain;
   }
 
   /**
@@ -736,7 +739,8 @@ export class Player {
   private specialStates(): number[] {
     const custom = !!this.stateOwner;
     const out: number[] = [];
-    if (!this.isHelper) {
+    // Players and helpertype = player helpers run -3 and -2.
+    if (!this.isHelper || this.helperType === 1) {
       if (!custom) out.push(-3);
       out.push(-2);
     }

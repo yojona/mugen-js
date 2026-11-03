@@ -45,6 +45,9 @@ export function compileHelper(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
     h.helperId = prm.int(p, 'id') ?? 0;
     h.helperName = prm.raw('name') ? unquote(prm.raw('name')!) : `${p.root.name}'s helper`;
     h.keyCtrl = (prm.int(p, 'keyctrl') ?? 0) !== 0;
+    // helpertype: normal (0), player (1), anything starting with "proj" (2).
+    const ht = (prm.raw('helpertype') ?? '').trim().toLowerCase();
+    h.helperType = ht === 'player' ? 1 : ht.startsWith('proj') ? 2 : 0;
     if (h.keyCtrl) h.input = p.root.input;
     h.palNo = p.palNo;
     h.superMoveTime = prm.int(p, 'supermovetime') ?? 0;
@@ -61,6 +64,8 @@ export function compileHelper(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
     const left = (w.camera.x - w.screenWidth / 2) / p.scale;
     const right = (w.camera.x + w.screenWidth / 2) / p.scale;
     h.pos.y = p.pos.y + off[1];
+    // Screen-edge postypes start at y = 0 (Helper_Create).
+    if (postype === 'front' || postype === 'back' || postype === 'left' || postype === 'right') h.pos.y = off[1];
     switch (postype) {
       case 'p2': {
         const e = w.enemyOf(p) ?? p;
