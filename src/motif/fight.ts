@@ -260,7 +260,9 @@ export class FightHud {
         const k = this.localWidth / (data.def.localCoord[0] || 320);
         r.draw({
           sprite: s,
-          palette: data.paletteFor(s, pal),
+          // Mt_DrawFace draws from the character's sprite set without the
+          // player's palette remap: the sprite's own palette.
+          palette: s.palette < 0 ? undefined : data.sff.palettes[s.palette],
           x: x + face.offset[0],
           y: y + face.offset[1],
           scaleX: face.facing * face.scale[0] * k,
