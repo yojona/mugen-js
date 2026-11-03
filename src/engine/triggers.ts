@@ -356,7 +356,7 @@ function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
         R.t = INT;
         const hd = p.hitDef;
         let v = 0;
-        if (hd && p.moveType === 'a') {
+        if (hd && p.hitDefAttrOn && p.moveType === 'a') {
           const b = hitDefAttrBits(hd.attrState, hd.attrType) & want;
           v = (b & 7) !== 0 && (b & ~7) !== 0 ? 1 : 0;
         }

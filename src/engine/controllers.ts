@@ -233,6 +233,7 @@ const IMPLS: Record<string, Impl> = {
       if (p.stateType === 's' || p.stateType === 'c' || p.stateType === 'a') p.hitDef.attrState = p.stateType;
       p.hitDefActive = true;
       p.hitDefSet = true;
+      p.hitDefAttrOn = true;
       p.hitTargets.clear();
       // HitDef and ReversalDef share the player's one HitDef in mugen.exe:
       // a HitDef replaces a ReversalDef (reversal_attr back to 0).

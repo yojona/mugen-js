@@ -218,6 +218,8 @@ export class Player {
    * hitDefActive it survives the hit (the AI recorder's p+0x1230).
    */
   hitDefSet = false;
+  /** hitdef.attr is set: a HitDef ran since the last state entry without hitdefpersist (which clears it to 0). */
+  hitDefAttrOn = false;
   /** Players already hit by the current HitDef. */
   hitTargets = new Set<Player>();
   /** P1 freeze after a hit (pausetime p1). */
@@ -523,6 +525,7 @@ export class Player {
       this.guardDist = this.const('size.attack.dist');
       this.hitDefActive = false;
       this.hitDefSet = false;
+      this.hitDefAttrOn = false;
       this.hitTargets.clear();
     }
     if (!flag('movehitpersist')) this.moveContact = this.moveHit = this.moveGuarded = this.moveReversed = 0;

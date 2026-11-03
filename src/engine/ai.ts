@@ -653,7 +653,7 @@ export class MugenAI {
       if (p.moveType === 'h') thr = Math.trunc(thr / 10);
       if (this.rand(1000) < thr) {
         // attr & 0x6d8: a normal or special (not hyper) HitDef of any kind.
-        const at = p.hitDef ? attrBits([p.hitDef.attrState, p.hitDef.attrType]) & 0x6d8 : 0;
+        const at = p.hitDef && p.hitDefAttrOn ? attrBits([p.hitDef.attrState, p.hitDef.attrType]) & 0x6d8 : 0;
         const cthr = this.contactKind === 2 ? (at ? 250 : 500) : 750;
         if (this.rand(1000) < cthr) {
           const b = this.rand(6) + 5;
