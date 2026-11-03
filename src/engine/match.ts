@@ -102,6 +102,20 @@ export class Match {
   private slowRate = 0;
   private noSlow = false;
   private koTicks = 0;
+  /**
+   * Round_RunState's palette fade: in from black over 16 ticks as each round
+   * starts, out to black over the last 16 ticks of RoundState 4 (black stays
+   * until the next round's fade in). Drawing only.
+   */
+  fade: { out: boolean; ticks: number; time: number } | undefined;
+  /** 0 clear .. 1 black. */
+  get fadeAlpha(): number {
+    const f = this.fade;
+    if (!f) return 0;
+    const k = Math.min(1, f.ticks / f.time);
+    return f.out ? k : 1 - k;
+  }
+
   /** RoundState 4 lasts until this tick (over.time, pushed back by roundnotover). */
   private overEndTime = 0;
 
@@ -209,6 +223,11 @@ export class Match {
     this.sounds = [];
     if (this.announce) this.announce.age++;
     const simulate = this.step();
+    // Fade_Update: a finished fade in clears; a fade out stays black.
+    if (this.fade) {
+      this.fade.ticks++;
+      if (!this.fade.out && this.fade.ticks >= this.fade.time) this.fade = undefined;
+    }
     this.phaseTime++;
     // Round_RunState's end: camera_mode++ every tick.
     this.world.cameraMode++;
@@ -225,6 +244,7 @@ export class Match {
     w.roundClock = undefined;
     switch (this.phase) {
       case 'wait':
+        if (this.phaseTime === 0) this.fade = { out: false, ticks: 0, time: 16 };
         if (this.phaseTime >= c.startWaitTime) {
           w.hitsEnabled = true;
           // RoundState 1 is visible from this very tick (KFM's intro waits for it).
@@ -380,12 +400,17 @@ export class Match {
         if (this.players.some((p) => p.special.has('roundnotover')) || w.helpers.some((h) => h.special.has('roundnotover'))) {
           this.overEndTime = this.phaseTime + 19;
         }
+        if (this.overEndTime - this.phaseTime < 16 && !this.fade) this.fade = { out: true, ticks: 0, time: 16 };
         if (this.phaseTime >= this.overEndTime) {
           // The match ends with the last round's over.time (measured: the
           // victory screen follows 213 frames after RoundState 4).
           if (this.matchOver) {
             this.finished = true;
-            if (this.autoRematch) this.enter('win');
+            // A rematch (training / viewer) stays on screen: no black.
+            if (this.autoRematch) {
+              this.fade = undefined;
+              this.enter('win');
+            }
           }
           else {
             // The reset frame runs no tick; 5900 runs on the next one

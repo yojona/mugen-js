@@ -43,7 +43,9 @@ export class FightScreen implements Screen {
   readonly match: Match;
   private bg: StageRuntime;
   /** The next screen follows 3 frames after the match ends (measured). */
-  private fade = new Fader(10, 2);
+  // The rounds fade in and out themselves (Match.fade); the screen only
+  // covers an early exit.
+  private fade = new Fader(0, 2);
   /** Training dummy settings, changed with keys 1-5. */
   private dummy: DummySettings = { stance: 0, guard: false, distance: 0, jumpDistance: 0, button: 0 };
   private idle = [0, 0];
@@ -178,6 +180,8 @@ export class FightScreen implements Screen {
     const [mw, mh] = this.ctx.motif.localCoord;
     r.setProjection(mw, mh);
     this.s.hud.draw(r, this.match);
+    const a = this.match.fadeAlpha;
+    if (a > 0) r.rect(0, 0, mw, mh, [0, 0, 0, Math.round(a * 255)]);
     this.fade.draw(r, mw, mh);
   }
 }
