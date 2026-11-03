@@ -183,7 +183,8 @@ export class MugenAI {
       if (!(lim <= dx) && !(dx < 0)) return true;
     }
     for (const pr of att.world.projectiles) {
-      if (pr.owner !== att || pr.phase !== 'active') continue;
+      // Until removed (hit/remove anims too): its HitDef stays active.
+      if (pr.owner !== att || pr.phase === 'dead') continue;
       const dx = Math.fround((tgt.wx - pr.x) * pr.facing);
       const lim = Math.fround(pr.hd.guardDist * att.scale);
       if (dx >= 0 && dx < lim) return true;

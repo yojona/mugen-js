@@ -913,7 +913,8 @@ export class Player {
     }
     for (const pr of this.world.projectiles) {
       const e = pr.owner;
-      if (e.side === this.side || pr.phase !== 'active') continue;
+      // Until removed (hit/remove anims too): its HitDef stays active.
+      if (e.side === this.side || pr.phase === 'dead') continue;
       const dx = ((this.wx - pr.x) * pr.facing) / e.scale;
       if (dx >= 0 && pr.hd.guardDist > dx) return true;
     }
