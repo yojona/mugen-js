@@ -754,7 +754,18 @@ export class Player {
    * the old statetype).
    */
   enterLater(no: number): void {
-    if (!this.compiledState(no)) return;
+    if (!this.compiledState(no)) {
+      // Missing (Evil Robert has no 120): the number moves anyway and
+      // nothing runs, as with a ChangeState (Player_ChangeState warns).
+      this.warn(`Estado ${no} no existe`);
+      this.prevStateNo = this.stateNo;
+      this.stateNo = no;
+      this.time = 0;
+      this.persist.clear();
+      this.pendingEntry = false;
+      if (!this.inStates) this.freshState = true;
+      return;
+    }
     this.prevStateNo = this.stateNo;
     this.stateNo = no;
     this.time = 0;
