@@ -27,8 +27,11 @@ export interface StateDef {
 
 export type StateMap = Map<number, StateDef>;
 
-const STATEDEF_RE = /^statedef\s+(-?\d+)/i;
-const STATE_RE = /^state\s+(-?\d+)\s*(?:,\s*(.*))?$/i;
+/** atoi: optional blanks and sign, then digits (0 if none). */
+function atoi(s: string): number {
+  const m = /^[ \t]*([-+]?\d+)/.exec(s);
+  return m ? parseInt(m[1]!, 10) : 0;
+}
 const TRIGGER_RE = /^trigger(all|\d+)$/;
 
 /**
@@ -42,9 +45,12 @@ export function parseStates(text: string, file: string, into: StateMap = new Map
   let cur: StateDef | null = null;
   let skip = false;
   for (const sec of doc.sections) {
-    const sd = STATEDEF_RE.exec(sec.name);
-    if (sd) {
-      const number = parseInt(sd[1]!, 10);
+    // mugen.exe (load_statedefs / StateDef_Parse 0x45B210): a group named
+    // "Statedef <atoi>", then every following group whose name starts with
+    // "State " is one of its controllers, whatever its label; the first other
+    // group ends the list.
+    if (/^statedef /i.test(sec.name)) {
+      const number = atoi(sec.name.slice(9));
       const existing = into.get(number);
       if (existing) {
         // Duplicate statedef: the earlier one wins, special states included
@@ -58,10 +64,12 @@ export function parseStates(text: string, file: string, into: StateMap = new Map
       into.set(number, cur);
       continue;
     }
-    const st = STATE_RE.exec(sec.name);
-    if (st) {
+    if (/^state /i.test(sec.name)) {
       if (skip || !cur) continue;
-      cur.controllers.push(controllerFrom(sec.entries, st[2]?.trim() ?? '', file, sec.line));
+      const comma = sec.name.indexOf(',');
+      cur.controllers.push(controllerFrom(sec.entries, comma < 0 ? '' : sec.name.slice(comma + 1).trim(), file, sec.line));
+    } else {
+      cur = null;
     }
   }
   return into;
