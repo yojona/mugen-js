@@ -530,6 +530,22 @@ export class Player {
     this.pendingEntry = true;
   }
 
+  /**
+   * Targets_Release: forget every target but `keep`; a player target this
+   * one still binds falls out of the custom states into 5050.
+   */
+  releaseTargets(keep?: Player): void {
+    for (const t of [...this.targets.keys()]) {
+      if (t === keep) continue;
+      if (t.bind?.byTarget && t.bind.to === this && t.bind.time !== 0 && !t.isHelper) {
+        t.returnToOwnStates();
+        t.changeState(5050);
+      }
+      this.targets.delete(t);
+      this.targetJuggle.delete(t);
+    }
+  }
+
   /** SelfState / being hit normally: return to own states. */
   returnToOwnStates(): void {
     this.stateOwner = undefined;
@@ -1104,8 +1120,22 @@ export class Player {
         break;
     }
     // Player_Update after the movement (not in hit pause): a player whose
-    // life ran out is KO now; the round sees it on its next tick.
-    if (this.life <= 0 && this.alive && !this.isHelper) this.alive = false;
+    // life ran out is KO now (unless AssertSpecial noko); the round sees it
+    // on its next tick. KO outside a hit falls through 5030.
+    if (this.life <= 0 && this.alive && !this.isHelper && !this.world.allPlayers().some((q) => q.special.has('noko'))) {
+      this.alive = false;
+      this.ctrl = false;
+      if (this.moveType !== 'h') {
+        const w = this.world;
+        const u = this.scale * (w.gameWidth / w.screenWidth);
+        this.changeState(5030);
+        this.ghv.xvel = Math.fround((Math.trunc(w.gameWidth) * -2.8) / 320) / u;
+        this.ghv.yvel = Math.fround((Math.trunc(w.gameWidth) * -3.5) / 320) / u;
+        this.ghv.fall = 1;
+      }
+      this.releaseTargets();
+      this.world.explods = this.world.explods.filter((e) => !(e.owner === this && !e.system && e.removeOnGetHit));
+    }
   }
 
   /**
