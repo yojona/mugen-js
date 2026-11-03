@@ -701,6 +701,21 @@ export class Player {
     // current state runs (measured: 5110 Time = 60 is visible in -2).
     if (!changed) this.engineHitTransitions();
     this.runCurrent();
+    this.guardEnd();
+  }
+
+  /**
+   * Player_Update's common-state switch for 140 (after the states): the guard
+   * flag stays up, and once Time reaches the animation's length (-1 for an
+   * endless one: at once) the player goes to 0 / 11 / 51, whose states run
+   * this same tick.
+   */
+  private guardEnd(): void {
+    if (this.stateNo !== 140) return;
+    this.guardFlag = true;
+    if (this.time < this.anim.totalTime) return;
+    this.changeState(this.stateType === 'c' ? 11 : this.stateType === 'a' ? 51 : 0);
+    this.runCurrent();
   }
 
   /**
@@ -765,16 +780,6 @@ export class Player {
   }
 
   private engineHitTransitions(): void {
-    // Guard end (140) has no exit in common1.cns: when its animation ends the
-    // engine returns to standing, crouching or falling, and the new state runs
-    // this same tick (measured: Time = 1 on the next tick).
-    if (this.stateNo === 140 && this.ctrl && this.anim.animTime() >= 0) {
-      // Player_Update raises the guard flag for 140 before leaving it, so a
-      // hit this tick is still guarded.
-      this.guardFlag = true;
-      this.changeState(this.stateType === 'c' ? 11 : this.stateType === 'a' ? 51 : 0);
-      return;
-    }
     const g = this.ghv;
     if (this.stateNo !== 5110 || !this.alive) return;
     // mugen.exe 0x43cb34: get up once the count is spent, else count down.
