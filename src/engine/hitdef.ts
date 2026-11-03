@@ -321,7 +321,7 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
       animType,
       airAnimType,
       fallAnimType,
-      priority: parseInt(prio[0] ?? '4', 10) || 4,
+      priority: Number.isNaN(parseInt(prio[0] ?? '', 10)) ? 4 : parseInt(prio[0]!, 10),
       priorityType,
       damage: scaleAttack(p, damage),
       guardDamage: scaleAttack(p, ni('damage', 1) ?? 0),
@@ -366,7 +366,8 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
       p2Facing: ni('p2facing') ?? 0,
       p1StateNo: ni('p1stateno') ?? -1,
       p2StateNo: ni('p2stateno') ?? -1,
-      p2GetP1State: (ni('p2getp1state') ?? 1) !== 0,
+      // Defaults to 1 only when p2stateno is given.
+      p2GetP1State: (ni('p2getp1state') ?? (c.params.has('p2stateno') ? 1 : 0)) !== 0,
       forceStand: (ni('forcestand') ?? (groundVel[1] !== 0 ? 1 : 0)) !== 0,
       fall,
       airFall: (ni('air.fall') ?? (fall ? 1 : 0)) !== 0,

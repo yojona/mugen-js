@@ -234,8 +234,10 @@ const IMPLS: Record<string, Impl> = {
     };
   },
   hitvelset: (_c, prm) => (p) => {
-    if ((prm.int(p, 'x') ?? 1) !== 0) p.vel.x = Math.fround(p.ghv.xvel * p.facing);
-    if ((prm.int(p, 'y') ?? 1) !== 0) p.vel.y = Math.fround(p.ghv.yvel);
+    // SCTRL_HITVELSET: x and y default to 0 (no change); the get-hit
+    // velocity plus its xveladd / yveladd.
+    if ((prm.int(p, 'x') ?? 0) !== 0) p.vel.x = Math.fround((p.ghv.xveladd + p.ghv.xvel) * p.facing);
+    if ((prm.int(p, 'y') ?? 0) !== 0) p.vel.y = Math.fround(p.ghv.yveladd + p.ghv.yvel);
   },
   hitfallvel: () => (p) => {
     const xv = p.ghv['fall.xvel'];
