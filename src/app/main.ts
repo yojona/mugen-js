@@ -212,7 +212,7 @@ const teamOptions = await (async () => {
   }
 })();
 
-async function teamFight(sides: [TeamSide, TeamSide], stagePath: string | undefined): Promise<FightScreen> {
+async function teamFight(sides: [TeamSide, TeamSide], stagePath: string | undefined, survival = false): Promise<FightScreen> {
   const lead = sides[1].picks[0] ?? sides[0].picks[0]!;
   const sp = stagePath ?? vfs.resolve(lead.char.entry.stage ?? '') ?? stages[0]!.path;
   const teams = (await Promise.all(
@@ -231,6 +231,7 @@ async function teamFight(sides: [TeamSide, TeamSide], stagePath: string | undefi
     training: false,
     teams,
     options: teamOptions,
+    survival: survival ? { side: 0, reseed: () => session.matchSeed() } : undefined,
   });
 }
 
@@ -251,6 +252,17 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
     ];
     if (mode === 'teamversus') await until(new VersusScreen(ctx, sides[0].picks[0]!, sides[1].picks[0]!, 1));
     await until(await loading(() => teamFight(sides, sel.stage)));
+    return;
+  }
+  if (mode === 'survival' || mode === 'survivalcoop') {
+    // Charsel_End / Match_NextRound: a random computer team for every round
+    // (Team_Randomize); its characters are loaded ahead, a list of them.
+    const size = theirs.mode === 'simul' ? 2 : 1;
+    const all = rosterChars.filter((c) => c.data);
+    const list = Array.from({ length: Math.min(60, all.length * size) }, () => all[session.next() % all.length]!);
+    const opp: TeamSide = { mode: theirs.mode === 'simul' ? 'simul' : 'single', picks: cpuPicks(list), pads: list.map(() => undefined) };
+    const human: TeamSide = { mode: mine.mode, picks: mine.picks, pads: padsOf(mine, 0) };
+    await until(await loading(() => teamFight([human, opp], sel.stage, true)));
     return;
   }
   // Team arcade / co-op: the computer team takes its characters from the

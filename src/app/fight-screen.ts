@@ -34,6 +34,8 @@ export interface FightSetup {
   teams?: [FightTeam, FightTeam];
   /** [Options] Life, Team.1VS2Life, Team.LoseOnKO. */
   options?: { life?: number; team1vs2Life?: number; loseOnKo?: boolean };
+  /** Survival: the human side (its opponents come one after the other from their team's list) and the per-round seeds. */
+  survival?: { side: number; reseed: () => number };
 }
 
 export interface FightTeam {
@@ -88,7 +90,9 @@ export class FightScreen implements Screen {
         ai: t.pads.map((pad) => pad === undefined),
         faces: t.picks.map((pk) => ({ data: pk.char.data!, pal: pk.pal })),
         spawn: (member, k) => {
-          const i = t.mode === 'simul' ? k : member;
+          // Survival opponents: `member` counts the teams fought; each is `slots` characters of the list.
+          const slots = t.mode === 'simul' ? 2 : 1;
+          const i = s.survival && s.survival.side !== side ? (member * slots + k) % t.progs.length : t.mode === 'simul' ? k : member;
           const p = new Player(t.progs[i]!, w, side);
           p.palNo = t.picks[i]!.pal;
           p.pad = t.pads[i];
@@ -96,7 +100,7 @@ export class FightScreen implements Screen {
           return p;
         },
       })) as [TeamPlan, TeamPlan];
-      this.match = new Match(w, cfg, starts, { teams: plans, ...s.options });
+      this.match = new Match(w, cfg, starts, { teams: plans, ...s.options, survivalSide: s.survival?.side, reseed: s.survival?.reseed });
     } else {
       const p1 = new Player(s.progs[0], w, 0);
       const p2 = new Player(s.progs[1], w, 1);
