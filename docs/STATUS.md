@@ -47,6 +47,7 @@ variable on the leaving screen's last frame). Comparisons use `?pristine=1`
 | Load (`tools/corpus-check.ts`, 285 KOF characters from a public pack) | 283 compile with no error; the other 2 lost an apostrophe in a file name when the pack was extracted |
 | Iori (ikaruga) vs EX-Kyo, CPU vs CPU, level 4 (`tests/community.test.ts`) | The whole match identical frame by frame (states, positions, velocities, life, RNG): two rounds with intros, throws, custom states, supers and SuperPauses, helpers, projectiles, explods, corner pushes, KO slowdowns and win poses, to the frame mugen.exe starts the next match (4721 frames) |
 | Kim vs Benimaru (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | The whole match identical frame by frame (8286 frames): an AI-detector keyctrl helper, throws with TargetBind and Turn, trades, guard ends, pre-1.0 and 1.0 characters, default constants, camera target edges |
+| Clark vs Kula (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical into round 3: helper projectiles with HitOverride/HitBy, juggle points, a time over, round resets, corner pushes from the air, draw offsets |
 
 The parser, the parameter readers and several rules now come from the
 decompilation of the same mugen.exe (`ref/mugen-unleashed`, used only as a
@@ -67,7 +68,7 @@ documentation but not yet compared against the original.
 
 | # | Stage | Goal | State |
 |---|---|---|---|
-| 1 | Community characters | CPU vs CPU with real characters until whole matches match | Iori vs Kyo and Kim vs Benimaru whole matches match; next: more characters |
+| 1 | Community characters | CPU vs CPU with real characters until whole matches match | Iori vs Kyo, Kim vs Benimaru and Clark vs Kula match; next: more characters |
 | 2 | AI coverage | Whole matches at levels 1, 3, 5, 6 and 8; time-over round; draw | Ready to start |
 | 3 | Exact camera | Reproduce the float math at `0x4167xx` (tiny drifts left in round 1) | Optional hardening |
 | 4 | Game modes | Team (simul/turns), Survival, Arcade with AI ramp; demo mode (title idle 600 frames); continue "Yes" path verified | Pending |
