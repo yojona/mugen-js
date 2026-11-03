@@ -477,9 +477,15 @@ export class World {
   private pushApart(a: Player, b: Player): void {
     const f = Math.fround;
     const k = this.gameWidth / this.screenWidth;
-    // Left and right player; on the same spot the one facing right is left.
-    let [l, r] = b.wx > a.wx ? [a, b] : [b, a];
-    if (a.wx === b.wx && a.facing !== b.facing && b.facing === 1) [l, r] = [b, a];
+    // Left and right player (Players_PushApart): on the same spot `a` is left
+    // unless b faces right (opposite facings), or, facing the same way, the
+    // one ahead is attacking or airborne.
+    let [l, r] = b.wx < a.wx ? [b, a] : [a, b];
+    if (a.wx === b.wx) {
+      const busy = (p: Player) => p.moveType === 'a' || p.stateType === 'a';
+      const swap = a.facing !== b.facing ? b.facing === 1 : a.facing === 1 ? busy(b) : busy(a);
+      if (swap) [l, r] = [b, a];
+    }
     const width = (p: Player, side: 'front' | 'back') => Math.floor(p.bodyWidth(side, 'player') * p.scale * k + 0.5);
     const wl = width(l, l.facing === 1 ? 'front' : 'back');
     const wr = width(r, r.facing === -1 ? 'front' : 'back');
