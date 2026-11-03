@@ -90,9 +90,13 @@ export function compileHelper(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
         h.pos.x = right + off[0];
         h.facing = facingParam;
         break;
-      default:
-        h.pos.x = p.pos.x + off[0] * p.facing;
+      default: {
+        // Helper_Create: the origin is a float in internal units.
+        const k = w.gameWidth / w.screenWidth;
+        h.pos.x = Math.fround(p.wx * k) / k / p.scale + off[0] * p.facing;
+        h.pos.y = Math.fround(p.wy * k) / k / p.scale + off[1];
         h.facing = facingParam * p.facing;
+      }
     }
     if (!w.addHelper(h)) return;
     h.changeState(prm.int(p, 'stateno') ?? 0);

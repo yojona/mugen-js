@@ -507,8 +507,12 @@ export class World {
   private placeBound(p: Player): boolean {
     const b = p.bind;
     if (!b || b.time === 0) return false;
-    // Bind offsets are stored in world units.
-    p.setWorldPos(b.to.wx + b.offset[0] * (b.byTarget ? b.to.facing : 1), b.to.wy + b.offset[1]);
+    // Bind offsets are stored in world units. BindToParent/Root read the
+    // anchor through PlayerRef_GetPos, as floats (internal units).
+    const k = this.gameWidth / this.screenWidth;
+    const ax = b.byTarget ? b.to.wx : Math.fround(b.to.wx * k) / k;
+    const ay = b.byTarget ? b.to.wy : Math.fround(b.to.wy * k) / k;
+    p.setWorldPos(ax + b.offset[0] * (b.byTarget ? b.to.facing : 1), ay + b.offset[1]);
     return true;
   }
 
