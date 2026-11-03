@@ -151,6 +151,8 @@ export class Match {
     this.phaseTime = 0;
     this.announce = undefined;
     this.roundWinner = null;
+    w.winType = 0;
+    w.roundWinnerSide = 0;
     w.roundState = 0;
     w.roundNo = this.round;
   }
@@ -216,6 +218,8 @@ export class Match {
           else this.announce = { kind: 'to', age: 0 };
           this.sounds.push([2, dead.length === 2 ? 1 : dead.length ? 0 : 2]);
           this.roundWinner = this.decideWinner();
+          w.winType = dead.length ? 1 : 2;
+          w.roundWinnerSide = this.roundWinner ? this.roundWinner.side + 1 : 0;
           for (const p of this.players) if (p.life <= 0) p.alive = false;
           w.roundState = 3;
           // G+0x12760 restarts at 0 and still counts the KO tick.

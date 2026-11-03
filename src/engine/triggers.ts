@@ -48,9 +48,15 @@ const NULLARY: Record<string, Fn<P>> = {
   matchno: int(() => 1),
   roundsexisted: int(() => 0),
   matchover: int(() => 0),
-  win: int(() => 0),
-  lose: int(() => 0),
-  drawgame: int(() => 0),
+  // Win / lose by kind (mugen.exe Trigger_Eval: win_type and round winner side).
+  win: int((p) => (p.world.winType !== 0 && p.world.roundWinnerSide === p.root.side + 1 ? 1 : 0)),
+  winko: int((p) => (p.world.winType === 1 && p.world.roundWinnerSide === p.root.side + 1 ? 1 : 0)),
+  wintime: int((p) => (p.world.winType === 2 && p.world.roundWinnerSide === p.root.side + 1 ? 1 : 0)),
+  lose: int((p) => (p.world.winType !== 0 && p.world.roundWinnerSide !== 0 && p.world.roundWinnerSide !== p.root.side + 1 ? 1 : 0)),
+  loseko: int((p) => (p.world.winType === 1 && p.world.roundWinnerSide !== 0 && p.world.roundWinnerSide !== p.root.side + 1 ? 1 : 0)),
+  losetime: int((p) => (p.world.winType === 2 && p.world.roundWinnerSide !== 0 && p.world.roundWinnerSide !== p.root.side + 1 ? 1 : 0)),
+  winperfect: int((p) => (p.world.winType !== 0 && p.world.roundWinnerSide === p.root.side + 1 && p.world.players.every((q) => q.side !== p.root.side || q.life >= q.const('data.life')) ? 1 : 0)),
+  drawgame: int((p) => (p.world.winType !== 0 && p.world.roundWinnerSide === 0 ? 1 : 0)),
   // CPU players report their AI level, humans 0 (mugen.exe 0x456dc8).
   ailevel: int((p) => p.root.ai?.level ?? 0),
   ticksperSecond: int(() => 60),

@@ -33,6 +33,10 @@ export class World {
   gameTime = 0;
   roundState = 2; // 2 = fighting
   roundNo = 1;
+  /** How the round ended (mugen.exe G win_type): 0 not yet, 1 KO, 2 time over. */
+  winType: 0 | 1 | 2 = 0;
+  /** Side (1 / 2) that won the round, 0 = none or draw. */
+  roundWinnerSide = 0;
   camera = { x: 0, y: 0 };
   screenWidth = 320;
   /** mugen.cfg GameWidth: MUGEN's internal x units are this / screenWidth per stage unit. */
