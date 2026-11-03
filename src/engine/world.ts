@@ -663,6 +663,17 @@ export class World {
     this.clampPlayer(p);
   }
 
+  /**
+   * Player.screen_left/right as Player_ScreenBound stores them: the target
+   * edges and the stage's screenleft/right, without the Width edges (what
+   * Player_AtScreenEdge compares with), in world units.
+   */
+  screenEdges(): [number, number] {
+    const k = this.gameWidth / this.screenWidth;
+    const ce = this.camEdges ?? this.camInit();
+    return [Math.fround(this.screenLeft * k + ce.lt) / k, Math.fround(ce.rt - this.screenRight * k) / k];
+  }
+
   /** The x range the screen allows a player (screenleft/right plus edge widths). */
   screenLimits(p: Player): [number, number] {
     // Player_ScreenBound: from the edges the camera is heading to

@@ -743,7 +743,9 @@ function cornerPush(a: Player, d: Player, veloff: number): void {
   // mugen.exe 0x4342f0: the defender is cornered within 5 internal units
   // of either of its screen limits (measured: 2.4 stage units still push).
   const w = a.world;
-  const [lo, hi] = w.screenLimits(d);
+  // Player_AtScreenEdge: within 5 internal units of screen_left/right
+  // (the stage limits, without Width edges).
+  const [lo, hi] = w.screenEdges();
   const k = w.gameWidth / w.screenWidth;
   if (!(Math.abs(d.wx - lo) * k < 5 || Math.abs(d.wx - hi) * k < 5)) return;
   // A separate push, not vel x: it moves the attacker back after its hit
