@@ -207,6 +207,7 @@ export class Match {
     // hits_enabled (Round_RunState): no collisions in RoundState 0 and 4,
     // nor in 3 from over.waittime + 180 ticks.
     w.hitsEnabled = this.phase !== 'wait' && this.phase !== 'over';
+    w.roundClock = undefined;
     switch (this.phase) {
       case 'wait':
         if (this.phaseTime >= c.startWaitTime) {
@@ -279,6 +280,7 @@ export class Match {
           w.roundState = 3;
           // G+0x12760 restarts at 0 and still counts the KO tick.
           this.koTicks = 1;
+          w.roundClock = 1;
           // No slow motion on a time over or with AssertSpecial nokoslow.
           const noKoSlow = this.players.some((p) => p.special.has('nokoslow')) || w.helpers.some((h) => h.special.has('nokoslow'));
           this.slowRate = this.slowAcc = timeUp || noKoSlow ? 0 : 500;
@@ -304,6 +306,7 @@ export class Match {
           if (this.slowAcc > 0) return false;
         }
         const k = this.koTicks++;
+        w.roundClock = this.koTicks;
         const st = c.slowTime;
         const setRate = (r: number) => {
           this.slowRate = r;
@@ -330,6 +333,7 @@ export class Match {
           this.slowRate = this.slowAcc = 0;
           w.roundState = 4;
           w.hitsEnabled = false;
+          w.roundClock = 1;
           this.enter('over');
           this.overEndTime = c.overTime;
           // The round counter restarts at 0 and still counts this tick.
@@ -338,6 +342,7 @@ export class Match {
         break;
       }
       case 'over':
+        w.roundClock = this.phaseTime + 1;
         w.roundState = 4;
         // At over.wintime the winners go to their win pose, the losers still
         // standing to 170, everyone to 175 on a draw (Round_RunState case 4).

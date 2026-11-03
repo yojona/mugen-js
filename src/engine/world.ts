@@ -53,6 +53,11 @@ export class World {
   private aiRoundFight = false;
   /** Ticks since RoundState 2 began (the current tick included). */
   fightTime = 0;
+  /**
+   * round_state_time as the players' update sees it, when the match sets it
+   * (RoundState 3 and 4 restart it); RoundState 2 uses fightTime.
+   */
+  roundClock: number | undefined;
   screenHeight = 240;
   /** Screen y of the ground line (stage zoffset). */
   groundY = 200;
@@ -476,7 +481,7 @@ export class World {
     if (paused) return;
     // Every third tick of the round (MUGEN's G+0x12760; measured: dust only
     // on clocks divisible by 3 in two different captures).
-    if (this.fightTime % 3 !== 0) return;
+    if ((this.roundClock ?? this.fightTime) % 3 !== 0) return;
     const ps = this.allPlayers();
     for (let i = ps.length - 1; i >= 0; i--) {
       const p = ps[i]!;
