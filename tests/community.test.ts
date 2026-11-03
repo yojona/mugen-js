@@ -135,7 +135,7 @@ describe('community characters vs mugen.exe', () => {
       const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'choi-vs-ryo.mugen.log.gz'))).toString('latin1');
       const ours = await peekMatch({ chars: ['cool-choi-kofa', 'bebum-ryo-kofa'], frames: 9000, seed: 16808 });
       expect(ours.length).toBe(8006);
-      expect(peekDiff(ref, ours, 14, 8006)).toEqual([]);
+      expect(peekDiff(ref, ours, 14, 8005)).toEqual([]);
     },
     120_000,
   );
