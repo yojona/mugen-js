@@ -1,5 +1,6 @@
 // Function-type triggers (trigger.html) bound to the Player runtime.
 
+import { hitDefAttrBits } from './hitdef';
 import { BOTTOM, CompileError, compileNode, FLOAT, INT, R, relFn, toInt, type Fn, type TriggerEnv, type VarKind } from '../expr/compile';
 import type { CallNode, ClauseNode } from '../expr/parser';
 import { isFloatConst } from './cns';
@@ -427,14 +428,6 @@ function compileSecond(second: NonNullable<ClauseNode['second']>): (p: P, t: num
   };
 }
 
-/** A HitDef's attr in mugen.exe's layout: S/C/A = 1/2/4, then N/S/H x A/T/P. */
-function hitDefAttrBits(state: string, type: string): number {
-  let b = state === 's' ? 1 : state === 'c' ? 2 : state === 'a' ? 4 : 0;
-  const cls = 'nsh'.indexOf(type[0] ?? '');
-  const kind = 'atp'.indexOf(type[1] ?? '');
-  if (cls >= 0 && kind >= 0) b |= 8 << (kind * 3 + cls);
-  return b;
-}
 
 /**
  * ProjHitTime & co. (mugen.exe Trigger_Eval): ticks since the last contact if

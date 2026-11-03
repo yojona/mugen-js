@@ -3,6 +3,7 @@
 
 import { checkControllerParams, specKeys } from './sctrl-params';
 import { varTarget } from './var-line';
+import { parseHitDefAttr } from '../expr/mugen-parse';
 import { BOTTOM, compileExpr, compileExprList, R, toInt, type Fn, type TriggerEnv } from '../expr/compile';
 import type { ControllerDef } from './cns';
 import { compileHitDef, parseAttrList } from './hitdef';
@@ -567,14 +568,19 @@ Object.assign(IMPLS, EXTRA);
 let playerEnvRef: TriggerEnv<P> | undefined;
 
 
-/** NotHitBy / HitBy: value = SCA, NA, SA (value2 uses the second slot). */
+/**
+ * NotHitBy / HitBy (sctrl.c SCTRL_HITBY): value writes the first attribute
+ * mask, value2 the second; HitBy stores the attributes it allows, NotHitBy
+ * all the others (~attr & 0xFFF).
+ */
 function hitByController(c: ControllerDef, prm: Params, not: boolean): (p: P) => void {
-  const key = c.params.has('value2') ? 'value2' : 'value';
-  const attrs = (c.params.get(key) ?? '').toLowerCase().split(',').map((s) => s.trim());
+  const key = c.params.has('value') ? 'value' : 'value2';
+  const bits = parseHitDefAttr(c.params.get(key) ?? '', 0).bits;
+  const mask = not ? ~bits & 0xfff : bits;
   const slot = key === 'value2' ? 1 : 0;
   return (p) => {
     const time = prm.int(p, 'time') ?? 1;
-    p.hitBy[slot] = { attrs, time, not };
+    p.hitBy[slot] = { mask, time };
   };
 }
 

@@ -1,5 +1,6 @@
 // Player runtime: state machine, physics and per-tick processing.
 
+import { hitDefAttrBits } from './hitdef';
 import { STATEDEF_SPEC } from './sctrl-spec';
 import { compileExprList, R, truthy, type Fn } from '../expr/compile';
 import type { Animation } from '../formats/air';
@@ -232,7 +233,8 @@ export class Player {
   /** SuperPause p2defmul on a target, until it recovers from the hit. */
   superDefMul = 1;
   /** NotHitBy / HitBy slots: allowed or blocked attributes for a time. */
-  hitBy: { attrs: string[]; time: number; not: boolean }[] = [];
+  /** HitBy / NotHitBy attribute masks (hitby_attr, nothitby_attr) and their times. */
+  hitBy: { mask: number; time: number }[] = [];
   /** HitOverride slots (0..7). */
   hitOverrides: ({ attrs: string[]; stateNo: number; time: number; forceAir: boolean } | undefined)[] = [];
   /** Juggle points left while airborne in a hit state. */
@@ -493,17 +495,11 @@ export class Player {
 
   /** Is this player immune to the given HitDef (NotHitBy / HitBy)? */
   immuneTo(hd: HitDefData): boolean {
-    const st = hd.attrState;
-    const ty = hd.attrType;
-    for (const slot of this.hitBy) {
-      if (slot.time <= 0) continue;
-      // An empty state field (", NT, ST") means every state.
-      const stateOk = slot.attrs[0] === '' || slot.attrs[0]!.includes(st);
-      const typeOk = slot.attrs.slice(1).some((a) => a === ty || (a[0] === 'a' && a[1] === ty[1]) || (a[1] === 'a' && a[0] === ty[0]) || a === 'aa');
-      const match = stateOk && (slot.attrs.length === 1 || typeOk);
-      if (slot.not ? match : !match) return true;
-    }
-    return false;
+    // Player_HitByAllows: both masks and the HitDef's attr must share a
+    // state bit and an attack bit.
+    let m = hitDefAttrBits(hd.attrState, hd.attrType);
+    for (const slot of this.hitBy) if (slot && slot.time > 0) m &= slot.mask;
+    return (m & 7) === 0 || (m & ~7) === 0;
   }
 
   /** Run one state's controllers. Returns true if the state was changed. */
