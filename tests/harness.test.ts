@@ -135,4 +135,28 @@ describe('MUGEN 1.1 reference (KFM probe)', () => {
       expect(r.reports).toEqual([]);
     }, 60_000);
   }
+
+  it('projectile origins by postype (probepos): p1, p2, and the screen-edge postypes at the camera centre', async () => {
+    // Measured in mugen.exe (internal units): offset 30,-40 from P1 at -140;
+    // p2 from P2 at 140 with P1's facing; front/back/left/right from the camera centre at y = 0.
+    const want: [number, number, number][] = [
+      [20, -80, -80],
+      [40, 200, -80],
+      [60, 60, -80],
+      [80, 60, -80],
+      [100, 60, -80],
+      [120, 60, -80],
+    ];
+    const seen = new Map<number, [number, number]>();
+    await runProbe(400, {
+      char: 'probepos',
+      char2: 'probe',
+      onTick: (w) => {
+        const t = w.players[0]!.vars[58]!;
+        const pr = w.projectiles.find((x) => x.phase === 'active');
+        if (pr && !seen.has(t)) seen.set(t, [pr.x * 2, pr.y * 2]);
+      },
+    });
+    for (const [t, x, y] of want) expect(seen.get(t), `var(58) = ${t}`).toEqual([x, y]);
+  }, 60_000);
 });

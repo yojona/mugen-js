@@ -41,6 +41,8 @@ export interface ProbeOptions {
   seed?: number;
   /** CPU AI level per side (MUGEN's -p1.ai / -p2.ai); undefined = human. */
   ai?: [number | undefined, number | undefined];
+  /** Called after every tick (extra measurements). */
+  onTick?: (w: World, tick: number) => void;
 }
 
 export async function runProbe(ticks: number, opts: ProbeOptions = {}): Promise<string[]> {
@@ -80,6 +82,7 @@ export async function runProbe(ticks: number, opts: ProbeOptions = {}): Promise<
       seeded = true;
     }
     if (go) w.tick(keys);
+    opts.onTick?.(w, i);
     w.players.forEach((p) => {
       const v = Array.from(p.vars).join(',');
       const f = Array.from(p.fvars, (x) => x.toFixed(4)).join(',');
