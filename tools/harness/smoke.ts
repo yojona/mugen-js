@@ -43,7 +43,7 @@ for (const c of chars.sort()) {
       p.ai = new MugenAI(p, 4);
       p.warn = (m) => {
         if (p !== p1) return;
-        const k = m.replace(/\d+/g, 'N');
+        const k = process.env.RAW ? m : m.replace(/\d+/g, 'N');
         warns.set(k, (warns.get(k) ?? 0) + 1);
       };
     }
@@ -55,7 +55,7 @@ for (const c of chars.sort()) {
     let i = 0;
     for (; i < frames && !m.finished; i++) if (m.tick()) w.tick([0, 0]);
     const ms = (performance.now() - t0).toFixed(0);
-    const top = [...warns].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${n}x ${k}`);
+    const top = [...warns].sort((a, b) => b[1] - a[1]).slice(0, process.env.RAW ? 50 : 3).map(([k, n]) => `${n}x ${k}`);
     console.log(`OK   ${c} ${i}f ${ms}ms life ${p1.life}/${p2.life}${top.length ? ' | ' + top.join(' | ') : ''}`);
     ok++;
   } catch (e) {

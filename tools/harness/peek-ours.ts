@@ -36,17 +36,27 @@ const hud = await FightHud.load(vfs, 'data/fight.def');
 const w = new World();
 w.applyStage(stage.info);
 w.fightFx = { anims: parseAir(await vfs.text('data/fightfx.air')), sff: await parseSff(await vfs.read('data/fightfx.sff')) };
-const p1 = new Player(prog1, w, 0);
-const p2 = new Player(prog2, w, 1);
-p2.palNo = 2;
-w.players.push(p1, p2);
 const levels = (aiArg ?? '4,4').split(',').map(Number);
-[p1, p2].forEach((p, i) => (p.ai = new MugenAI(p, levels[i] ?? 4)));
-for (const p of [p1, p2]) p.warn = (m) => console.error(`${p.name}: ${m}`);
-const m = new Match(w, hud.roundConfig(), [
-  { x: stage.info.p1.x, y: stage.info.p1.y, facing: stage.info.p1.facing },
-  { x: stage.info.p2.x, y: stage.info.p2.y, facing: stage.info.p2.facing },
-]);
+// P3 / P4 (env): simul partners, as mugen.exe's quick VS -p3 / -p4.
+const partner = [process.env.P3, process.env.P4];
+const partnerProg = await Promise.all(partner.map(async (c) => (c ? loadProgram(vfs, await loadCharacter(vfs, `chars/${c}/${c}.def`)) : undefined)));
+const mkPlayer = (prog: typeof prog1, side: number, slot: number) => {
+  const p = new Player(prog, w, side);
+  if (slot === 2) p.palNo = 2;
+  p.ai = new MugenAI(p, levels[side] ?? 4);
+  p.warn = (msg) => console.error(`${p.name}: ${msg}`);
+  return p;
+};
+const teams = [0, 1].map((side) => {
+  const pp = partnerProg[side];
+  return {
+    mode: pp ? ('simul' as const) : ('single' as const),
+    count: pp ? 2 : 1,
+    spawn: (_m: number, k: number) => mkPlayer(k ? pp! : side ? prog2 : prog1, side, side + 1 + 2 * k),
+  };
+}) as [import('../../src/engine/match').TeamPlan, import('../../src/engine/match').TeamPlan];
+const m = new Match(w, hud.roundConfig(), [stage.info.p1, stage.info.p2, stage.info.p3, stage.info.p4], { teams, quickVs: true });
+const [p1, p2] = [w.slot(1)!, w.slot(2)!];
 const lines: string[] = [];
 let seeded = false;
 const seedAt = seedArg.includes(':') ? (seedArg.split(':').map(Number) as [number, number]) : undefined;
@@ -95,7 +105,8 @@ for (let i = 1; i <= ticks; i++) {
   const f = (x: number) => x.toFixed(4);
   // Frames, like mugen.exe's counter (G+0x11e98), which runs on through the KO slowdown.
   const row = [i, w.roundState, w.seed];
-  const pl = [p1, p2].flatMap((p: Player) => [p.stateNo, p.time, p.life, f(p.pos.x), f(p.pos.y), f(p.vel.x * p.facing), f(p.vel.y)]);
+  const shown = [w.slot(1), w.slot(2), ...(partner.some(Boolean) ? [w.slot(3)] : [])].filter((p): p is Player => !!p);
+  const pl = shown.flatMap((p: Player) => [p.stateNo, p.time, p.life, f(p.pos.x), f(p.pos.y), f(p.vel.x * p.facing), f(p.vel.y)]);
   if (process.env.AIQ) {
     const q = [p1, p2].flatMap((p) => [p.stateNo, p.time, p.hitPause, p.ai!.state, p.ai!.stateTime, p.ai!.queued, p.moveContact]);
     lines.push(`P|${i}|${[w.gameTime, w.roundState, w.seed, ...q].join(',')}`);

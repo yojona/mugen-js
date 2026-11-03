@@ -139,10 +139,15 @@ def main():
     subprocess.Popen(['Xvfb', ':99', '-screen', '0', '1280x720x24'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(1)
     ai = []
-    for n in (1, 2):
+    for n in (1, 2, 3, 4):
         if os.environ.get(f'P{n}AI'):
             ai += [f'-p{n}.ai', os.environ[f'P{n}AI']]
-    subprocess.Popen(['wine', 'mugen.exe', '-p1', P1, '-p2', P2, '-p2.color', '2', '-s', STAGE, *(['-rounds', ROUNDS] if ROUNDS else []), '-nosound', '-sessionseed', SEED, *ai],
+    # Simul partners (QuickVS: -p3 joins P1's team, -p4 P2's).
+    extra = []
+    for n in (3, 4):
+        if os.environ.get(f'P{n}'):
+            extra += [f'-p{n}', os.environ[f'P{n}']]
+    subprocess.Popen(['wine', 'mugen.exe', '-p1', P1, '-p2', P2, '-p2.color', '2', *extra, '-s', STAGE, *(['-rounds', ROUNDS] if ROUNDS else []), '-nosound', '-sessionseed', SEED, *ai],
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if os.environ.get('RNGLOG'):
         # Patch before the code first runs: under emulation, code that already
