@@ -80,22 +80,21 @@ const IMPLS: Record<string, Impl> = {
   null: () => () => {},
 
   changestate: (_c, prm) => (p) => {
-    const v = prm.int(p, 'value');
+    let v = prm.int(p, 'value');
     if (v === undefined) return;
-    const ctrl = prm.int(p, 'ctrl');
-    const anim = prm.int(p, 'anim');
-    // A player with control may turn as it changes state (mugen.exe 0x4490fd,
-    // before the new statedef applies, so its anim wins over the turn's).
-    if (p.ctrl && !p.isHelper && (p.stateType === 's' || p.stateType === 'c')) p.world.turnCheck(p);
-    p.changeState(v, ctrl === undefined ? undefined : ctrl !== 0, anim);
+    if (v < 0) v = 0;
+    // SCTRL_CHANGESTATE: with control, standing or crouching, a player turns
+    // towards the enemy if the stage has autoturn (mugen.exe 0x4490fd: before
+    // the new statedef applies, so its anim wins over the turn's).
+    if (p.world.autoTurn && p.ctrl && !p.isHelper && (p.stateType === 's' || p.stateType === 'c')) p.world.turnCheck(p);
+    p.changeState(v, ...ctrlAnim(p, prm));
   },
   selfstate: (_c, prm) => (p) => {
-    const v = prm.int(p, 'value');
+    let v = prm.int(p, 'value');
     if (v === undefined) return;
+    if (v < 0) v = 0;
     p.returnToOwnStates();
-    const ctrl = prm.int(p, 'ctrl');
-    const anim = prm.int(p, 'anim');
-    p.changeState(v, ctrl === undefined ? undefined : ctrl !== 0, anim);
+    p.changeState(v, ...ctrlAnim(p, prm));
   },
 
   changeanim: (_c, prm) => (p) => {
@@ -710,4 +709,13 @@ export function compileController(c: ControllerDef, env: TriggerEnv<P>, mugenVer
   const impl = IMPLS[c.type];
   const run: (p: P) => void = impl ? impl(c, prm, env) : () => {};
   return { def: c, triggerAll, triggers, persistent, ignoreHitPause, run };
+}
+
+/** run_ctrl_anim: ctrl and anim of ChangeState/SelfState, -1 = unchanged, other negative anims 0. */
+function ctrlAnim(p: P, prm: Params): [boolean | undefined, number | undefined] {
+  const c = prm.int(p, 'ctrl');
+  let a = prm.int(p, 'anim');
+  if (a === -1) a = undefined;
+  else if (a !== undefined && a < 0) a = 0;
+  return [c === undefined || c === -1 ? undefined : c !== 0, a];
 }
