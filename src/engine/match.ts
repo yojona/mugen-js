@@ -201,9 +201,13 @@ export class Match {
     const w = this.world;
     const c = this.cfg;
     w.inputLocked = this.phase !== 'fight' && this.phase !== 'ko';
+    // hits_enabled (Round_RunState): no collisions in RoundState 0 and 4,
+    // nor in 3 from over.waittime + 180 ticks.
+    w.hitsEnabled = this.phase !== 'wait' && this.phase !== 'over';
     switch (this.phase) {
       case 'wait':
         if (this.phaseTime >= c.startWaitTime) {
+          w.hitsEnabled = true;
           // RoundState 1 is visible from this very tick (KFM's intro waits for it).
           w.roundState = 1;
           this.enter('intro');
@@ -308,6 +312,7 @@ export class Match {
         if (k >= st) setRate(0);
         // At over.waittime nobody takes input any more (no_input_states).
         if (k === c.overWaitTime) for (const p of this.players) p.noInputStates = true;
+        if (k >= c.overWaitTime + 180) w.hitsEnabled = false;
         // Round end (0x414d20): after over.waittime ticks run, once every
         // player has settled (ctrl, standing and idle, or lying in 5150 with
         // time > 0), or after 900 ticks regardless.
@@ -318,6 +323,7 @@ export class Match {
           for (const p of this.players) p.ctrl = false;
           this.slowRate = this.slowAcc = 0;
           w.roundState = 4;
+          w.hitsEnabled = false;
           this.enter('over');
           this.overEndTime = c.overTime;
           // The round counter restarts at 0 and still counts this tick.

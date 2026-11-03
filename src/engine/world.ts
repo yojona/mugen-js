@@ -72,6 +72,8 @@ export class World {
   screenRight = 15;
   /** Set by the match flow outside RoundState 2. */
   inputLocked = false;
+  /** hits_enabled: Players_CheckHits (push, hits, projectile hits) runs. */
+  hitsEnabled = true;
   shadow: { intensity: number; color: [number, number, number]; yscale: number; fadeRange: [number, number] } | undefined;
   seed = 1;
   fightFx?: FightFx;
@@ -339,22 +341,27 @@ export class World {
     this.applyBinds();
     // Players_CheckHits pushes the players apart before the hits (and once
     // more after them), clamping to the screen each time.
-    this.pushPlayers();
-    this.clampToScreen();
-    // Every player takes part, paused ones too (Players_CheckHits only skips
-    // inactive players; a Pause stops updates, not hits).
-    const hitters = this.allPlayers().filter((p) => !p.destroyed);
-    applyHits(detectHits(hitters), hitters, this.frames);
+    const hitsOn = this.hitsEnabled;
+    if (hitsOn) {
+      this.pushPlayers();
+      this.clampToScreen();
+      // Every player takes part, paused ones too (Players_CheckHits only skips
+      // inactive players; a Pause stops updates, not hits).
+      const hitters = this.allPlayers().filter((p) => !p.destroyed);
+      applyHits(detectHits(hitters), hitters, this.frames);
+    }
     // Projectiles_Update runs for each player that ran this tick (run[i],
     // decided before the updates): a Pause started during the tick does not
     // stop its owner's projectiles until the next one.
     for (const pr of this.projectiles) if (active.includes(pr.owner)) updateProjectile(pr);
-    applyHits(detectProjectileHits(this.projectiles, active));
+    if (hitsOn) applyHits(detectProjectileHits(this.projectiles, active));
     this.projectiles = this.projectiles.filter((pr) => pr.phase !== 'dead');
     // The second push pass (mugen.exe 0x43de16; measured: walking into a
     // cornered opponent closes 3/4 of the overlap per tick).
-    this.pushPlayers();
-    this.clampToScreen();
+    if (hitsOn) {
+      this.pushPlayers();
+      this.clampToScreen();
+    }
     this.spawnDust(dustX, pausedAtStart);
     // AI move recorders, last player first (mugen.exe 0x413d81).
     // The recording clock stands still in hit pause, a tick late like the
