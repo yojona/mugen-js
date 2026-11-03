@@ -247,10 +247,14 @@ const IMPLS: Record<string, Impl> = {
   hitfallset: (_c, prm) => (p) => {
     const v = prm.int(p, 'value') ?? -1;
     if (v !== -1) p.ghv.fall = v ? 1 : 0;
-    const x = prm.num(p, 'xvel');
-    const y = prm.num(p, 'yvel');
-    if (x !== undefined) p.ghv['fall.xvel'] = x;
-    if (y !== undefined) p.ghv['fall.yvel'] = y;
+    // mugen.exe reads velocity = x, y (not xvel / yvel), takes both from x
+    // (original bug) and stores them unconverted in internal units.
+    const x = prm.num(p, 'velocity', 0);
+    if (x !== undefined) {
+      const u = p.scale * (p.world.gameWidth / p.world.screenWidth);
+      p.ghv['fall.xvel'] = Math.fround(x) / u;
+      p.ghv['fall.yvel'] = Math.fround(x) / u;
+    }
   },
   hitfalldamage: () => (p) => {
     const dmg = p.ghv['fall.damage'];
