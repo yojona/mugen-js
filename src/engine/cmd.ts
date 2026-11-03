@@ -77,7 +77,8 @@ export function parseCmd(text: string): CommandSet {
   let counter = 1;
   for (const sec of doc.sections) {
     if (sec.name.toLowerCase() !== 'command') continue;
-    const name = unquote(getValue(sec, 'name') ?? '').toLowerCase();
+    // Names are case-sensitive (strcmp): "26a" and "26A" are two labels.
+    const name = unquote(getValue(sec, 'name') ?? '');
     const src = getValue(sec, 'command');
     if (!name || !src) continue;
     const elements = parseElements(src);

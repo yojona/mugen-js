@@ -288,7 +288,8 @@ function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
   const boolOut = (f: (p: P) => boolean): Fn<P> => (p) => ((R.t = INT), f(p) === eq ? 1 : 0);
   switch (node.name) {
     case 'command': {
-      const name = word.toLowerCase();
+      // Cmd_FindLabel: an exact (case-sensitive) name.
+      const name = word;
       // An active command tested with "=" is noted for the AI recorder
       // (mugen.exe 0x456d9f; measured: common1's command != "holdback" exit
       // from 130 sends no message).
