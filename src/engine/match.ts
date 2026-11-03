@@ -143,6 +143,7 @@ export class Match {
       p.hitPause = 0;
       p.posFreeze = false;
       p.nextFacing = 0;
+      p.ghvAttacker = undefined;
       p.defMul = undefined;
       p.cornerPushVel = 0;
       // ...and clears the get-hit variables (hit count, fall...).

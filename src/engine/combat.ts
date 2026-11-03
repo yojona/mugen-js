@@ -114,8 +114,18 @@ function juggleOk(a: Player, d: Player, cost: number): boolean {
   return left === undefined || left - cost >= 0;
 }
 
-function canHit(a: Player, hd: HitDefData, d: Player, cost: number): boolean {
+function canHit(a: Player, hd: HitDefData, d: Player, cost: number, proj = false): boolean {
   if (d.world.superPause?.owner === d && d.world.superPause.unhittable) return false;
+  // Player_CanHit: chainID needs the target's last hit to be that ID from
+  // this attacker; nochainID refuses it. (A chainID equal to a nochainID
+  // clears all three, HitDef_SetFromParams.)
+  if (!proj) {
+    const [n0, n1] = hd.noChainId;
+    const clear = hd.chainId !== -1 && (hd.chainId === n0 || hd.chainId === n1);
+    const by = d.ghvAttacker === a;
+    if (!clear && hd.chainId !== -1 && (d.ghv.chainid !== hd.chainId || !by)) return false;
+    if (!clear && n0 !== -1 && by && (d.ghv.chainid === n0 || (n1 !== -1 && d.ghv.chainid === n1))) return false;
+  }
   if (d.immuneTo(hd)) return false;
   if (!juggleOk(a, d, cost)) return false;
   return hitFlagMatches(d, hd.hitFlag);
@@ -388,6 +398,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     const dmg = hitDamage(d, hd.guardDamage, hd.guardKill, world.gameTime);
     d.shakeTick = world.gameTime;
     g.guarded = 1;
+    g.chainid = hd.id;
+    d.ghvAttacker = a;
     g.damage = dmg;
     // A guarded hit never falls (measured: the CPU skips its air-recovery
     // roll in 151 after an earlier knock-down).
@@ -503,6 +515,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     if (hd.envShake) world.envShake = { ...hd.envShake };
     if (hd.palFx) d.palFx = { time: hd.palFx.time, elapsed: 0, add: hd.palFx.add, mul: hd.palFx.mul, sinAdd: [0, 0, 0], sinPeriod: 0, invertAll: hd.palFx.invertAll, color: hd.palFx.color };
     g.chainid = hd.id;
+    d.ghvAttacker = a;
     g.hitcount = d.moveType === 'h' ? g.hitcount + 1 : 1;
     if (d.life - dmg <= 0 && hd.kill) g.fall = 1;
     if (!proj) a.hitCount += hd.numHits;

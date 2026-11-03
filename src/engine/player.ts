@@ -202,6 +202,8 @@ export class Player {
    * applies gethit_damage), stamped with the tick of the hit.
    */
   pendingDamage: { amount: number; kill: boolean; tick: number } | undefined;
+  /** gethit_attacker: who hit (or was guarded by) this player last. */
+  ghvAttacker: Player | undefined;
   /** Tick of the last hit: the shake starts counting at the next update. */
   shakeTick = -1;
   private pauseAtLastTickStart = 0;
@@ -1038,6 +1040,8 @@ export class Player {
       g.fallcount = 0;
       g.fall = 0;
       g.hitshaketime = 0;
+      g.chainid = 0;
+      this.ghvAttacker = undefined;
       g['fall.envshake.time'] = 0;
     }
     if (this.moveType !== 'h' || (st >= 130 && st <= 132) || st === 140) this.defMul = undefined;

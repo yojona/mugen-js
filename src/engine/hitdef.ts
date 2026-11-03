@@ -84,6 +84,8 @@ export interface HitDefData {
   fallDamage: number;
   id: number;
   chainId: number;
+  /** nochainid: up to two hit IDs this HitDef cannot follow (-1 = none). */
+  noChainId: [number, number];
   hitOnce: boolean;
   kill: boolean;
   guardKill: boolean;
@@ -376,6 +378,7 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
       fallDamage: ni('fall.damage') ?? 0,
       id: ni('id') ?? 0,
       chainId: ni('chainid') ?? -1,
+      noChainId: [ni('nochainid', 0) ?? -1, ni('nochainid', 1) ?? -1],
       hitOnce: (ni('hitonce') ?? (isThrow ? 1 : 0)) !== 0,
       kill: (ni('kill') ?? 1) !== 0,
       guardKill: (ni('guard.kill') ?? 1) !== 0,
