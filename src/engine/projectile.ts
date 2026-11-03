@@ -88,20 +88,26 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
     }
     // Projectiles live in world units; parameters are in the owner's units.
     const k = p.scale;
-    const off = pair(p, 'offset', [0, 0]).map((v) => v * k) as [number, number];
+    // Projectile_Fire: offset is read as integers.
+    const off = [Math.trunc(num(p, 'offset', 0) ?? 0) * k, Math.trunc(num(p, 'offset', 1) ?? 0) * k] as [number, number];
     const kp = (v: [number, number]): [number, number] => [v[0] * k, v[1] * k];
     const postype = (c.params.get('postype') ?? 'p1').trim().toLowerCase();
     let x = p.wx + off[0] * p.facing;
-    const y = p.wy + off[1];
+    let y = p.wy + off[1];
     const left = w.camera.x - w.screenWidth / 2;
     const right = w.camera.x + w.screenWidth / 2;
     if (postype === 'p2') {
       const e = w.enemyOf(p);
-      if (e) x = e.wx + off[0] * p.facing;
+      if (e) {
+        x = e.wx + off[0] * p.facing;
+        y = e.wy + off[1];
+      }
     } else if (postype === 'front') x = (p.facing > 0 ? right : left) + off[0] * p.facing;
     else if (postype === 'back') x = (p.facing > 0 ? left : right) + off[0] * p.facing;
     else if (postype === 'left') x = left + off[0] * p.facing;
     else if (postype === 'right') x = right + off[0] * p.facing;
+    // Projectile_Fire: the screen-edge postypes start at y = 0.
+    if (postype === 'front' || postype === 'back' || postype === 'left' || postype === 'right') y = off[1];
     const hitAnim = int(p, 'projhitanim') ?? -1;
     const doScale = p.const('size.proj.doscale') !== 0;
     const ps = pair(p, 'projscale', [1, 1]);
