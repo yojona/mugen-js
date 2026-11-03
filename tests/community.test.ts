@@ -129,4 +129,14 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('cool-choi-kofa', 'bebum-ryo-kofa'))(
+    'Cool Choi vs Bebum Ryo, CPU level 4: the whole match (8006 frames; floor dust on the round state clock)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'choi-vs-ryo.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['cool-choi-kofa', 'bebum-ryo-kofa'], frames: 9000, seed: 16808 });
+      expect(ours.length).toBe(8006);
+      expect(peekDiff(ref, ours, 14, 8006)).toEqual([]);
+    },
+    120_000,
+  );
 });
