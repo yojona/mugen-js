@@ -463,7 +463,8 @@ const EXTRA: Record<string, Impl> = {
     p.angle *= prm.num(p, 'value') ?? 1;
   },
   offset: (_c, prm) => (p) => {
-    p.drawOffset = [prm.num(p, 'x') ?? 0, prm.num(p, 'y') ?? 0];
+    // sctrl.c Offset: only the given axes are written.
+    p.drawOffset = [prm.num(p, 'x') ?? p.drawOffset[0], prm.num(p, 'y') ?? p.drawOffset[1]];
   },
   assertspecial: (c) => (p) => {
     for (const k of ['flag', 'flag2', 'flag3']) {
@@ -497,12 +498,16 @@ const EXTRA: Record<string, Impl> = {
 
   // Targets
   targetbind: (_c, prm) => (p) => {
-    const time = prm.int(p, 'time') ?? 1;
-    const off: [number, number] = [prm.num(p, 'pos', 0) ?? 0, prm.num(p, 'pos', 1) ?? 0];
+    let time = prm.int(p, 'time') ?? 1;
+    if (time < -1) time = 1;
+    // sctrl.c TargetBind: bind_x/y = Ftol(FromLocal(pos)), whole internal units.
+    const k = p.world.gameWidth / p.world.screenWidth;
+    const iu = (v: number) => Math.trunc(v * p.scale * k) / k;
+    const off: [number, number] = [iu(prm.num(p, 'pos', 0) ?? 0), iu(prm.num(p, 'pos', 1) ?? 0)];
     eachTarget(p, prm, (t) => {
-      // Offsets are in the binder's units; binds are stored in world units.
-      // x follows the binder's facing when placed (end of its update, after a Turn).
-      t.bind = { to: p, offset: [off[0] * p.scale, off[1] * p.scale], time, byTarget: true };
+      // Binds are stored in world units. x follows the binder's facing when
+      // placed (end of its update, after a Turn).
+      t.bind = { to: p, offset: off, time, byTarget: true };
     });
   },
   bindtotarget: (c, prm, env) => {
