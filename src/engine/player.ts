@@ -1005,7 +1005,6 @@ export class Player {
       }
       if (st === 5120 || st === 5200 || st === 5210) this.defMul = undefined;
     }
-    if (this.ghv.hitshaketime > 1 && this.moveType === 'h') return;
     // The corner push waits out a SuperPause (mugen.exe: pause_kind != 1,
     // from the frame after the one that starts it).
     if (this.cornerPushVel && !(this.world.superPause && !this.world.superPause.fresh)) {
