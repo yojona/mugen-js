@@ -117,22 +117,26 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
     const rnd: [number, number] = [prm.int(p, 'random', 0) ?? 0, prm.int(p, 'random', 1) ?? 0];
     // mugen.exe 0x410c02: every Explod draws two numbers, random param or not:
     // seed % (r + 1) - ((r + 1) >> 1).
-    off[0] += (p.world.random(rnd[0] + 1) - ((rnd[0] + 1) >> 1)) * k;
-    off[1] += (p.world.random(rnd[1] + 1) - ((rnd[1] + 1) >> 1)) * k;
+    // The random offset is added after pos is turned by the origin's facing
+    // (explod.c: it is never mirrored).
+    const rx = (p.world.random(rnd[0] + 1) - ((rnd[0] + 1) >> 1)) * k;
+    const ry = (p.world.random(rnd[1] + 1) - ((rnd[1] + 1) >> 1)) * k;
     const faceParam = (prm.int(p, 'facing') ?? 1) < 0 ? -1 : 1;
     let facing = faceParam;
     const w = p.world;
     let space: Explod['space'] = (prm.raw('space') ?? 'stage').toLowerCase() === 'screen' ? 'screen' : 'stage';
-    let x = off[0];
-    let y = off[1];
+    let x = off[0] + rx;
+    let y = off[1] + ry;
+    // Player_GetPosOrigin: the right screen edge is GameWidth - 1 internal units.
+    const rightEdge = w.screenWidth - w.screenWidth / w.gameWidth;
     let bindTo: P | undefined;
     const bindId = prm.int(p, 'bindid') ?? -2;
     switch (posType) {
       case 'p1':
       case 'p2': {
         const ref = posType === 'p1' ? p : (w.enemyOf(p) ?? p);
-        x = ref.wx + off[0] * ref.facing;
-        y = ref.wy + off[1];
+        x = ref.wx + off[0] * ref.facing + rx;
+        y = ref.wy + off[1] + ry;
         facing *= ref.facing;
         // p1/p2 explods always keep their anchor (bindtime defaults to 1).
         bindTo = ref;
@@ -146,17 +150,19 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
         space = 'screen';
         const edgeRight = (posType === 'front') === p.facing > 0;
         if (posType === 'left') x = off[0];
-        else if (posType === 'right') x = w.screenWidth + off[0];
-        else if (posType === 'front') x = (edgeRight ? w.screenWidth : 0) + off[0];
-        else x = (p.facing > 0 ? 0 : w.screenWidth) + off[0] * p.facing;
+        else if (posType === 'right') x = rightEdge + off[0];
+        else if (posType === 'front') x = (edgeRight ? rightEdge : 0) + off[0];
+        else x = (p.facing > 0 ? 0 : rightEdge) + off[0] * p.facing;
+        x += rx;
+        y = off[1] + ry;
         if (posType === 'back') facing *= p.facing;
         break;
       }
       default:
         if (space === 'stage' && bindId !== -2) {
           bindTo = bindId === -1 ? p : (w.allPlayers().find((q) => q.id === bindId) ?? p);
-          x = bindTo.wx + off[0];
-          y = bindTo.wy + off[1];
+          x = bindTo.wx + off[0] + rx;
+          y = bindTo.wy + off[1] + ry;
         }
     }
     const e: Explod = {
@@ -173,7 +179,7 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
       bindTo,
       // bindtime defaults to 1 (sctrl.c bindtime_def).
       bindTime: bindTo ? (prm.int(p, 'bindtime') ?? 1) : 0,
-      bindOffset: posType === 'p1' || posType === 'p2' ? [off[0] * (bindTo?.facing ?? 1), off[1]] : off,
+      bindOffset: posType === 'p1' || posType === 'p2' ? [off[0] * (bindTo?.facing ?? 1) + rx, off[1] + ry] : [off[0] + rx, off[1] + ry],
       vel: [(prm.num(p, 'vel', 0) ?? 0) * k, (prm.num(p, 'vel', 1) ?? 0) * k],
       velDir: facing * faceParam,
       accel: [(prm.num(p, 'accel', 0) ?? 0) * k, (prm.num(p, 'accel', 1) ?? 0) * k],
