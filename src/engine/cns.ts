@@ -220,6 +220,7 @@ const SCALAR_VELOCITY = new Set(['walk.fwd', 'walk.back', 'jump.back', 'jump.fwd
 
 export function parseConstants(docs: IniDoc[], defaults = DEFAULTS): Constants {
   const c: Constants = new Map(Object.entries(defaults));
+  const vel = new Map<string, number[]>();
   for (const doc of docs) {
     for (const sec of doc.sections) {
       const group = sec.name.toLowerCase();
@@ -227,6 +228,7 @@ export function parseConstants(docs: IniDoc[], defaults = DEFAULTS): Constants {
       for (const e of sec.entries) {
         const parts = e.value.split(',').map((s) => parseFloat(s.trim()));
         const base = `${group}.${e.key}`;
+        if (group === 'velocity') vel.set(e.key, parts);
         if (group === 'velocity' && (e.key === 'jump.neu' || e.key === 'airjump.neu')) {
           const stem = e.key === 'jump.neu' ? 'jump' : 'airjump';
           if (Number.isFinite(parts[0])) c.set(`velocity.${stem}.neu.x`, parts[0]!);
@@ -251,7 +253,36 @@ export function parseConstants(docs: IniDoc[], defaults = DEFAULTS): Constants {
       }
     }
   }
+  if (vel.size) velocityDefaults(c, vel);
   const up = c.get('data.fall.defence_up') ?? 50;
   c.set('data.fall.defence_mul', 100 / (up + 100));
   return c;
+}
+
+/**
+ * Char_LoadConsts' [Velocity] defaults: walk and run 0,0; the jumps x = 0
+ * and the y of jump.neu; runjump.* and airjump.* default to the matching
+ * jump.* (airjump.neu to jump.neu). A single value keeps the default y.
+ */
+function velocityDefaults(c: Constants, vel: Map<string, number[]>): void {
+  const xy = (k: string, dx: number, dy: number): [number, number] => {
+    const p = vel.get(k);
+    return [p && Number.isFinite(p[0]) ? p[0]! : dx, p && Number.isFinite(p[1]) ? p[1]! : dy];
+  };
+  const set = (name: string, v: [number, number], y = `${name}.y`) => {
+    c.set(`${name}.x`, v[0]);
+    c.set(y, v[1]);
+  };
+  for (const k of ['walk.fwd', 'walk.back', 'run.fwd', 'run.back']) set(`velocity.${k}`, xy(k, 0, 0));
+  const neu = xy('jump.neu', 0, 0);
+  set('velocity.jump.neu', neu, 'velocity.jump.y');
+  const fwd = xy('jump.fwd', 0, neu[1]);
+  const back = xy('jump.back', 0, neu[1]);
+  set('velocity.jump.fwd', fwd);
+  set('velocity.jump.back', back);
+  set('velocity.runjump.fwd', xy('runjump.fwd', fwd[0], fwd[1]));
+  set('velocity.runjump.back', xy('runjump.back', back[0], back[1]));
+  set('velocity.airjump.neu', xy('airjump.neu', neu[0], neu[1]), 'velocity.airjump.y');
+  set('velocity.airjump.fwd', xy('airjump.fwd', fwd[0], fwd[1]));
+  set('velocity.airjump.back', xy('airjump.back', back[0], back[1]));
 }
