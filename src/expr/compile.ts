@@ -54,6 +54,11 @@ export class CompileError extends Error {
   }
 }
 
+/** Evaluate fn on the player the whole expression belongs to (see R.from). */
+function fromEvaluator<C>(fn: Fn<C>): Fn<C> {
+  return (c) => fn(R.from !== undefined ? (R.from as C) : c);
+}
+
 export function compileExpr<C>(src: string, env: TriggerEnv<C>): Fn<C> {
   return compileNode(parseExpr(src), env);
 }
@@ -116,7 +121,9 @@ export function compileNode<C>(n: Node, env: TriggerEnv<C>): Fn<C> {
       };
     }
     case 'call': {
-      const args = n.args.map((a) => compileNode(a, env));
+      // A redirection applies to the trigger only: its arguments are
+      // evaluated by the player writing the expression (Trigger_Eval).
+      const args = n.args.map((a) => fromEvaluator(compileNode(a, env)));
       const vk = n.name as VarKind;
       if (vk === 'var' || vk === 'fvar' || vk === 'sysvar' || vk === 'sysfvar') {
         if (args.length !== 1) throw new CompileError(`${n.name} necesita 1 argumento`);
@@ -137,7 +144,7 @@ export function compileNode<C>(n: Node, env: TriggerEnv<C>): Fn<C> {
     case 'clause': {
       const fn = env.clause(
         n,
-        n.nums.map((a) => compileNode(a, env)),
+        n.nums.map((a) => fromEvaluator(compileNode(a, env))),
       );
       if (!fn) throw new CompileError(`Trigger desconocido: ${n.name}`);
       if (n.second && n.name !== 'animelem' && n.name !== 'projcontact' && n.name !== 'projguarded' && n.name !== 'projhit') {
