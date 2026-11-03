@@ -271,7 +271,7 @@ const IMPLS: Record<string, Impl> = {
   },
   defencemulset: (_c, prm) => (p) => {
     const v = prm.num(p, 'value');
-    if (v !== undefined) p.defenceMul = v;
+    if (v !== undefined) p.defMul = Math.fround((v * 100) / Math.max(1, p.const('data.defence')));
   },
   nothitby: (c, prm) => hitByController(c, prm, true),
   hitby: (c, prm) => hitByController(c, prm, false),
@@ -395,7 +395,9 @@ const EXTRA: Record<string, Impl> = {
       // The super's current targets take less damage until they recover
       // (Super.TargetDefenceMul; measured: KFM's 155-damage super does 103).
       const mul = prm.num(p, 'p2defmul') ?? 1.5;
-      if (mul > 0) for (const t of p.targets.keys()) t.superDefMul = mul;
+      const m = mul > 0 ? mul : 1.5;
+      // Targets not guarding (in_guard_dist, p+0xee8) take less damage until they recover.
+      if (m !== 1) for (const t of p.targets.keys()) if (!t.guardFlag) t.defMul = Math.fround(t.defenceFactor / m);
       const animNo = prm.int(p, 'anim') ?? parseInt(animRaw.replace(/^s/i, ''), 10);
       if (animNo !== -1 && !Number.isNaN(animNo)) {
         const a = ownAnim ? p.prog.data.anims.get(animNo) : w.fightFx?.anims.get(animNo);

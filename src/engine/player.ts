@@ -209,7 +209,8 @@ export class Player {
 
   // Being hit
   ghv: GetHitVars = emptyGetHitVars();
-  defenceMul = 1;
+  /** mugen.exe's defence_mul when changed from 100 / data.defence (DefenceMulSet, SuperPause p2defmul, falls). */
+  defMul: number | undefined;
   /** Rounds this player has played to their end (RoundsExisted). */
   roundsExisted = 0;
   /**
@@ -220,9 +221,9 @@ export class Player {
   guardDist = 0;
   /** AttackMulSet's multiplier (value * data.attack / 100); unset = data.attack / 100. */
   attackMul: number | undefined;
-  /** mugen.exe's defence_mul: 100 / defence, DefenceMulSet, SuperPause p2defmul. */
+  /** mugen.exe's defence_mul: the damage multiplier (100 / data.defence unless changed). */
   get defenceFactor(): number {
-    return Math.fround((Math.fround(100 / Math.max(1, this.const('data.defence'))) * this.defenceMul) / this.superDefMul);
+    return this.defMul ?? Math.fround(100 / Math.max(1, this.const('data.defence')));
   }
   /**
    * Player_ApplyDamage (0x43F8xx), for LifeAdd and TargetLifeAdd: a negative
@@ -244,7 +245,6 @@ export class Player {
     return this.attackMul ?? this.const('data.attack') / 100;
   }
   /** SuperPause p2defmul on a target, until it recovers from the hit. */
-  superDefMul = 1;
   /** NotHitBy / HitBy slots: allowed or blocked attributes for a time. */
   /** HitBy / NotHitBy attribute masks (hitby_attr, nothitby_attr) and their times. */
   hitBy: { mask: number; time: number }[] = [];
@@ -960,6 +960,15 @@ export class Player {
       this.pendingPlacement = undefined;
     }
     if (this.hitPause > 0 || (this.ghv.hitshaketime > 1 && this.moveType === 'h')) return;
+    // Player_Update after the states: defence_mul goes back to 100 / defence
+    // out of a hit (so a DefenceMulSet in -2 only counts while being hit) and
+    // in the guard states; falls multiply it by fall.defence_mul.
+    const st = this.stateNo;
+    if (this.moveType !== 'h' || (st >= 130 && st <= 132) || st === 140) this.defMul = undefined;
+    if (this.time === 0) {
+      if (st === 5070 || st === 5100) this.defMul = Math.fround(Math.fround(this.const('data.fall.defence_mul')) * this.defenceFactor);
+      if (st === 5120 || st === 5200 || st === 5210) this.defMul = undefined;
+    }
     // The corner push waits out a SuperPause (mugen.exe: pause_kind != 1,
     // from the frame after the one that starts it).
     if (this.cornerPushVel && !(this.world.superPause && !this.world.superPause.fresh)) {
@@ -1027,7 +1036,6 @@ export class Player {
 
   /** End of tick: advance state time. */
   advance(): void {
-    if (this.moveType !== 'h') this.superDefMul = 1;
     for (const s of this.hitBy) if (s.time > 0) s.time--;
     for (const o of this.hitOverrides) if (o && o.time > 0) o.time--;
     if (this.pendingDamage && this.pendingDamage.tick < this.world.gameTime) this.applyPendingDamage();
