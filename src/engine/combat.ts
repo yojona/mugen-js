@@ -438,7 +438,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
   // projectile's for projectiles; p1facing = -1 turns it), whichever side
   // the defender is on (mugen.exe HitDef_Apply / Player_Guard: vel x times
   // -dir, dir = attacker facing), kept in world space.
-  const dir = (proj ? proj.facing : a.facing) * (!proj && hd.p1Facing === -1 ? -1 : 1);
+  // (A guard keeps the attacker's facing; p1facing / p1getp2facing turn
+  // dir for a hit, below.)
+  let dir = proj ? proj.facing : a.facing;
   const airborne = d.stateType === 'a';
   const g = d.ghv;
 
@@ -497,6 +499,19 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     // above it counts as in the air.
     const lying = d.stateType === 'l' && d.wy === 0 && !override?.forceAir;
     const inAir = d.stateType === 'a' || !!override?.forceAir || (d.stateType === 'l' && d.wy !== 0);
+    // Player_Hit: p1facing (< 0) turns the attacker, p1getp2facing makes it
+    // face as P2 does (1) or the other way (-1); dir follows the turn and
+    // the attacker turns in its next update.
+    if (!proj && !override) {
+      if (hd.p1Facing < 0 && !hd.p1GetP2Facing) {
+        dir = -a.facing;
+        a.nextFacing = dir;
+      }
+      if (hd.p1GetP2Facing && (hd.p1GetP2Facing > 0 ? dir !== d.facing : dir === d.facing)) {
+        dir = -a.facing;
+        a.nextFacing = dir;
+      }
+    }
     // Juggle points (Player_Hit): a hit on a falling target, a fall = 1 hit or an air.fall
     // hit in the air, spends the HitDef's juggle from the attacker's target
     // entry; the HitDef then costs nothing more until a state sets it.
@@ -588,7 +603,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     if (!proj && !override && hitDefAttrBits(hd.attrState, hd.attrType) & 0x1c0) d.nohitTime = a.nohitTime = hd.pause[0] + 1;
     a.addPower(hd.getPower[0]);
     d.addPower(hd.givePower[0]);
-    const aFacing = proj ? proj.facing : a.facing;
+    const aFacing = dir;
     // Applied when P2 next updates (measured: one tick after the hit).
     if (!proj) {
       // HitDef_Apply works out mindist/maxdist (and snap) as offsets from the
@@ -660,12 +675,6 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
   d.sprPriority = hd.p2SprPriority;
   if (proj) return;
   a.sprPriority = hd.p1SprPriority;
-  // next_facing too: the attacker turns in its next update.
-  const dNow = d.nextFacing || d.facing;
-  if (hd.p1GetP2Facing) {
-    const f = hd.p1GetP2Facing > 0 ? dNow : -dNow;
-    if (f !== a.facing) a.nextFacing = f;
-  } else if (hd.p1Facing === -1) a.nextFacing = -a.facing;
   // p1stateno: the statedef applies when the state first runs (measured: a
   // KFM throw keeps anim 800 and its MoveContact on the hit tick).
   if (!guarded && hd.p1StateNo >= 0) a.enterLater(hd.p1StateNo);
