@@ -68,8 +68,12 @@ export function peekDiff(mugen: string, ours: string[], from: number, to: number
       const v = line.split('|')[2]!.trim().split(',');
       if (v.includes('ERR')) continue;
       let gt = Number(v[0]);
-      // A framestep read before the frame counter moved is the next frame.
-      if (rows.has(gt)) gt++;
+      // A framestep read before the frame counter moved is the next frame,
+      // unless nothing moved at all (a repeated read of the same frame).
+      if (rows.has(gt)) {
+        if (rows.get(gt)!.join(',') === v.slice(1).join(',')) continue;
+        gt++;
+      }
       rows.set(gt, v.slice(1));
     }
     return rows;

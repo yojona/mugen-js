@@ -22,4 +22,16 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+
+  it.skipIf(!have('kim-kofa', 'benimaru-kofa'))(
+    'Kim vs Benimaru, CPU level 4: the whole match (AI detector helper, throws, trades, guard ends, camera edges)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kim-vs-benimaru.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['kim-kofa', 'benimaru-kofa'], frames: 9000, seed: 16808 });
+      // mugen.exe starts the next match on frame 8287; ours ends there.
+      expect(ours.length).toBe(8287);
+      expect(peekDiff(ref, ours, 14, 8286)).toEqual([]);
+    },
+    120_000,
+  );
 });
