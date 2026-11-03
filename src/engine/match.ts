@@ -96,6 +96,7 @@ export class Match {
   /** KO slowdown: frame-skip accumulator, its rate and the ticks run since the KO. */
   private slowAcc = 0;
   private slowRate = 0;
+  private noSlow = false;
   private koTicks = 0;
   /** RoundState 4 lasts until this tick (over.time, pushed back by roundnotover). */
   private overEndTime = 0;
@@ -281,6 +282,8 @@ export class Match {
           // No slow motion on a time over or with AssertSpecial nokoslow.
           const noKoSlow = this.players.some((p) => p.special.has('nokoslow')) || w.helpers.some((h) => h.special.has('nokoslow'));
           this.slowRate = this.slowAcc = timeUp || noKoSlow ? 0 : 500;
+          // slow_time 0: the slow motion steps below are undone every tick.
+          this.noSlow = timeUp || noKoSlow;
           // A time over stops everyone's input at once (no_input_states).
           if (timeUp) for (const p of this.players) p.noInputStates = true;
           this.enter('ko');
@@ -312,7 +315,7 @@ export class Match {
           if (k === Math.trunc((st * 7) / 10)) setRate(50);
           if (k === Math.trunc((st * 9) / 10)) setRate(25);
         }
-        if (k >= st) setRate(0);
+        if (k >= st || this.noSlow) setRate(0);
         // At over.waittime nobody takes input any more (no_input_states).
         if (k === c.overWaitTime) for (const p of this.players) p.noInputStates = true;
         if (k >= c.overWaitTime + 180) w.hitsEnabled = false;
