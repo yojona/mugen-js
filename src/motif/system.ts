@@ -92,6 +92,8 @@ export interface Roster {
   chars: RosterEntry[];
   extraStages: string[];
   arcadeMaxMatches: number[];
+  /** team.maxmatches: the same for a computer team (simul, turns). */
+  teamMaxMatches: number[];
 }
 
 /** Character names in select.def map to chars/<name>/<name>.def unless a .def path is given. */
@@ -132,5 +134,6 @@ export async function loadRoster(vfs: Vfs, path: string): Promise<Roster> {
   }
   const opts = parseIni(text);
   const mm = getValue(findSection(opts, 'Options'), 'arcade.maxmatches') ?? '6';
-  return { chars, extraStages, arcadeMaxMatches: splitCsv(mm).map((x) => parseInt(x, 10) || 0) };
+  const tm = getValue(findSection(opts, 'Options'), 'team.maxmatches') ?? '4,1,1';
+  return { chars, extraStages, arcadeMaxMatches: splitCsv(mm).map((x) => parseInt(x, 10) || 0), teamMaxMatches: splitCsv(tm).map((x) => parseInt(x, 10) || 0) };
 }

@@ -26,7 +26,13 @@ export class SessionRng {
    * order o (1-based, as in select.def) gives up to maxMatches[o - 1]
    * characters (the player's own character included).
    */
-  arcadeOrder<T extends { order: number }>(chars: readonly T[], maxMatches: readonly number[]): T[] {
+  /**
+   * Arcade_ShuffleOrder (0x40a370): the roster shuffled five times, sorted
+   * by order (stable bubble sort), then max_matches[level] * team_size
+   * characters of each order level in turn, the last team of a level padded
+   * with random characters of that level.
+   */
+  arcadeOrder<T extends { order: number }>(chars: readonly T[], maxMatches: readonly number[], teamSize = 1): T[] {
     const n = chars.length;
     const idx = chars.map((_, i) => i);
     for (let pass = 0; pass < 5; pass++) {
@@ -47,15 +53,30 @@ export class SessionRng {
       if (sorted) break;
     }
     const out: T[] = [];
-    let k = 0;
-    for (let o = 0; o < 30 && k < n; o++) {
-      while (k < n && chars[idx[k]!]!.order - 1 < o) k++;
-      let taken = 0;
-      while (k < n && chars[idx[k]!]!.order - 1 === o && taken < (maxMatches[o] ?? 0)) {
-        out.push(chars[idx[k]!]!);
-        taken++;
-        k++;
+    // Character orders are 1-based; levels 0-based.
+    const level = (i: number) => chars[idx[i]!]!.order - 1;
+    let i = 0;
+    for (let lv = 0; lv < 30 && i < n; lv++) {
+      while (level(i) < lv) {
+        i++;
+        if (i >= n) return out;
       }
+      const start = i;
+      let k = 0;
+      const cap = (maxMatches[lv] ?? 0) * teamSize;
+      if (cap > 0) {
+        while (i < n && level(i) === lv) {
+          out.push(chars[idx[i]!]!);
+          k++;
+          i++;
+          if (k >= cap) break;
+        }
+      }
+      while (k % teamSize !== 0 && i !== start) {
+        k++;
+        out.push(chars[idx[(this.next() % (i - start)) + start]!]!);
+      }
+      if (i >= n) break;
     }
     return out;
   }
