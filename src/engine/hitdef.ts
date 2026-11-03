@@ -237,7 +237,8 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
   const attrType = attr[1] ?? 'na';
   const animType = enumIndex(ANIM_TYPES, raw('animtype'), 0);
   const airAnimType = enumIndex(ANIM_TYPES, raw('air.animtype'), animType);
-  const fallAnimType = enumIndex(ANIM_TYPES, raw('fall.animtype'), airAnimType === 4 ? 4 : 3);
+  // Default: up for an up air.animtype, diagup for diagup, else back (HitDef_ParseParams).
+  const fallAnimType = enumIndex(ANIM_TYPES, raw('fall.animtype'), airAnimType === 4 ? 4 : airAnimType === 5 ? 5 : 3);
   const groundType = enumIndex(HIT_TYPES, raw('ground.type'), 1);
   const airType = enumIndex(HIT_TYPES, raw('air.type'), groundType);
   const prio = (raw('priority') ?? '4').split(',').map((s) => s.trim().toLowerCase());
