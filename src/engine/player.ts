@@ -849,10 +849,12 @@ export class Player {
 
   private engineHitTransitions(): void {
     const g = this.ghv;
-    if (this.stateNo !== 5110 || !this.alive) return;
-    // mugen.exe 0x43cb34: get up once the count is spent, else count down.
+    if (this.stateNo !== 5110) return;
+    // mugen.exe 0x43cb34: get up once the count is spent (alive), else count
+    // down; getting up starts the count over.
     if (g.recovertime > 0) g.recovertime -= 1;
-    else if (this.time > 0) {
+    else if (this.alive && this.time > 0) {
+      g.recovertime = this.const('data.liedown.time');
       // Player_Update's switch, after the states: 5110's controllers have
       // run this tick, and 5120 runs right away.
       this.changeState(5120);
@@ -1080,6 +1082,9 @@ export class Player {
       }
       if (st === 5120 || st === 5200 || st === 5210) this.defMul = undefined;
     }
+    // 5100: with little get-up time left the player is hit by nothing, until
+    // a HitBy / NotHitBy value sets slot 0 again (hitby_time -1).
+    if (st === 5100 && g.recovertime <= 10) this.hitBy[0] = { mask: 0, time: -1 };
     // The corner push waits out a SuperPause (mugen.exe: pause_kind != 1,
     // from the frame after the one that starts it).
     if (this.cornerPushVel && !(this.world.superPause && !this.world.superPause.fresh)) {
