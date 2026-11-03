@@ -481,7 +481,6 @@ function placeDefender(a: Player, d: Player, hd: HitDefData): void {
  * rounded; at least 1 for a positive damage.
  */
 function scaleDamage(_a: Player, d: Player, dmg: number): number {
-  const def = Math.fround(Math.fround(100 / Math.max(1, d.const('data.defence'))) * d.defenceMul / d.superDefMul);
-  const n = Math.trunc(def * dmg + 0.5);
+  const n = Math.trunc(d.defenceFactor * dmg + 0.5);
   return dmg >= 1 && n === 0 ? 1 : n;
 }

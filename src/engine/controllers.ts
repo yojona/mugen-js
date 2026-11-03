@@ -166,9 +166,7 @@ const IMPLS: Record<string, Impl> = {
   lifeadd: (_c, prm) => (p) => {
     const v = prm.int(p, 'value');
     if (v === undefined) return;
-    const max = p.const('data.life');
-    const kill = (prm.int(p, 'kill') ?? 1) !== 0;
-    p.life = Math.min(max, Math.max(kill ? 0 : 1, p.life + v));
+    p.applyLifeAdd(v, (prm.int(p, 'kill') ?? 1) !== 0, (prm.int(p, 'absolute') ?? 0) !== 0);
   },
   lifeset: (_c, prm) => (p) => {
     const v = prm.int(p, 'value');
@@ -505,11 +503,8 @@ const EXTRA: Record<string, Impl> = {
     const v = prm.int(p, 'value') ?? 0;
     const kill = (prm.int(p, 'kill') ?? 1) !== 0;
     const abs = (prm.int(p, 'absolute') ?? 0) !== 0;
-    eachTarget(p, prm, (t) => {
-      const amt = abs ? v : Math.trunc(v * p.attackFactor * (100 / Math.max(1, t.const('data.defence'))) * t.defenceMul);
-      t.life = Math.min(t.const('data.life'), Math.max(kill ? 0 : Math.min(t.life, 1), t.life + amt));
-      if (t.life <= 0) t.alive = false;
-    });
+    // No attack multiplier: only the target's defence (Player_ApplyDamage).
+    eachTarget(p, prm, (t) => t.applyLifeAdd(v, kill, abs));
   },
   targetpoweradd: (_c, prm) => (p) => {
     const v = prm.int(p, 'value') ?? 0;

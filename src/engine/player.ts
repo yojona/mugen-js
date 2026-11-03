@@ -206,6 +206,26 @@ export class Player {
   defenceMul = 1;
   /** AttackMulSet's multiplier (value * data.attack / 100); unset = data.attack / 100. */
   attackMul: number | undefined;
+  /** mugen.exe's defence_mul: 100 / defence, DefenceMulSet, SuperPause p2defmul. */
+  get defenceFactor(): number {
+    return Math.fround((Math.fround(100 / Math.max(1, this.const('data.defence'))) * this.defenceMul) / this.superDefMul);
+  }
+  /**
+   * Player_ApplyDamage (0x43F8xx), for LifeAdd and TargetLifeAdd: a negative
+   * amount is scaled by the defence unless absolute (at least 1), and it
+   * leaves 1 life when it cannot kill.
+   */
+  applyLifeAdd(v: number, kill: boolean, absolute: boolean): void {
+    let d = v;
+    if (!absolute) {
+      if (v < 0) d = Math.trunc(this.defenceFactor * v - 0.5);
+      if (v <= -1 && d === 0) d = -1;
+    }
+    d += this.life;
+    if (d < 1 && !kill) d = 1;
+    this.life = Math.min(this.const('data.life'), Math.max(0, d));
+    if (this.life <= 0) this.alive = false;
+  }
   get attackFactor(): number {
     return this.attackMul ?? this.const('data.attack') / 100;
   }
