@@ -92,6 +92,7 @@ export class World {
 
   addHelper(h: Player): void {
     this.helpers.push(h);
+    if (h.keyCtrl && h.root.cmdInput) h.cmdInput = h.root.cmdInput.clone();
     h.enemy = this.findEnemy(h) ?? null;
   }
 
@@ -248,6 +249,17 @@ export class World {
       p.cmdInput!.update(this.gameTime, this.frozen(p), p.ai?.cmds, hold);
       p.commands = p.cmdInput!.active();
       p.keyEventRecovery();
+    }
+    // Keyctrl helpers read the keys into their own command state (copied
+    // from the root's when created): the AI's commands never reach them, so
+    // a CPU root's helper sees none (what characters' AI detectors test).
+    for (const h of this.helpers) {
+      if (!h.keyCtrl || h.destroyed || !h.cmdInput) continue;
+      const i = this.players.indexOf(h.root);
+      const raw = this.inputLocked || h.root.ai ? 0 : (inputs[i] ?? 0);
+      h.cmdInput.ingest(raw, h.facing, !h.root.ai);
+      h.cmdInput.update(this.gameTime, this.frozen(h));
+      h.commands = h.cmdInput.active();
     }
     // Built-in transitions for everyone first, then each player runs its
     // states and moves before the next one (both measured against MUGEN 1.1).

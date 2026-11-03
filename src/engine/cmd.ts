@@ -262,6 +262,18 @@ export class CommandInput {
     if (human) this.keyEvents(raw);
   }
 
+  /**
+   * A copy with its own buffers (a keyctrl helper starts with its root's
+   * input and command state: Helper_Create copies p->input and cmd_state).
+   */
+  clone(): CommandInput {
+    const c = new CommandInput(this.set);
+    for (const [k, v] of Object.entries(this)) {
+      (c as unknown as Record<string, unknown>)[k] = ArrayBuffer.isView(v) ? (v as Uint8Array).slice() : Array.isArray(v) ? v.slice() : v;
+    }
+    return c;
+  }
+
   /** Active command names (buffer > 0). */
   active(): Set<string> {
     const out = new Set<string>();

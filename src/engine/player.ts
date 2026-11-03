@@ -682,8 +682,8 @@ export class Player {
 
   private runStatesInner(): void {
     this.resetTickFlags();
-    // Helpers with keyctrl read their root's command buffer.
-    if (this.isHelper) this.commands = this.keyCtrl ? this.root.commands : new Set();
+    // Keyctrl helpers have their own command state (World.tick); others none.
+    if (this.isHelper && !(this.keyCtrl && this.cmdInput)) this.commands = this.keyCtrl ? this.root.commands : new Set();
     if (this.hitPause > 0) {
       // Frozen by hit pause: only ignorehitpause controllers run.
       for (const special of this.specialStates()) this.runState(special);
