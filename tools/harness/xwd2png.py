@@ -38,7 +38,7 @@ def main():
         args = args[2:]
     for path in args:
         w, h, bpl, bpp, px = read_xwd(path)
-        step = bpl // w
+        step = bpp // 8
         rows = []
         for y in range(0, min(ch, h), scale):
             line = px[y * bpl:(y + 1) * bpl]

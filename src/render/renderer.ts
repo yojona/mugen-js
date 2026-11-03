@@ -148,6 +148,8 @@ export class Renderer {
    * at (x * s + ox, y * s + oy) (the Zoom controller's stage scale).
    */
   view = { s: 1, ox: 0, oy: 0 };
+  /** Snap unrotated sprites to whole output pixels, as mugen.exe does. */
+  snap = true;
 
   /** Change the logical coordinate space without resizing the canvas. */
   setProjection(width: number, height: number): void {
@@ -231,6 +233,14 @@ export class Renderer {
     const sin = Math.sin(a);
     const sx = p.scaleX;
     const sy = p.scaleY;
+    // mugen.exe's software renderer places sprites on whole output pixels
+    // (Ftol of the anchor): snap the anchor the same way when not rotated.
+    if (this.snap && !this.cornerMode && !p.angle) {
+      const v = this.view;
+      const kx = this.canvas.width / this.width;
+      const ky = this.canvas.height / this.height;
+      p = { ...p, x: (Math.trunc((p.x * v.s + v.ox) * kx) / kx - v.ox) / v.s, y: (Math.trunc((p.y * v.s + v.oy) * ky) / ky - v.oy) / v.s };
+    }
     // Columns of the 2x2 part, then translation.
     const m00 = cos * sx;
     const m10 = -sin * sx;
