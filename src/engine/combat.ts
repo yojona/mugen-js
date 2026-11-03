@@ -444,8 +444,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     g.hitshaketime = hd.pause[1];
     // A hit during a Pause / SuperPause lets the target move for its shake
     // (HitDef_Apply: pause_movetime = max(pause_movetime, p2 pausetime)).
-    if (world.superPause) d.superMoveTime = Math.max(d.superMoveTime, hd.pause[1]);
-    else if (world.pause) d.pauseMoveTime = Math.max(d.pauseMoveTime, hd.pause[1]);
+    // (pause_kind is set from the frame after a pause starts.)
+    if (world.superPause && !world.superPause.fresh) d.superMoveTime = Math.max(d.superMoveTime, hd.pause[1]);
+    else if (!world.superPause && world.pause && !world.pause.fresh) d.pauseMoveTime = Math.max(d.pauseMoveTime, hd.pause[1]);
     // Falling hits use air.hittime too (measured: KFM's throw, fall = 1 and
     // no hittime given, sets 20).
     g.hittime = inAir || vel[1] !== 0 || willFall ? hd.airHitTime : hd.groundHitTime;
