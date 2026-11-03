@@ -202,12 +202,25 @@ export function mergeTables(dst: RecordTable, src: RecordTable): void {
 // ---------------------------------------------------------------------------
 // HitDef attributes as mugen.exe's bitmasks.
 
-/** guardflag: 4 = H (high), 8 = L (low); M is both. */
+/**
+ * A HitDef's guardflag as mugen.exe stores it: HitFlags_Parse of the text
+ * (2 by default, - clears it, + 0x100, H 4, L 8, M 0xC, A 0x10, F 0x20,
+ * D 0x40, P 0x80), or 0 without a guardflag.
+ */
 export function guardFlagBits(flags: string): number {
-  const g = flags.toLowerCase();
-  let b = 0;
-  if (g.includes('h') || g.includes('m')) b |= 4;
-  if (g.includes('l') || g.includes('m')) b |= 8;
+  if (!flags) return 0;
+  let b = 2;
+  for (const ch of flags.toLowerCase()) {
+    if (ch === '+') b |= 0x100;
+    else if (ch === '-') b &= ~2;
+    else if (ch === 'a') b |= 0x10;
+    else if (ch === 'd') b |= 0x40;
+    else if (ch === 'f') b |= 0x20;
+    else if (ch === 'h') b |= 4;
+    else if (ch === 'l') b |= 8;
+    else if (ch === 'm') b |= 0xc;
+    else if (ch === 'p') b |= 0x80;
+  }
   return b;
 }
 
