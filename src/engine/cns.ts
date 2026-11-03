@@ -67,9 +67,23 @@ export function parseStates(text: string, file: string, into: StateMap = new Map
   return into;
 }
 
+/**
+ * The key Ini_GetValue finds a line under: it matches a key at the start of
+ * the line followed by a blank or '=', so "value >= 0" is read as value and
+ * "Type<full-width space> = x" as type.
+ */
+function iniKey(key: string): string {
+  // VarSet's "var(n) = x" lines are read whole (parse_var_line).
+  if (/^(sys)?f?var\s*\(/.test(key)) return key;
+  return key.split(/[ \t\v\f]/)[0]!;
+}
+
 function paramMap(entries: Entry[]): Map<string, string> {
   const m = new Map<string, string>();
-  for (const e of entries) if (!m.has(e.key)) m.set(e.key, e.value);
+  for (const e of entries) {
+    const k = iniKey(e.key);
+    if (!m.has(k)) m.set(k, e.value);
+  }
   return m;
 }
 
@@ -78,7 +92,8 @@ function controllerFrom(entries: Entry[], label: string, file: string, line: num
   const groups = new Map<number, string[]>();
   const params = new Map<string, string>();
   let type = '';
-  for (const e of entries) {
+  for (const raw of entries) {
+    const e = { ...raw, key: iniKey(raw.key) };
     const tm = TRIGGER_RE.exec(e.key);
     if (tm) {
       if (tm[1] === 'all') triggerAll.push(e.value);
