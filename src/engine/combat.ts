@@ -588,21 +588,27 @@ function cornerPush(a: Player, d: Player, veloff: number): void {
  * lifts a standing P2 to maxdist's y = -10).
  */
 function placementOffsets(a: Player, d: Player, hd: HitDefData, dir: number): [number, number] {
-  const k = a.scale;
+  // In mugen.exe's internal units and precision: the attacker's position
+  // comes in as floats, the offsets are floats (gethit_xoff / yoff).
+  const f = Math.fround;
+  const K = a.world.gameWidth / a.world.screenWidth;
+  const k = a.scale * K;
   const minX = hd.snap[0] ?? hd.minDist[0];
   const maxX = hd.snap[0] ?? hd.maxDist[0];
   const minY = hd.snap[1] ?? hd.minDist[1];
   const maxY = hd.snap[1] ?? hd.maxDist[1];
-  const ax = a.wx;
-  const ay = a.wy;
+  const ax = f(a.wx * K);
+  const ay = f(a.wy * K);
+  const tx = d.wx * K;
+  const ty = d.wy * K;
   let xoff = 0;
   let yoff = 0;
-  const dy = d.wy - ay;
-  if (minX !== undefined && Math.abs(d.wx - ax) < minX * k) xoff += ax + dir * minX * k - d.wx;
-  if (minY !== undefined && minY * k > dy) yoff += minY * k + ay - d.wy;
-  if (maxX !== undefined && Math.abs(ax - d.wx) > maxX * k) xoff += ax + dir * maxX * k - d.wx;
-  if (maxY !== undefined && maxY * k < dy) yoff += maxY * k + ay - d.wy;
-  return [xoff, yoff];
+  const dy = ty - ay;
+  if (minX !== undefined && Math.abs(tx - ax) < minX * k) xoff = f(ax + dir * minX * k - tx + xoff);
+  if (minY !== undefined && minY * k > dy) yoff = f(minY * k + ay - ty + yoff);
+  if (maxX !== undefined && Math.abs(ax - tx) > maxX * k) xoff = f(ax + dir * maxX * k - tx + xoff);
+  if (maxY !== undefined && maxY * k < dy) yoff = f(maxY * k + ay - ty + yoff);
+  return [xoff / K, yoff / K];
 }
 
 /**
