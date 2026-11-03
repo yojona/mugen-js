@@ -131,6 +131,18 @@ export class Match {
       p.alive = true;
       p.ctrl = false;
       p.returnToOwnStates();
+      // Player_Reset: standing idle in the own action 0, no pause or freeze.
+      // (The reset comes after the frame's animation step: it starts moving
+      // a tick later.)
+      p.changeAnim(0);
+      p.skipAnimTick = true;
+      p.stateType = 's';
+      p.moveType = 'i';
+      p.physics = 's';
+      p.hitPause = 0;
+      p.posFreeze = false;
+      p.defMul = undefined;
+      p.cornerPushVel = 0;
       p.targets.clear();
       p.targetJuggle.clear();
       p.noInputStates = false;
