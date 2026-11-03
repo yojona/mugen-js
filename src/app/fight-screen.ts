@@ -6,7 +6,7 @@
 
 import { MugenAI, type DummySettings } from '../engine/ai';
 import { Match } from '../engine/match';
-import { Player, type CharacterProgram } from '../engine/player';
+import { pickVictoryQuote, Player, type CharacterProgram } from '../engine/player';
 import { World, type FightFx } from '../engine/world';
 import type { FightHud } from '../motif/fight';
 import { drawScene } from '../render/scene';
@@ -35,6 +35,8 @@ export interface FightSetup {
 export interface FightResult {
   /** 0 or 1 = winning side, -1 = draw, undefined = quit. */
   winner: number | undefined;
+  /** The winner's victory quote (VictoryQuote, else a random one). */
+  quote?: string;
 }
 
 export class FightScreen implements Screen {
@@ -112,7 +114,7 @@ export class FightScreen implements Screen {
     if (this.s.training) this.refillLife();
     if (m.finished && !this.fade.fadingOut) {
       this.saveRecords();
-      this.pendingResult = { winner: m.winner ? m.winner.side : -1 };
+      this.pendingResult = { winner: m.winner ? m.winner.side : -1, quote: m.winner ? pickVictoryQuote(m.winner) : undefined };
       this.fade.fadeOut();
     }
   }

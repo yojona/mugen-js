@@ -396,6 +396,11 @@ const EXTRA: Record<string, Impl> = {
     for (const q of p.world.players) q.palFx = palFxFrom(prm, p);
     p.world.bgPalFx = palFxFrom(prm, p);
   },
+  victoryquote: (_c, prm) => (p) => {
+    // SCTRL_VICTORYQUOTE: helpers are ignored; default -1 (random).
+    if (p.isHelper) return;
+    p.victoryQuote = prm.int(p, 'value') ?? -1;
+  },
   envcolor: (_c, prm) => (p) => {
     // SCTRL_ENVCOLOR: value r,g,b (default white), time +1 unless -1
     // (below -1 is 1), under.

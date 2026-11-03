@@ -30,8 +30,8 @@ export interface CharacterProgram {
   cmd: CommandSet;
   /** Compiled controllers, built lazily per state. */
   compiled: Map<number, CompiledState>;
-  /** [Quotes] victory1..victoryN from the constants file. */
-  quotes: string[];
+  /** Victory quotes by number (victory0..victory99). */
+  quotes: (string | undefined)[];
   /** CPU AI move records kept for the session (mugen.exe chardata+0x64c). */
   aiRecords?: { sc: import('./ai-learn').RecordTable; air: import('./ai-learn').RecordTable };
 }
@@ -61,10 +61,14 @@ export async function loadProgram(vfs: Vfs, data: CharacterData): Promise<Charac
     parseStates(text, f.cmd, states);
   }
   if (f.stcommon) parseStates(await vfs.text(f.stcommon, dir, 'data'), f.stcommon, states);
-  const quotes: string[] = [];
+  // [Quotes] victory0..victory99, kept at their numbers (Char_LoadConsts).
+  const quotes: (string | undefined)[] = new Array(100).fill(undefined);
   for (const doc of constDocs) {
     const q = doc.sections.find((s) => s.name.toLowerCase() === 'quotes');
-    for (const e of q?.entries ?? []) if (/^victory\d+$/.test(e.key)) quotes.push(e.value.replace(/^"|"$/g, ''));
+    for (const e of q?.entries ?? []) {
+      const m = /^victory(\d+)$/.exec(e.key);
+      if (m && Number(m[1]) < 100 && quotes[Number(m[1])] === undefined) quotes[Number(m[1])] = e.value.replace(/^"|"$/g, '');
+    }
   }
   // Learned AI: the .def's [Files] ai (Char_Load), whatever its extension;
   // an invalid file is ignored.
@@ -200,6 +204,8 @@ export class Player {
   hitPauseFresh = false;
   /** Frozen by its own hit pause in its last update (Player.paused, read by its explods). */
   paused = false;
+  /** VictoryQuote: the quote number for the victory screen (-1 = random). */
+  victoryQuote = -1;
   hitFreeTime = 0;
   /** Damage from a hit, applied at the end of the next tick (measured). */
   /**
@@ -1257,3 +1263,25 @@ export class Player {
 }
 
 export type { ControllerDef };
+
+/**
+ * Match end (matchload.c): the winner's victory quote, the one VictoryQuote
+ * chose if it exists, else a random one through the match RNG (counting
+ * from victory1; victory0 only comes up by wrapping around).
+ */
+export function pickVictoryQuote(p: Player): string | undefined {
+  const quotes = p.prog.quotes;
+  const count = quotes.filter((x) => x !== undefined).length;
+  if (count === 0) return undefined;
+  let q = p.victoryQuote;
+  if (q < 0 || q > 99 || quotes[q] === undefined) {
+    let n = p.world.random(count) + 1;
+    q = 0;
+    do {
+      q++;
+      while (quotes[q % 100] === undefined) q = (q + 1) % 100;
+      n--;
+    } while (n > 0);
+  }
+  return quotes[q % 100];
+}

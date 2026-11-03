@@ -233,7 +233,7 @@ async function runMode(mode: GameMode): Promise<void> {
         const oc = opponents[n - 1]!;
         const opp: Pick = { char: oc, pal: session.opponentPalette((i) => !!oc.data?.palettes?.[i]) };
         await until(new VersusScreen(ctx, sel.p1, opp, n));
-        const res = await until<{ winner: number | undefined }>(await loading(() => fight(mode, sel.p1, opp, undefined)));
+        const res = await until<{ winner: number | undefined; quote?: string }>(await loading(() => fight(mode, sel.p1, opp, undefined)));
         if (res.winner !== 0) {
           if (res.winner === undefined || (motif.value('Continue Screen', 'enabled') ?? '1') === '0') return;
           // Continue? Yes: pick a character again and replay this match. The
@@ -250,10 +250,9 @@ async function runMode(mode: GameMode): Promise<void> {
           n--;
           continue;
         }
-        const quotes = programs.get(sel.p1.char.defPath!)?.quotes ?? [];
         // Not after the last match (system.def [Victory Screen] notes).
         if (n < opponents.length && (motif.value('Victory Screen', 'enabled') ?? '1') !== '0') {
-          await until(new VictoryScreen(ctx, sel.p1, quotes.length ? quotes[Math.floor(Math.random() * quotes.length)]! : (motif.value('Victory Screen', 'winquote.text') ?? 'Winner!').replace(/^"|"$/g, '')));
+          await until(new VictoryScreen(ctx, sel.p1, res.quote ?? (motif.value('Victory Screen', 'winquote.text') ?? 'Winner!').replace(/^"|"$/g, '')));
         }
       }
       await storyboard(chosen.data?.def.arcade.ending, chosen.data?.dir ?? '');
