@@ -1,5 +1,6 @@
 // Player runtime: state machine, physics and per-tick processing.
 
+import { STATEDEF_SPEC } from './sctrl-spec';
 import { compileExprList, R, truthy, type Fn } from '../expr/compile';
 import type { Animation } from '../formats/air';
 import { parseIni } from '../formats/text';
@@ -76,6 +77,9 @@ export interface Vec {
 }
 
 let nextId = 56; // MUGEN's first player ID
+
+/** [Statedef] keys holding expressions (sctrl-spec.ts STATEDEF_SPEC). */
+const STATEDEF_EXPR_KEYS = new Set(STATEDEF_SPEC.filter((s) => s.kind.k !== 'word').map((s) => s.key));
 
 export class Player {
   readonly id = nextId++;
@@ -284,7 +288,8 @@ export class Player {
     const env = playerEnv;
     const params = new Map<string, Fn<Player>[]>();
     for (const [k, v] of def.params) {
-      if (['type', 'movetype', 'physics'].includes(k)) continue;
+      // Only the keys mugen.exe reads (StateDef_Parse); the words are read elsewhere.
+      if (!STATEDEF_EXPR_KEYS.has(k)) continue;
       try {
         params.set(k, compileExprList(v, env));
       } catch (e) {
@@ -294,7 +299,7 @@ export class Player {
     const controllers: CompiledController[] = [];
     for (const c of def.controllers) {
       try {
-        controllers.push(compileController(c, env));
+        controllers.push(compileController(c, env, prog.data.def.mugenVersion));
       } catch (e) {
         this.warn(`${c.file}:${c.line} [State ${no}, ${c.label}] ${c.type}: ${(e as Error).message}`);
       }

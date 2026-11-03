@@ -1,6 +1,8 @@
 // State controllers (sctrls.html). Parameters are compiled once and evaluated
 // when the controller fires, left to right, as MUGEN does.
 
+import { checkControllerParams, specKeys } from './sctrl-params';
+import { varTarget } from './var-line';
 import { BOTTOM, compileExpr, compileExprList, R, toInt, type Fn, type TriggerEnv } from '../expr/compile';
 import type { ControllerDef } from './cns';
 import { compileHitDef, parseAttrList } from './hitdef';
@@ -24,10 +26,14 @@ export interface CompiledController {
 /** Parameter accessor for one controller. */
 class Params {
   private cache = new Map<string, Fn<P>[] | null>();
+  /** The keys mugen.exe reads for this type: any other key is ignored. */
+  private keys: Set<string> | undefined;
   constructor(
     private def: ControllerDef,
     private env: TriggerEnv<P>,
-  ) {}
+  ) {
+    this.keys = specKeys(def.type);
+  }
 
   has(k: string): boolean {
     return this.def.params.has(k);
@@ -38,8 +44,14 @@ class Params {
   list(k: string): Fn<P>[] | null {
     let v = this.cache.get(k);
     if (v === undefined) {
-      const src = this.def.params.get(k);
-      v = src === undefined ? null : compileExprList(src, this.env);
+      const src = this.keys && !this.keys.has(k) ? undefined : this.def.params.get(k);
+      try {
+        v = src === undefined ? null : compileExprList(src, this.env);
+      } catch {
+        // Checked at load time (sctrl-params.ts); what is left are texts
+        // mugen.exe reads in its own way, never as a list here.
+        v = null;
+      }
       this.cache.set(k, v);
     }
     return v;
@@ -58,20 +70,9 @@ class Params {
     if (R.t === BOTTOM) return undefined;
     return R.t === 1 ? toInt(v) : v;
   }
-  /** Eagerly compile everything so syntax errors surface at load time. */
-  validate(skip: Set<string>): void {
-    for (const k of this.def.params.keys()) if (!skip.has(k)) this.list(k);
-  }
 }
 
 type Impl = (c: ControllerDef, prm: Params, env: TriggerEnv<P>) => (p: P) => void;
-
-/** Params that are not expressions (strings, flags). */
-const STRING_PARAMS = new Set([
-  'attr', 'hitflag', 'guardflag', 'animtype', 'air.animtype', 'fall.animtype', 'ground.type', 'air.type', 'p1sprpriority', 'priority', 'sparkno', 'guard.sparkno', 'hitsound', 'guardsound',
-  'flag', 'flag2', 'flag3', 'flag4', 'flag5', 'flag6', 'flag7', 'flag8', 'reversal.attr', 'statetype', 'movetype', 'physics', 'postype', 'bindtime', 'trans', 'value', 'value2', 'name',
-  'ownpal', 'removeongethit', 'space', 'helpertype', 'type', 'text', 'params', 'channel', 'sound', 'anim', 'facing', 'vfacing', 'pos', 'random', 'id', 'ignorehitpause', 'persistent',
-]);
 
 const IMPLS: Record<string, Impl> = {
   null: () => () => {},
@@ -571,11 +572,6 @@ Object.assign(IMPLS, EXTRA);
 
 let playerEnvRef: TriggerEnv<P> | undefined;
 
-/** Controllers accepted but not simulated yet (no effect). */
-const PENDING = [
-  'envcolor', 'forcefeedback', 'stopsnd', 'sndpan',
-  'displaytoclipboard', 'appendtoclipboard', 'clearclipboard', 'victoryquote', 'zoom',
-];
 
 /** NotHitBy / HitBy: value = SCA, NA, SA (value2 uses the second slot). */
 function hitByController(c: ControllerDef, prm: Params, not: boolean): (p: P) => void {
@@ -588,31 +584,14 @@ function hitByController(c: ControllerDef, prm: Params, not: boolean): (p: P) =>
   };
 }
 
-/** Parse `var(5) = expr` style VarSet/VarAdd parameters. */
-function varController(c: ControllerDef, prm: Params, env: TriggerEnv<P>, mode: 'set' | 'add'): (p: P) => void {
-  type Target = { kind: 'var' | 'fvar' | 'sysvar' | 'sysfvar'; index: number; value: Fn<P> };
-  const targets: Target[] = [];
-  for (const [k, v] of c.params) {
-    const m = /^(sys)?(f?)var\(\s*(\d+)\s*\)$/.exec(k);
-    if (m) {
-      const kind = `${m[1] ?? ''}${m[2] ? 'f' : ''}var` as Target['kind'];
-      targets.push({ kind, index: parseInt(m[3]!, 10), value: compileExpr(v, env) });
-    }
-  }
-  if (prm.has('v') || prm.has('fv')) {
-    const isF = prm.has('fv');
-    const idx = compileExpr(prm.raw(isF ? 'fv' : 'v')!, env);
-    const val = prm.list('value')?.[0];
-    if (val) {
-      return (p) => {
-        const i = idx(p);
-        if (R.t === BOTTOM) return;
-        applyVar(p, isF ? 'fvar' : 'var', R.t === 1 ? toInt(i) : i, val, mode);
-      };
-    }
-  }
+/** VarSet / VarAdd: one variable (sctrl.c parse_var_value / parse_var_line). */
+function varController(c: ControllerDef, _prm: Params, env: TriggerEnv<P>, mode: 'set' | 'add'): (p: P) => void {
+  const t = varTarget(c, env, true);
+  if (!t) return () => {};
   return (p) => {
-    for (const t of targets) applyVar(p, t.kind, t.index, t.value, mode);
+    const i = t.index(p);
+    if (R.t === BOTTOM) return;
+    applyVar(p, t.kind, R.t === 1 ? toInt(i) : i, t.value, mode);
   };
 }
 
@@ -626,7 +605,7 @@ function applyVar(p: P, kind: 'var' | 'fvar' | 'sysvar' | 'sysfvar', i: number, 
   arr[i] = mode === 'add' ? arr[i]! + val : val;
 }
 
-export function compileController(c: ControllerDef, env: TriggerEnv<P>): CompiledController {
+export function compileController(c: ControllerDef, env: TriggerEnv<P>, mugenVersion?: string): CompiledController {
   playerEnvRef = env;
   const prm = new Params(c, env);
   const persistent = c.params.has('persistent') ? parseInt(c.params.get('persistent')!, 10) || 0 : 1;
@@ -634,15 +613,9 @@ export function compileController(c: ControllerDef, env: TriggerEnv<P>): Compile
   const triggerAll = c.triggerAll.map((t) => compileExpr(t, env));
   const triggers = c.triggers.map((g) => g.map((t) => compileExpr(t, env)));
   if (!c.type) throw new Error('falta type');
-  let run: (p: P) => void;
+  // mugen.exe refuses the character on any parameter it cannot read.
+  checkControllerParams(c, mugenVersion);
   const impl = IMPLS[c.type];
-  if (impl) {
-    run = impl(c, prm, env);
-    if (!['playsnd', 'statetypeset', 'hitdef', 'projectile', 'helper', 'reversaldef', 'nothitby', 'hitby', 'hitoverride', 'explod', 'modifyexplod', 'superpause', 'trans', 'assertspecial', 'afterimage', 'remappal'].includes(c.type)) prm.validate(STRING_PARAMS);
-  } else if (PENDING.includes(c.type)) {
-    run = () => {};
-  } else {
-    throw new Error(`controller desconocido "${c.type}"`);
-  }
+  const run: (p: P) => void = impl ? impl(c, prm, env) : () => {};
   return { def: c, triggerAll, triggers, persistent, ignoreHitPause, run };
 }

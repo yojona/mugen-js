@@ -179,12 +179,12 @@ function enumIndex(list: string[], v: string | undefined, def: number): number {
   return i < 0 ? def : i;
 }
 
-/** "S5,0" / "5,0" sound refs and "S10" / "10" spark refs. */
+/** "S5,0" / "F5,0" / "5,0" sound refs and "S10" / "10" spark refs (no prefix = fight.def). */
 function parseRef(raw: string | undefined): { own: boolean; rest: string } | undefined {
   if (raw === undefined) return undefined;
   const t = raw.trim();
   const own = /^s/i.test(t);
-  return { own, rest: own ? t.slice(1) : t };
+  return { own, rest: /^[sf]/i.test(t) ? t.slice(1) : t };
 }
 
 export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => HitDefData {
@@ -192,7 +192,13 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
   const get = (k: string) => {
     if (!lists.has(k)) {
       const src = c.params.get(k);
-      lists.set(k, src === undefined || src.trim() === '' ? [] : compileExprList(src, env));
+      let fns: Fn<P>[] = [];
+      try {
+        if (src !== undefined && src.trim() !== '') fns = compileExprList(src, env);
+      } catch {
+        // Word-valued keys (checked at load time in sctrl-params.ts).
+      }
+      lists.set(k, fns);
     }
     return lists.get(k)!;
   };
@@ -200,18 +206,20 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
   const ref = (k: string) => {
     if (!refLists.has(k)) {
       const r = parseRef(c.params.get(k));
-      refLists.set(k, r && { own: r.own, fns: compileExprList(r.rest, env) });
+      let fns: Fn<P>[] = [];
+      try {
+        if (r) fns = compileExprList(r.rest, env);
+      } catch {
+        // Checked at load time (sctrl-params.ts).
+      }
+      refLists.set(k, r && { own: r.own, fns });
     }
     return refLists.get(k);
   };
   const raw = (k: string) => c.params.get(k)?.trim();
   const has = (k: string) => c.params.has(k);
 
-  // Pre-validate expression params now so errors show at load time.
-  for (const k of c.params.keys()) {
-    if (['attr', 'hitflag', 'guardflag', 'animtype', 'air.animtype', 'fall.animtype', 'ground.type', 'air.type', 'priority', 'hitsound', 'guardsound', 'sparkno', 'guard.sparkno', 'persistent', 'ignorehitpause', 'reversal.attr'].includes(k)) continue;
-    get(k);
-  }
+
 
   const attr = (raw('attr') ?? 's, na').toLowerCase().split(',').map((s) => s.trim());
   const attrState = attr[0] ?? 's';

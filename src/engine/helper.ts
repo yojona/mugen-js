@@ -1,6 +1,7 @@
 // Helper controller and helper-related controllers (sctrls.html Helper,
 // DestroySelf, ParentVarSet/Add, BindToParent/BindToRoot).
 
+import { varTarget } from './var-line';
 import { BOTTOM, compileExpr, compileExprList, R, toInt, type Fn, type TriggerEnv } from '../expr/compile';
 import { unquote } from '../formats/text';
 import type { ControllerDef } from './cns';
@@ -101,29 +102,20 @@ export function compileDestroySelf(): (p: P) => void {
 
 /** ParentVarSet / ParentVarAdd: like VarSet on the parent. */
 export function compileParentVar(c: ControllerDef, env: TriggerEnv<P>, add: boolean): (p: P) => void {
-  const ops: { kind: 'var' | 'fvar' | 'sysvar' | 'sysfvar'; index: Fn<P> | number; value: Fn<P> }[] = [];
-  for (const [k, v] of c.params) {
-    const m = /^(sys)?(f?)var\(\s*(\d+)\s*\)$/.exec(k);
-    if (m) ops.push({ kind: `${m[1] ?? ''}${m[2] ? 'f' : ''}var` as never, index: parseInt(m[3]!, 10), value: compileExpr(v, env) });
-  }
-  const v = c.params.get('v');
-  const fv = c.params.get('fv');
-  const value = c.params.get('value');
-  if ((v || fv) && value) ops.push({ kind: fv ? 'fvar' : 'var', index: compileExpr((fv ?? v)!, env), value: compileExpr(value, env) });
+  const op = varTarget(c, env, false);
+  if (!op) return () => {};
   return (p) => {
     const parent = p.parent;
     if (!parent) return;
-    for (const op of ops) {
-      let i = typeof op.index === 'number' ? op.index : op.index(p);
-      if (R.t === BOTTOM) continue;
-      i = toInt(i);
-      const val = op.value(p);
-      if ((R.t as number) === BOTTOM) continue;
-      const arr = op.kind === 'var' ? parent.vars : op.kind === 'fvar' ? parent.fvars : op.kind === 'sysvar' ? parent.sysVars : parent.sysFvars;
-      if (i < 0 || i >= arr.length) continue;
-      const n = arr instanceof Float32Array ? val : R.t === 1 ? toInt(val) : val;
-      arr[i] = add ? arr[i]! + n : n;
-    }
+    let i = op.index(p);
+    if (R.t === BOTTOM) return;
+    i = toInt(i);
+    const val = op.value(p);
+    if ((R.t as number) === BOTTOM) return;
+    const arr = op.kind === 'var' ? parent.vars : op.kind === 'fvar' ? parent.fvars : op.kind === 'sysvar' ? parent.sysVars : parent.sysFvars;
+    if (i < 0 || i >= arr.length) return;
+    const n = arr instanceof Float32Array ? val : R.t === 1 ? toInt(val) : val;
+    arr[i] = add ? arr[i]! + n : n;
   };
 }
 

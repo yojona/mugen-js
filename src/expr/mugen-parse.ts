@@ -578,6 +578,16 @@ function skip(s: string, i: number): number {
   return i;
 }
 
+/** parseAt without throwing: undefined where mugen.exe's Expr_Parse fails. */
+export function tryParseAt(s: string, start: number, stop: boolean): { node: Node; end: number } | undefined {
+  try {
+    return parseAt(s, start, stop);
+  } catch (e) {
+    if (e instanceof Fail) return undefined;
+    throw e;
+  }
+}
+
 /** A whole expression (the trigger and parameter texts of a controller). */
 export function mugenParseExpr(src: string): Node {
   try {
