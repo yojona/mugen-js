@@ -220,7 +220,11 @@ export function compileModifyExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P
       if (prm.has('angle')) e.angle = prm.num(p, 'angle') ?? e.angle;
       if (prm.has('facing')) e.facing = (prm.int(p, 'facing') ?? 1) < 0 ? -1 : 1;
       if (prm.has('vfacing')) e.vfacing = (prm.int(p, 'vfacing') ?? 1) < 0 ? -1 : 1;
-      if (prm.has('removetime')) e.removeTime = prm.int(p, 'removetime') ?? e.removeTime;
+      if (prm.has('removetime')) {
+        const v = prm.int(p, 'removetime') ?? e.removeTime;
+        // -2: what is left of the animation, counted from the current age.
+        e.removeTime = v === -2 ? (e.anim.totalTime < 0 ? -1 : e.anim.totalTime - e.age) : v;
+      }
       if (prm.has('bindtime')) e.bindTime = prm.int(p, 'bindtime') ?? e.bindTime;
       if (prm.has('sprpriority')) e.sprPriority = prm.int(p, 'sprpriority') ?? e.sprPriority;
       if (prm.has('ontop')) e.onTop = (prm.int(p, 'ontop') ?? 0) !== 0;
@@ -284,21 +288,27 @@ export function simpleExplod(p: P, a: Animation, common: boolean, x: number, y: 
   };
 }
 
-/** Advance one explod by a tick; returns false when it should be removed. */
+/**
+ * Advance one explod by a frame; returns false when it is removed
+ * (SysDraw_Start): it goes at the start of the frame its age reaches the
+ * remove time, so an explod lives remove time + 1 frames (NumExplod counts it
+ * on the last one); it does not move on the frame it was created.
+ */
 export function updateExplod(e: Explod): boolean {
-  if (e.bindTo && e.bindTime !== 0) {
-    e.x = e.bindTo.wx + e.bindOffset[0];
-    e.y = e.bindTo.wy + e.bindOffset[1];
-    if (e.bindTime > 0) e.bindTime--;
-  } else {
+  const time = e.removeTime === -2 ? (e.anim.totalTime < 0 ? -1 : e.anim.totalTime) : e.removeTime;
+  if (time !== -1 && e.age >= time) return false;
+  e.anim.tick();
+  if (e.age > 0) {
     e.x += e.vel[0] * e.facing;
     e.y += e.vel[1];
     e.vel[0] += e.accel[0];
     e.vel[1] += e.accel[1];
   }
+  if (e.bindTo && e.bindTime !== 0) {
+    e.x = e.bindTo.wx + e.bindOffset[0];
+    e.y = e.bindTo.wy + e.bindOffset[1];
+    if (e.bindTime > 0) e.bindTime--;
+  }
   e.age++;
-  e.anim.tick();
-  if (e.removeTime === -2) return e.anim.totalTime < 0 || e.anim.animTime() < 0;
-  if (e.removeTime >= 0) return e.age < e.removeTime;
   return true;
 }

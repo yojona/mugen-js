@@ -353,13 +353,10 @@ export class World {
 
   private updateExplods(): void {
     this.explods = this.explods.filter((e) => {
-      if (this.superPause) {
-        if (e.superMoveTime === 0) return true;
-        if (e.superMoveTime > 0) e.superMoveTime--;
-      } else if (this.pause) {
-        if (e.pauseMoveTime === 0) return true;
-        if (e.pauseMoveTime > 0) e.pauseMoveTime--;
-      }
+      // During a pause an explod moves while its age is within its move time
+      // (SysDraw_Start: pause_movetime against the frames shown so far).
+      const t = this.superPause ? e.superMoveTime : this.pause ? e.pauseMoveTime : -1;
+      if ((this.superPause || this.pause) && t !== -1 && e.age > t) return true;
       if (!e.ignoreHitPause && e.owner.hitPause > 0) return true;
       return updateExplod(e);
     });
