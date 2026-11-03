@@ -213,6 +213,12 @@ export class Player {
   moveHit = 0;
   moveGuarded = 0;
   hitCount = 0;
+  /** UniqHitCount: every target hit counts (HitCount once per frame). */
+  uniqHitCount = 0;
+  /** Frame of the last hit that counted for HitCount (hit_frame). */
+  hitFrame = -1;
+  /** MoveReversed (move_contact 4): this player's HitDef was reversed. */
+  moveReversed = 0;
 
   // Being hit
   ghv: GetHitVars = emptyGetHitVars();
@@ -474,8 +480,8 @@ export class Player {
       this.hitDefSet = false;
       this.hitTargets.clear();
     }
-    if (!flag('movehitpersist')) this.moveContact = this.moveHit = this.moveGuarded = 0;
-    if (!flag('hitcountpersist')) this.hitCount = 0;
+    if (!flag('movehitpersist')) this.moveContact = this.moveHit = this.moveGuarded = this.moveReversed = 0;
+    if (!flag('hitcountpersist')) this.hitCount = this.uniqHitCount = 0;
     this.reversal = undefined;
   }
 
@@ -608,8 +614,8 @@ export class Player {
       // A missing current state (Player_RunState): on its first tick the hit
       // counts, move contact and HitDef attr are cleared; nothing else runs.
       if (no === this.stateNo && no >= 0 && this.time === 0 && this.hitPause <= 0) {
-        this.hitCount = 0;
-        this.moveContact = this.moveHit = this.moveGuarded = 0;
+        this.hitCount = this.uniqHitCount = 0;
+        this.moveContact = this.moveHit = this.moveGuarded = this.moveReversed = 0;
         if (this.hitDef) this.hitDef.attrType = '';
         this.hitDefActive = false;
       }
@@ -1190,6 +1196,7 @@ export class Player {
       if (this.moveContact) this.moveContact++;
       if (this.moveHit) this.moveHit++;
       if (this.moveGuarded) this.moveGuarded++;
+      if (this.moveReversed) this.moveReversed++;
     }
     if (this.freshState) {
       this.freshState = false;

@@ -210,13 +210,18 @@ function applyReversal(r: Player, a: Player): void {
   r.reversal = undefined;
   a.hitDefActive = false;
   a.hitDefSet = false;
+  // move_contact is one value: the reverser hit, the attacker was reversed.
   r.moveContact = r.moveHit = 1;
+  r.moveGuarded = r.moveReversed = 0;
+  a.moveReversed = 1;
+  a.moveContact = a.moveHit = a.moveGuarded = 0;
   // Player_Reverse: the reversed player cannot be hit for the pause (nor the
   // reverser after a throw reversal).
   a.nohitTime = rv.hd.pause[0] + 1;
   if (hitDefAttrBits(rv.hd.attrState, rv.hd.attrType) & 0x1c0) r.nohitTime = rv.hd.pause[0] + 1;
   // Player_Reverse: the reverser counts the hits and gets its power.
   r.hitCount += rv.hd.numHits;
+  r.uniqHitCount += rv.hd.numHits;
   r.addPower(rv.hd.getPower[0]);
   // hitpause_next on both sides: the pause starts counting next tick.
   r.hitPause = rv.hd.pause[0];
@@ -392,8 +397,14 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     // a hitonce HitDef (the default for throws).
     if (hd.hitOnce) a.hitDefSet = false;
     a.moveContact = 1;
-    if (guarded) a.moveGuarded = 1;
-    else a.moveHit = 1;
+    a.moveReversed = 0;
+    if (guarded) {
+      a.moveGuarded = 1;
+      a.moveHit = 0;
+    } else {
+      a.moveHit = 1;
+      a.moveGuarded = 0;
+    }
     a.hitPause = guarded ? hd.guardPause[0] : hd.pause[0];
     // The pause starts counting next tick; this tick still advances (measured).
     a.hitPauseFresh = true;
@@ -543,7 +554,12 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     d.ghvAttacker = a;
     g.hitcount = d.moveType === 'h' ? g.hitcount + 1 : 1;
     if (kills) g.fall = 1;
-    if (!proj) a.hitCount += hd.numHits;
+    // HitCount once per frame, UniqHitCount per target.
+    if (!proj) {
+      if (a.hitFrame < world.frames) a.hitCount += hd.numHits;
+      a.hitFrame = world.frames;
+      a.uniqHitCount += hd.numHits;
+    }
     // Player_Hit: after a throw neither player can be hit for the pause.
     if (!proj && !override && hitDefAttrBits(hd.attrState, hd.attrType) & 0x1c0) d.nohitTime = a.nohitTime = hd.pause[0] + 1;
     a.addPower(hd.getPower[0]);

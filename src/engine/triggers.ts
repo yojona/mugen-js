@@ -72,11 +72,11 @@ const NULLARY: Record<string, Fn<P>> = {
   numproj: int((p) => p.world.projectiles.filter((pr) => pr.owner === p && pr.phase === 'active').length),
   numhelper: int((p) => p.world.helpersOf(p).length),
   hitcount: int((p) => p.hitCount),
-  uniqhitcount: int((p) => p.hitCount),
+  uniqhitcount: int((p) => p.uniqHitCount),
   movecontact: int((p) => p.moveContact),
   movehit: int((p) => p.moveHit),
   moveguarded: int((p) => p.moveGuarded),
-  movereversed: int(() => 0),
+  movereversed: int((p) => p.moveReversed),
   hitshakeover: int((p) => (p.ghv.hitshaketime <= 0 ? 1 : 0)),
   // mugen.exe 0x4574d8: hittime < 0.
   hitover: int((p) => (p.ghv.hittime < 0 ? 1 : 0)),

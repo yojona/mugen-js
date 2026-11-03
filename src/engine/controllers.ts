@@ -272,7 +272,10 @@ const IMPLS: Record<string, Impl> = {
   },
   hitadd: (_c, prm) => (p) => {
     const v = prm.int(p, 'value');
-    if (v !== undefined) p.hitCount += v;
+    if (v !== undefined) {
+      p.hitCount += v;
+      p.uniqHitCount += v;
+    }
   },
   defencemulset: (_c, prm) => (p) => {
     const v = prm.num(p, 'value');
@@ -281,7 +284,7 @@ const IMPLS: Record<string, Impl> = {
   nothitby: (c, prm) => hitByController(c, prm, true),
   hitby: (c, prm) => hitByController(c, prm, false),
   movehitreset: () => (p) => {
-    p.moveContact = p.moveHit = p.moveGuarded = 0;
+    p.moveContact = p.moveHit = p.moveGuarded = p.moveReversed = 0;
   },
 
   playsnd: (_c, prm) => {
