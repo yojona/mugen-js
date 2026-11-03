@@ -35,6 +35,9 @@ export interface StageInfo {
   };
   p1: { x: number; y: number; facing: number };
   p2: { x: number; y: number; facing: number };
+  /** Simul partners: 25 behind P1 / P2 unless the stage says (Stage_Load). */
+  p3: { x: number; y: number; facing: number };
+  p4: { x: number; y: number; facing: number };
   leftBound: number;
   rightBound: number;
   screenLeft: number;
@@ -136,6 +139,16 @@ export async function loadStage(vfs: Vfs, defPath: string): Promise<Stage> {
     },
     p1: { x: num(g(pi, 'p1startx'), -70), y: num(g(pi, 'p1starty'), 0), facing: num(g(pi, 'p1facing'), 1) },
     p2: { x: num(g(pi, 'p2startx'), 70), y: num(g(pi, 'p2starty'), 0), facing: num(g(pi, 'p2facing'), -1) },
+    p3: {
+      x: num(g(pi, 'p3startx'), num(g(pi, 'p1startx'), -70) - 25),
+      y: num(g(pi, 'p3starty'), num(g(pi, 'p1starty'), 0)),
+      facing: num(g(pi, 'p3facing'), num(g(pi, 'p1facing'), 1)),
+    },
+    p4: {
+      x: num(g(pi, 'p4startx'), num(g(pi, 'p2startx'), 70) + 25),
+      y: num(g(pi, 'p4starty'), num(g(pi, 'p2starty'), 0)),
+      facing: num(g(pi, 'p4facing'), num(g(pi, 'p2facing'), -1)),
+    },
     leftBound: num(g(pi, 'leftbound'), -1000),
     rightBound: num(g(pi, 'rightbound'), 1000),
     screenLeft: num(g(bound, 'screenleft'), 15),
