@@ -1002,6 +1002,9 @@ export class Player {
       // Out of a hit: the get-up count and the fall count start over.
       g.recovertime = this.const('data.liedown.time');
       g.fallcount = 0;
+      g.fall = 0;
+      g.hitshaketime = 0;
+      g['fall.envshake.time'] = 0;
     }
     if (this.moveType !== 'h' || (st >= 130 && st <= 132) || st === 140) this.defMul = undefined;
     if (this.time === 0) {
