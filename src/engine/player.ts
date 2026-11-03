@@ -409,13 +409,11 @@ export class Player {
     // Entered from outside controller processing (landing, being hit): the new
     // state's controllers first run next tick, still at Time = 0.
     if (!this.inStates) this.freshState = true;
-    // Lying down: the get-up countdown starts when 5110 is entered.
     // The get-up count starts with a falling hit and again on hitting the
-    // ground (5100); lying down (5110) counts its entry tick (measured).
+    // ground (5100); 5110 counts it down after its states (engineHitTransitions).
     if (no === 5100) {
       this.ghv.recovertime = this.const('data.liedown.time');
     }
-    if (no === 5110) this.ghv.recovertime -= 1;
     this.stateChanged = true;
     this.changedStateThisTick = true;
     this.pendingStateType = undefined;
@@ -699,9 +697,9 @@ export class Player {
     for (const special of specials) if (this.runState(special)) changed = true;
     // Get-up from lying down happens after the special states and before the
     // current state runs (measured: 5110 Time = 60 is visible in -2).
-    if (!changed) this.engineHitTransitions();
     this.runCurrent();
     this.guardEnd();
+    if (!changed) this.engineHitTransitions();
   }
 
   /**
@@ -783,8 +781,13 @@ export class Player {
     const g = this.ghv;
     if (this.stateNo !== 5110 || !this.alive) return;
     // mugen.exe 0x43cb34: get up once the count is spent, else count down.
-    if (g.recovertime <= 0 && this.time > 0) this.changeState(5120);
-    else g.recovertime -= 1;
+    if (g.recovertime > 0) g.recovertime -= 1;
+    else if (this.time > 0) {
+      // Player_Update's switch, after the states: 5110's controllers have
+      // run this tick, and 5120 runs right away.
+      this.changeState(5120);
+      this.runCurrent();
+    }
   }
 
   /**
