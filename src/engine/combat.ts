@@ -480,11 +480,16 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     const aFacing = proj ? proj.facing : a.facing;
     // Applied when P2 next updates (measured: one tick after the hit).
     if (!proj) {
-      d.pendingPlacement = () => {
-        placeDefender(a, d, hd);
-        // Not past the screen edge (measured: a cornered P2 stays put).
-        world.clampToScreenOne(d);
-      };
+      // HitDef_Apply works out mindist/maxdist (and snap) as offsets from the
+      // positions at the hit; the target moves by them in its next update.
+      const [xoff, yoff] = placementOffsets(a, d, hd, dir);
+      if (xoff || yoff) {
+        d.pendingPlacement = () => {
+          d.setWorldPos(d.wx + xoff, d.wy + yoff);
+          // Not past the screen edge (measured: a cornered P2 stays put).
+          world.clampToScreenOne(d);
+        };
+      }
     }
     // p2facing = 1 turns P2 to face P1, -1 away from it (measured: KFM's
     // Smash Kung Fu Upper).
@@ -566,19 +571,22 @@ function cornerPush(a: Player, d: Player, veloff: number): void {
  * facing, y downwards), in P1's units (measured: KFM's Smash Kung Fu Upper
  * lifts a standing P2 to maxdist's y = -10).
  */
-function placeDefender(a: Player, d: Player, hd: HitDefData): void {
+function placementOffsets(a: Player, d: Player, hd: HitDefData, dir: number): [number, number] {
   const k = a.scale;
-  let rx = ((d.wx - a.wx) * a.facing) / k;
-  let ry = (d.wy - a.wy) / k;
-  if (hd.snap[0] !== undefined) rx = hd.snap[0];
-  if (hd.snap[1] !== undefined) ry = hd.snap[1];
-  if (hd.minDist[0] !== undefined) rx = Math.max(rx, hd.minDist[0]);
-  if (hd.maxDist[0] !== undefined) rx = Math.min(rx, hd.maxDist[0]);
-  if (hd.minDist[1] !== undefined) ry = Math.max(ry, hd.minDist[1]);
-  if (hd.maxDist[1] !== undefined) ry = Math.min(ry, hd.maxDist[1]);
-  const x = a.wx + rx * a.facing * k;
-  const y = a.wy + ry * k;
-  if (x !== d.wx || y !== d.wy) d.setWorldPos(x, y);
+  const minX = hd.snap[0] ?? hd.minDist[0];
+  const maxX = hd.snap[0] ?? hd.maxDist[0];
+  const minY = hd.snap[1] ?? hd.minDist[1];
+  const maxY = hd.snap[1] ?? hd.maxDist[1];
+  const ax = a.wx;
+  const ay = a.wy;
+  let xoff = 0;
+  let yoff = 0;
+  const dy = d.wy - ay;
+  if (minX !== undefined && Math.abs(d.wx - ax) < minX * k) xoff += ax + dir * minX * k - d.wx;
+  if (minY !== undefined && minY * k > dy) yoff += minY * k + ay - d.wy;
+  if (maxX !== undefined && Math.abs(ax - d.wx) > maxX * k) xoff += ax + dir * maxX * k - d.wx;
+  if (maxY !== undefined && maxY * k < dy) yoff += maxY * k + ay - d.wy;
+  return [xoff, yoff];
 }
 
 /**

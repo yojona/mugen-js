@@ -301,6 +301,8 @@ export class World {
         p.vel.x = b.vel.x * b.facing * p.facing * k;
         p.vel.y = b.vel.y * k;
         p.posFreeze = true;
+        // ...and drops the target's pending mindist/maxdist offsets.
+        p.pendingPlacement = undefined;
       }
       const frozen = p.hitPause > 0;
       p.runStates();
