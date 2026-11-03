@@ -328,10 +328,25 @@ export class Player {
   /** ChangeState: enter `no`; controllers of the new state run this same tick. */
   changeState(no: number, ctrl?: boolean, anim?: number): void {
     const cs = this.compiledState(no);
-    if (!cs) {
+    if (!cs && no !== 0) {
+      // mugen.exe (Player_ChangeState 0x43BF40) changes to a missing state
+      // anyway, with a warning: the state number moves and nothing runs.
       this.warn(`Estado ${no} no existe`);
+      this.prevStateNo = this.stateNo;
+      this.stateNo = no;
+      this.time = 0;
+      this.persist.clear();
+      this.pendingEntry = false;
+      if (!this.inStates) this.freshState = true;
+      this.stateChanged = true;
+      this.changedStateThisTick = true;
+      this.pendingStateType = undefined;
+      this.pendingVel = undefined;
+      if (ctrl !== undefined) this.ctrl = ctrl;
+      if (anim !== undefined) this.changeAnim(anim);
       return;
     }
+    if (!cs) return;
     this.prevStateNo = this.stateNo;
     this.stateNo = no;
     this.time = 0;
@@ -462,7 +477,17 @@ export class Player {
   /** Run one state's controllers. Returns true if the state was changed. */
   private runState(no: number): boolean {
     const cs = this.compiledState(no);
-    if (!cs) return false;
+    if (!cs) {
+      // A missing current state (Player_RunState): on its first tick the hit
+      // counts, move contact and HitDef attr are cleared; nothing else runs.
+      if (no === this.stateNo && no >= 0 && this.time === 0 && this.hitPause <= 0) {
+        this.hitCount = 0;
+        this.moveContact = this.moveHit = this.moveGuarded = 0;
+        if (this.hitDef) this.hitDef.attrType = '';
+        this.hitDefActive = false;
+      }
+      return false;
+    }
     const paused = this.hitPause > 0;
     const rec = this.recorder;
     for (const c of cs.controllers) {
@@ -548,13 +573,11 @@ export class Player {
     }
     // Helpers skip -3/-2, and -1 unless they read input (cns.html).
     const specials = this.isHelper ? (this.keyCtrl ? [-1] : []) : [-3, -2, -1];
+    // A ChangeState ends only the pass of its own special state; the next
+    // one still runs (mugen.exe Player_Update: -3, -2 and -1 are separate
+    // Player_RunSpecialState calls).
     let changed = false;
-    for (const special of specials) {
-      if (this.runState(special)) {
-        changed = true;
-        break;
-      }
-    }
+    for (const special of specials) if (this.runState(special)) changed = true;
     // Get-up from lying down happens after the special states and before the
     // current state runs (measured: 5110 Time = 60 is visible in -2).
     if (!changed) this.engineHitTransitions();
