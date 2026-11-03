@@ -455,7 +455,8 @@ function projTime(p: P, id: number, kind: 'hit' | 'contact' | 'guarded' | 'cance
 function redirect(p: P, to: string, _id: number | undefined): P | undefined {
   switch (to) {
     case 'root':
-      return p.root;
+      // Only helpers have a root (a player's is NULL: bottom).
+      return p.isHelper ? p.root : undefined;
     case 'parent':
       return p.parent;
     case 'helper':

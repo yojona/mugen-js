@@ -106,7 +106,9 @@ export class World {
   }
 
   helpersOf(p: Player, id?: number): Player[] {
-    return this.helpers.filter((h) => h.root === p.root && h !== p && (id === undefined || h.helperId === id) && !h.destroyed);
+    // Helpers_Count / Helper_Find: every helper of p's root (p itself
+    // included), any of them for ID 0.
+    return this.helpers.filter((h) => h.root === p.root && (id === undefined || id === 0 || h.helperId === id) && !h.destroyed);
   }
 
   /** Deterministic RNG in [0, n). MUGEN's generator still has to be matched. */
