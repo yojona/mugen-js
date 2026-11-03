@@ -418,8 +418,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded, proj }: PendingHit): 
     if (proj.hitsLeft <= 0 && proj.removeOnHit) endProjectile(proj, proj.hitAnim);
   } else {
     a.hitTargets.add(d);
-    // A HitDef is valid for a single hit; triggering it again re-arms it.
-    a.hitDefActive = false;
+    // Player_Hit: only a hitonce HitDef goes off; others stay active for
+    // other targets (each target once per HitDef, hit_ids).
+    if (hd.hitOnce) a.hitDefActive = false;
     // mugen.exe's hd->active (what the AI's learning sees) only goes off for
     // a hitonce HitDef (the default for throws).
     if (hd.hitOnce) a.hitDefSet = false;
