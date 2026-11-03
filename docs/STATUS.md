@@ -57,6 +57,7 @@ variable on the leaving screen's last frame). Comparisons use `?pristine=1`
 | Heidern vs Geese (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical: actions with a -1 element in the middle, hit facings applied next update, BindToTarget binding the target back, projscale not in collisions |
 | D-Yashiro vs Evil Robert (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical: learned AI from the .def's ai file, built-in transitions into missing states, full guardflag bits in AI records, -0.001 y velocity on falling ground hits, kill = 0 against pending damage, chainID/nochainID, KO seen the tick after the player's update, nokoslow |
 | Cool Choi vs Bebum Ryo (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | Whole match (8006 frames) identical: floor dust on the round state clock |
+| Kensou EX vs Geese NW (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | 9000 frames identical after the systematic port of the decompiled core (camera, hits, projectiles, controllers, triggers, round rules) |
 
 The parser, the parameter readers and several rules now come from the
 decompilation of the same mugen.exe (`ref/mugen-unleashed`, used only as a
@@ -77,7 +78,7 @@ documentation but not yet compared against the original.
 
 | # | Stage | Goal | State |
 |---|---|---|---|
-| 1 | Community characters | CPU vs CPU with real characters until whole matches match | Twelve KOF pairs match (Iori/Kyo, Kim/Benimaru, Clark/Kula, Athena/Leona, Andy/Chris, Billy/Daimon, King/Joe, Chang/Choi, Chin/Kensou, Heidern/Geese, D-Yashiro/Evil Robert, Cool Choi/Bebum Ryo); next: more characters |
+| 1 | Community characters | CPU vs CPU with real characters until whole matches match | Thirteen KOF pairs match (Iori/Kyo, Kim/Benimaru, Clark/Kula, Athena/Leona, Andy/Chris, Billy/Daimon, King/Joe, Chang/Choi, Chin/Kensou, Heidern/Geese, D-Yashiro/Evil Robert, Cool Choi/Bebum Ryo, Kensou EX/Geese NW); next: more characters |
 | 2 | AI coverage | Whole matches at levels 1, 3, 5, 6 and 8; time-over round; draw | Ready to start |
 | 3 | Exact camera | Reproduce the float math at `0x4167xx` (tiny drifts left in round 1) | Optional hardening |
 | 4 | Game modes | Team (simul/turns), Survival, Arcade with AI ramp; demo mode (title idle 600 frames); continue "Yes" path verified | Pending |
