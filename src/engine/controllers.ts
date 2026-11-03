@@ -100,14 +100,16 @@ const IMPLS: Record<string, Impl> = {
   changeanim: (_c, prm) => (p) => {
     const v = prm.int(p, 'value');
     if (v === undefined) return;
-    const elem = prm.int(p, 'elem');
-    p.changeAnim(v, elem === undefined ? 0 : elem - 1);
+    // run_change_anim: elem 0, absent or negative starts at the first element; negative anims are 0.
+    const elem = prm.int(p, 'elem') ?? 0;
+    p.changeAnim(Math.max(0, v), elem > 0 ? elem - 1 : 0);
   },
   changeanim2: (_c, prm) => (p) => {
     const v = prm.int(p, 'value');
     if (v === undefined) return;
-    const elem = prm.int(p, 'elem');
-    p.changeAnim(v, elem === undefined ? 0 : elem - 1, true);
+    // run_change_anim: elem 0, absent or negative starts at the first element; negative anims are 0.
+    const elem = prm.int(p, 'elem') ?? 0;
+    p.changeAnim(Math.max(0, v), elem > 0 ? elem - 1 : 0, true);
   },
 
   velset: (_c, prm) => (p) => {
