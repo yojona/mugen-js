@@ -16,7 +16,7 @@ export const BOTTOM = 2;
 export type Ty = typeof INT | typeof FLOAT | typeof BOTTOM;
 
 /** Type register of the most recent evaluation. */
-export const R: { t: Ty } = { t: INT };
+export const R: { t: Ty; from?: unknown } = { t: INT };
 
 export type Fn<C> = (c: C) => number;
 
@@ -104,7 +104,15 @@ export function compileNode<C>(n: Node, env: TriggerEnv<C>): Fn<C> {
         }
         const target = env.redirect(c, to, idv);
         if (target === undefined) return bottom();
-        return inner(target);
+        // R.from: the player evaluating the whole expression (some triggers
+        // are resolved against its tables, e.g. command names).
+        const prev = R.from;
+        if (prev === undefined) R.from = c;
+        try {
+          return inner(target);
+        } finally {
+          R.from = prev;
+        }
       };
     }
     case 'call': {

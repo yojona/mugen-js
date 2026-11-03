@@ -295,6 +295,19 @@ function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
       // (mugen.exe 0x456d9f; measured: common1's command != "holdback" exit
       // from 130 sends no message).
       return boolOut((p) => {
+        // Redirected: mugen.exe compiled the name into a slot of the
+        // evaluating character's command list and tests that slot in the
+        // target's buffer (a name the target lacks can still be active).
+        // The same in another character's states (custom states).
+        const from = (R.from as P | undefined) ?? p;
+        const owner = from.stateOwner ?? from;
+        if (owner.prog.cmd !== p.prog.cmd) {
+          const slot = commandSlot(owner, name);
+          if (slot < 0 || p.noInputStates || !p.cmdInput?.slotActive(slot)) return false;
+          const fired = p.recorder?.fired;
+          if (eq && fired && fired.length < 9) fired.push(slot);
+          return true;
+        }
         if (!p.commands.has(name)) return false;
         const fired = p.recorder?.fired;
         if (eq && fired && fired.length < 9) fired.push(commandSlot(p, name));

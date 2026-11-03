@@ -275,6 +275,11 @@ export class CommandInput {
     return c;
   }
 
+  /** Whether command slot n is active (buffer > 0). */
+  slotActive(n: number): boolean {
+    return (this.buffer[n] ?? 0) > 0;
+  }
+
   /** Active command names (buffer > 0). */
   active(): Set<string> {
     const out = new Set<string>();
