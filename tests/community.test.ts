@@ -204,4 +204,17 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('iori-yagami-kofa', 'athena-kofa', 'kyo-kofa', 'leona-kofa'))(
+    'Iori+Kyo vs Athena+Leona (simul 2v2), CPU level 4: the whole match, 7360 frames (quick VS pal.defaults, TargetBind bind_active, KeyedArray target order, movetimes in the update tail, BindToTarget postype letter)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'iori-kyo-vs-athena-leona-simul.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['iori-yagami-kofa', 'athena-kofa'], partners: ['kyo-kofa', 'leona-kofa'], frames: 8000, seed: 16808 });
+      expect(ours.length).toBe(7360);
+      // The capture's framestep slipped at frame 393; frame 7360 is
+      // mugen.exe's next match.
+      expect(peekDiff(ref, ours, 14, 392)).toEqual([]);
+      expect(peekDiff(ref, ours, 394, 7359)).toEqual([]);
+    },
+    120_000,
+  );
 });
