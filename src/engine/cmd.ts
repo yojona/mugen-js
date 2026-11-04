@@ -258,7 +258,11 @@ export class CommandInput {
     return this.set;
   }
 
+  /** The player's own command list: "recovery" always matches with it (char.c's second pass uses p->data->cmds). */
+  private readonly ownSet: CommandSet;
+
   constructor(private set: CommandSet) {
+    this.ownSet = set;
     this.buffer = new Uint8Array(Math.max(1, set.size));
     this.last = new Float64Array(Math.max(1, set.size)).fill(-Infinity);
   }
@@ -494,7 +498,18 @@ export class CommandInput {
 
   /** mugen.exe 0x4787e0. */
   private process(time: number): void {
-    const cmds = this.set.commands;
+    // Player_UpdateInput: CmdState_Update runs twice from the same queue
+    // position, the normal commands of the list in use (a custom state's
+    // owner's), then the recovery commands of the player's own list.
+    const start = this.qRead;
+    this.processPass(splitRecovery(this.set)[0], time);
+    const end = this.qRead;
+    this.qRead = start;
+    this.processPass(splitRecovery(this.ownSet)[1], time);
+    this.qRead = end;
+  }
+
+  private processPass(cmds: readonly Command[], time: number): void {
     while (this.qRead !== this.qWrite) {
       this.qRead = (this.qRead + 1) % QUEUE;
       for (const c of cmds) {
@@ -569,4 +584,15 @@ export class CommandInput {
       if (j === this.qStart) return undefined;
     }
   }
+}
+
+const recoverySplit = new WeakMap<CommandSet, [Command[], Command[]]>();
+/** A command list's normal and "recovery" commands (CMD_TYPE_NORMAL / CMD_TYPE_RECOVERY). */
+function splitRecovery(set: CommandSet): [Command[], Command[]] {
+  let v = recoverySplit.get(set);
+  if (!v) {
+    v = [set.commands.filter((c) => c.name !== 'recovery'), set.commands.filter((c) => c.name === 'recovery')];
+    recoverySplit.set(set, v);
+  }
+  return v;
 }
