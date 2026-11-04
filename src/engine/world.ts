@@ -369,6 +369,9 @@ export class World {
     // MUGEN picks the pause owner before the tick (mugen.exe 0x40cc73): a
     // pause that starts during this tick does not stop its floor dust.
     const pausedAtStart = !!(this.pause || this.superPause);
+    // gameloop's pause_kind for this tick: a pause counting since an earlier
+    // tick (a Pause re-applied during the tick keeps it).
+    const pauseKind = this.superPause && !this.superPause.fresh ? 1 : !this.superPause && this.pause && !this.pause.fresh ? 0 : -1;
     this.updateEnemies();
     // MUGEN's order (main tick 0x4130xx): facing sync and human key events,
     // then the CPU AI pass, then every player's input processing.
@@ -469,8 +472,8 @@ export class World {
         // running since the tick began the player's movetime for it counts
         // down; with none, a player in a hit state loses both (a Pause owner
         // hit this tick keeps its own: it was not in H yet).
-        const sp = this.superPause && !this.superPause.fresh;
-        const pz = !this.superPause && this.pause && !this.pause.fresh;
+        const sp = pauseKind === 1;
+        const pz = pauseKind === 0;
         if (sp) {
           if (p.superMoveTime > 0) p.superMoveTime--;
         } else if (pz) {
