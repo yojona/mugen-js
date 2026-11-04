@@ -435,6 +435,12 @@ function cancel(pr: Projectile): void {
 
 function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: PendingHit): void {
   const world = a.world;
+  // Player_Hit: a hitonce HitDef (the throws' default) goes off at its
+  // first hit and lets go of every other target of the attacker.
+  if (!proj && hd.hitOnce) {
+    if (!a.hitDefActive) return;
+    a.releaseTargets(d);
+  }
   // Player_Hit / Projectiles_HitPlayer: a guard the defender would not
   // survive (life left after everything pending) is a KO hit instead
   // (guard_ko is always on).
