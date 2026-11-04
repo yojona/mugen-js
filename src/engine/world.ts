@@ -4,7 +4,7 @@ import { CommandInput } from './cmd';
 import type { AnimationMap } from '../formats/air';
 import type { Sff } from '../formats/sff';
 import { clsn2TouchInternal, postResolvedMessages, Recorder } from './ai-learn';
-import { applyHits, collideProjectiles, hitProjectilesByHitDefs, detectHits, detectProjectileHits } from './combat';
+import { applyHits, applyProjectileHits, collideProjectiles, hitProjectilesByHitDefs, detectHits, detectProjectileHits } from './combat';
 import { simpleExplod, updateExplod, type Explod } from './explod';
 import { updateProjectile, type Projectile } from './projectile';
 import { newPalFx, recordAfterImage, tickPalFx, type EnvShake, type PalFxState } from './fx';
@@ -506,6 +506,7 @@ export class World {
     }
     if (hitsOn) {
       applyHits(detectProjectileHits(this.projectiles, active));
+      applyProjectileHits(this.projectiles);
       // Players_CheckHits: projectiles against projectiles come after.
       collideProjectiles(this.projectiles, this.allPlayers().filter((p) => !p.destroyed));
     }

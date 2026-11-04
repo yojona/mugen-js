@@ -295,18 +295,22 @@ function intCollide(
   return false;
 }
 
-/** Projectiles hitting players' Clsn2 boxes (Projectiles_HitPlayer). */
+/**
+ * Projectiles hitting players' Clsn2 boxes: Players_CheckHits calls
+ * Projectiles_HitPlayer for each pair of players in list order (the first's
+ * projectiles against the second, then the other way). A projectile may hit
+ * several players in one tick: its hit count and pause only change
+ * afterwards (hit_pending, Projectiles_ApplyHits).
+ */
 export function detectProjectileHits(projs: Projectile[], players: Player[]): PendingHit[] {
-  const live = projs.filter((p) => p.phase === 'active' && p.hitPause === 0);
   const hits: PendingHit[] = [];
-  for (const pr of live) {
-    if (pr.phase !== 'active' || pr.hitsLeft <= 0 || pr.missTimer > 0) continue;
-    const atk = projBoxes(pr, 1);
-    if (!atk.length) continue;
-    for (const d of players) {
-      // Projectiles_HitPlayer: a projectile with hits left may hit the same
-      // target again once its hit pause and miss time are over.
-      if (d.side === pr.owner.side || (!d.alive && d.stateType === 'l')) continue;
+  const hitPlayer = (owner: Player, d: Player) => {
+    if (d.side === owner.side || (!d.alive && d.stateType === 'l')) return;
+    for (const pr of projs) {
+      if (pr.owner !== owner || pr.phase !== 'active' || pr.hitPause > 0) continue;
+      if (pr.hitsLeft <= 0 || pr.missTimer > 0) continue;
+      const atk = projBoxes(pr, 1);
+      if (!atk.length) continue;
       const k = d.world.gameWidth / d.world.screenWidth;
       const hitBox = intCollide(
         { x: pr.x, y: pr.y, facing: pr.facing, sx: pr.clsnScale[0], sy: pr.clsnScale[1], boxes: pr.anim.current?.clsn1 },
@@ -317,10 +321,29 @@ export function detectProjectileHits(projs: Projectile[], players: Player[]): Pe
       if (!canHit(pr.owner, pr.hd, d, pr.hd.airJuggle)) continue;
       const guarded = isGuarding(d) && hitFlagMatches(d, pr.hd.guardFlag, true) && !pr.owner.special.has('unguardable');
       hits.push({ attacker: pr.owner, defender: d, hd: pr.hd, guarded, proj: pr });
-      break;
+    }
+  };
+  for (let i = 0; i < players.length; i++) {
+    for (let j = i + 1; j < players.length; j++) {
+      hitPlayer(players[i]!, players[j]!);
+      hitPlayer(players[j]!, players[i]!);
     }
   }
   return hits;
+}
+
+/** Projectiles_ApplyHits: each projectile that hit this tick loses one hit and takes its pause. */
+export function applyProjectileHits(projs: Projectile[]): void {
+  for (const pr of projs) {
+    if (!pr.hitPending) continue;
+    pr.hitPending = false;
+    pr.hitsLeft--;
+    // The last hit of a removeonhit projectile sets no pause or miss time.
+    const last = pr.hitsLeft <= 0 && pr.removeOnHit;
+    pr.hitPause = last ? 0 : pr.hd.pause[0];
+    pr.missTimer = last ? 0 : pr.missTime;
+    if (last) endProjectile(pr, pr.hitAnim);
+  }
 }
 
 /**
@@ -447,15 +470,10 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
   if (proj) {
     // Projectiles pause themselves (p1 pausetime) and count their hits.
     proj.hitTargets.add(d);
-    // Projectiles_HitPlayer: the p1 pausetime, guarded or not.
-    proj.hitsLeft--;
-    // Projectiles_ApplyHits: the last hit of a removeonhit projectile sets
-    // no pause or miss time.
-    const last = proj.hitsLeft <= 0 && proj.removeOnHit;
-    proj.hitPause = last ? 0 : hd.pause[0];
-    proj.missTimer = last ? 0 : proj.missTime;
+    // Projectiles_HitPlayer: the hit count and pause change once all hits
+    // of the tick are in (applyProjectileHits).
+    proj.hitPending = true;
     noteProjContact(a, guarded ? 1 : 2, proj.projId);
-    if (last) endProjectile(proj, proj.hitAnim);
   } else {
     a.hitTargets.add(d);
     // Player_Hit: only a hitonce HitDef goes off; others stay active for

@@ -51,6 +51,8 @@ export interface Projectile {
   pauseMoveTime: number;
   /** Players already hit during the current miss window. */
   hitTargets: Set<P>;
+  /** Hit someone this tick (Projectiles_ApplyHits takes its hit and pause). */
+  hitPending?: boolean;
 }
 
 export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) => void {
