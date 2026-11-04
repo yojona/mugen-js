@@ -253,12 +253,22 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
   const priorityType = (['hit', 'miss', 'dodge'].includes(prio[1] ?? '') ? prio[1] : 'hit') as HitDefData['priorityType'];
 
   return (p) => {
+    // Each expression is evaluated once, first in HitDef_SetFromParams'
+    // order (random draws: Lin's p2stateno comes before sparkxy).
+    const cache = new Map<string, number | undefined>();
     const n = (k: string, i = 0): number | undefined => {
+      const key = `${k}#${i}`;
+      if (cache.has(key)) return cache.get(key);
       const fn = get(k)[i];
-      if (!fn) return undefined;
-      const v = fn(p);
-      return R.t === BOTTOM ? undefined : v;
+      let v: number | undefined;
+      if (fn) {
+        const r = fn(p);
+        v = R.t === BOTTOM ? undefined : r;
+      }
+      cache.set(key, v);
+      return v;
     };
+    for (const [k, i] of EVAL_ORDER) if (has(k)) n(k, i);
     const ni = (k: string, i = 0): number | undefined => {
       const v = n(k, i);
       return v === undefined ? undefined : toInt(v);
@@ -421,3 +431,19 @@ export function hitDefAttrBits(state: string, type: string): number {
   const b = state === 's' ? 1 : state === 'c' ? 2 : state === 'a' ? 4 : 0;
   return b | hitAttrTypeBits(type);
 }
+
+/** HitDef_SetFromParams' evaluation order (sctrl.c 0x450300): key and value index. */
+const EVAL_ORDER: readonly [string, number][] = [
+  ['affectteam', 0], ['id', 0], ['chainid', 0], ['nochainid', 0], ['nochainid', 1], ['kill', 0], ['guard.kill', 0], ['fall.kill', 0],
+  ['hitonce', 0], ['air.juggle', 0], ['damage', 0], ['damage', 1], ['getpower', 0], ['getpower', 1], ['givepower', 0], ['givepower', 1],
+  ['pausetime', 1], ['pausetime', 0], ['numhits', 0], ['priority', 0], ['p1stateno', 0], ['p2stateno', 0], ['p2getp1state', 0],
+  ['p1sprpriority', 0], ['p2sprpriority', 0], ['forcestand', 0], ['forcenofall', 0], ['fall', 0], ['fall.damage', 0],
+  ['fall.xvelocity', 0], ['fall.yvelocity', 0], ['fall.recover', 0], ['fall.recovertime', 0], ['sparkxy', 0], ['sparkxy', 1],
+  ['p1facing', 0], ['p1getp2facing', 0], ['mindist', 0], ['mindist', 1], ['maxdist', 0], ['maxdist', 1], ['p2facing', 0],
+  ['ground.hittime', 0], ['ground.slidetime', 0], ['ground.velocity', 0], ['ground.velocity', 1], ['ground.cornerpush.veloff', 0],
+  ['air.hittime', 0], ['air.fall', 0], ['air.velocity', 0], ['air.velocity', 1], ['air.cornerpush.veloff', 0],
+  ['down.bounce', 0], ['down.hittime', 0], ['down.velocity', 0], ['down.velocity', 1], ['down.cornerpush.veloff', 0],
+  ['guard.velocity', 0], ['guard.hittime', 0], ['guard.slidetime', 0], ['guard.ctrltime', 0], ['guard.dist', 0],
+  ['guard.pausetime', 1], ['guard.pausetime', 0], ['guard.cornerpush.veloff', 0], ['airguard.velocity', 0], ['airguard.velocity', 1],
+  ['airguard.ctrltime', 0], ['airguard.cornerpush.veloff', 0], ['yaccel', 0],
+];
