@@ -579,9 +579,13 @@ const EXTRA: Record<string, Impl> = {
     // pos = x, y, postype (foot/mid/head): the word is not an expression.
     let src = c.params.get('pos') ?? '';
     let postype = 0;
-    const m = /,\s*(foot|mid|head)\s*$/i.exec(src);
+    // sctrl.c: after the numbers only the word's first letter counts
+    // (f foot, m mid, h head: Leona's "20,0,food" is foot).
+    const m = /,\s*([a-z][a-z0-9_]*)\s*$/i.exec(src);
     if (m) {
-      postype = { foot: 0, mid: 1, head: 2 }[m[1]!.toLowerCase() as 'foot' | 'mid' | 'head'];
+      const c = m[1]!.toLowerCase()[0];
+      if (c === 'm') postype = 1;
+      else if (c === 'h') postype = 2;
       src = src.slice(0, m.index);
     }
     let pos: Fn<P>[] = [];
