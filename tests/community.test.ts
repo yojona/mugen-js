@@ -243,4 +243,18 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('chang-kofa', 'daimon-kofa', 'choi-kofa', 'joe-kofa'))(
+    'Chang+Choi vs Daimon+Joe (simul 2v2), CPU level 4: the whole match, 9598 frames (hit ends a TargetBind, helper power)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'chang-choi-vs-daimon-joe-simul.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['chang-kofa', 'daimon-kofa'], partners: ['choi-kofa', 'joe-kofa'], frames: 11000, seed: 16808 });
+      expect(ours.length).toBe(9598);
+      // The capture's framestep slipped at frames 417-418, 2795-2797 and 9591.
+      expect(peekDiff(ref, ours, 14, 416)).toEqual([]);
+      expect(peekDiff(ref, ours, 419, 2794)).toEqual([]);
+      expect(peekDiff(ref, ours, 2798, 9590)).toEqual([]);
+      expect(peekDiff(ref, ours, 9592, 9597)).toEqual([]);
+    },
+    120_000,
+  );
 });
