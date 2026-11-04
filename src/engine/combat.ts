@@ -113,6 +113,10 @@ function canHit(a: Player, hd: HitDefData, d: Player, cost: number, proj = false
     if (!clear && n0 !== -1 && by && (d.ghv.chainid === n0 || (n1 !== -1 && d.ghv.chainid === n1))) return false;
   }
   if (!juggleOk(a, d, cost)) return false;
+  // Player_CanHit: past the juggle test the attacker's hitdef_juggle takes
+  // the HitDef's juggle (only without nojugglecheck): every hit of this tick
+  // spends that, even after the first one zeroes the HitDef's.
+  if (!proj && !a.special.has('nojugglecheck')) a.hitdefJuggle = cost;
   if (!hitFlagMatches(d, hd.hitFlag)) return false;
   // HitDef_SetStateAttr: the attacker's HitDef takes its current state type
   // (S/C/A bits) before the HitBy test.
@@ -597,8 +601,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     if (!proj && !override && (wasFalling || hd.fall || (hd.airFall && d.stateType === 'a'))) {
       // The amount is hitdef_juggle, which Player_CanHit only sets without
       // AssertSpecial nojugglecheck (else it stays 0 from the tick start).
-      const spend = a.special.has('nojugglecheck') ? 0 : Math.max(0, a.juggleCost);
-      a.targetJuggle.set(d, (a.targetJuggle.get(d) ?? a.const('data.airjuggle')) - spend);
+      a.targetJuggle.set(d, (a.targetJuggle.get(d) ?? a.const('data.airjuggle')) - a.hitdefJuggle);
       a.juggleCost = 0;
     }
     const vel = lying ? hd.downVel : inAir ? hd.airVel : hd.groundVel;

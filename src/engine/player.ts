@@ -306,6 +306,8 @@ export class Player {
   noInputStates = false;
   /** Juggle cost of the current attack state (statedef `juggle`). */
   juggleCost = 0;
+  /** Player.hitdef_juggle: the juggle cost Player_CanHit saw this tick (0 from the start of the hit checks). */
+  hitdefJuggle = 0;
   posFreeze = false;
   alive = true;
 

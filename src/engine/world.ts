@@ -508,7 +508,10 @@ export class World {
       // inactive players; a Pause stops updates, not hits).
       const hitters = this.allPlayers().filter((p) => !p.destroyed);
       // Players_CheckHits: nohit_time runs out first.
-      for (const p of hitters) if (p.nohitTime > 0) p.nohitTime--;
+      for (const p of hitters) {
+        if (p.nohitTime > 0) p.nohitTime--;
+        p.hitdefJuggle = 0;
+      }
       applyHits(detectHits(hitters), hitters, this.frames);
       // HitDefs against projectiles (hitflag P).
       hitProjectilesByHitDefs(this.projectiles, hitters);
