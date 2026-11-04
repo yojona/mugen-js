@@ -5,6 +5,7 @@ import { STATEDEF_SPEC } from './sctrl-spec';
 import { compileExprList, R, truthy, type Fn } from '../expr/compile';
 import type { Animation } from '../formats/air';
 import { parseIni } from '../formats/text';
+import { SlotMap } from './slot-map';
 import { AnimPlayer } from './anim';
 import { parseAiFile } from './ai-learn';
 import type { CharacterData } from './character';
@@ -312,7 +313,8 @@ export class Player {
   alive = true;
 
   // Targets (players hit by this player's attacks), with the HitDef id.
-  targets = new Map<Player, number>();
+  /** The target list in mugen.exe's KeyedArray slot order (capacity 8). */
+  targets = new SlotMap<Player, number>(8);
   /** P2 for this tick (World.updateEnemies); null: none, undefined: not picked yet. */
   enemy: Player | null | undefined = undefined;
   /** TargetBind / BindTo*: position lock applied after physics. */
