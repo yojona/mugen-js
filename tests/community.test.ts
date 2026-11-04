@@ -230,4 +230,17 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('heidern-kofa', 'geese-kofa', 'd-yashiro-kofa', 'billy-kofa'))(
+    'Heidern+D-Yashiro vs Geese+Billy (simul 2v2), CPU level 4: the whole match, 10383 frames',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'heidern-yashiro-vs-geese-billy-simul.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['heidern-kofa', 'geese-kofa'], partners: ['d-yashiro-kofa', 'billy-kofa'], frames: 11000, seed: 16808 });
+      expect(ours.length).toBe(10383);
+      // The capture's framestep slipped around frame 414 (413 read three
+      // times, then 414, 416, 418); frame 10383 is mugen.exe's next match.
+      expect(peekDiff(ref, ours, 14, 412)).toEqual([]);
+      expect(peekDiff(ref, ours, 419, 10382)).toEqual([]);
+    },
+    120_000,
+  );
 });
