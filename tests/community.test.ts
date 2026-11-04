@@ -169,4 +169,13 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('akuma-kofa', 'iori-yagami-kofa'))(
+    'Akuma vs Iori, CPU level 4: the whole match, 5231 frames (power frozen once a round is over, nojugglecheck, round start placement)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'akuma-vs-iori.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['akuma-kofa', 'iori-yagami-kofa'], frames: 5231, seed: 16808 });
+      expect(peekDiff(ref, ours, 14, 5231)).toEqual([]);
+    },
+    120_000,
+  );
 });
