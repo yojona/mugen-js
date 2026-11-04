@@ -278,4 +278,15 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('hwa-jai-kofa', 'jhun-kofa', 'eiji-kofa', 'kyoko-kofa'))(
+    'Hwa Jai+Eiji vs Jhun+Kyoko (simul 2v2), CPU level 4: the whole match, 11453 frames',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'hwajai-eiji-vs-jhun-kyoko-simul.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['hwa-jai-kofa', 'jhun-kofa'], partners: ['eiji-kofa', 'kyoko-kofa'], frames: 14000, seed: 16808 });
+      expect(ours.length).toBe(11453);
+      // Frame 11453 is mugen.exe's next match.
+      expect(peekDiff(ref, ours, 14, 11452)).toEqual([]);
+    },
+    120_000,
+  );
 });
