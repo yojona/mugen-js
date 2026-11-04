@@ -376,10 +376,14 @@ function palFxFrom(prm: Params, p: P): PalFxState {
 }
 
 function eachTarget(p: P, prm: Params, f: (t: P) => void): void {
-  const id = prm.int(p, 'id') ?? -1;
-  // target_matches: not guarding, hit by a HitDef of the ID (the target's
-  // current gethit_id).
-  for (const t of p.targets.keys()) if (!t.guardFlag && (id === -1 || t.ghv.chainid === id)) f(t);
+  // run_targets: the ID is evaluated for each target in turn (draws of
+  // Random inside it are per target).
+  for (const t of [...p.targets.keys()]) if (targetMatches(t, prm.int(p, 'id') ?? -1)) f(t);
+}
+
+/** target_matches: not guarding, hit by a HitDef of the ID (the target's current gethit_id). */
+function targetMatches(t: P, id: number): boolean {
+  return !t.guardFlag && (id === -1 || t.ghv.chainid === id);
 }
 
 const EXTRA: Record<string, Impl> = {
@@ -563,13 +567,13 @@ const EXTRA: Record<string, Impl> = {
 
   // Targets
   targetbind: (_c, prm) => (p) => {
-    let time = prm.int(p, 'time') ?? 1;
-    if (time < -1) time = 1;
     // sctrl.c TargetBind: bind_x/y = Ftol(FromLocal(pos)), whole internal units.
     const k = p.world.gameWidth / p.world.screenWidth;
     const iu = (v: number) => Math.trunc(v * p.scale * k) / k;
-    const off: [number, number] = [iu(prm.num(p, 'pos', 0) ?? 0), iu(prm.num(p, 'pos', 1) ?? 0)];
     eachTarget(p, prm, (t) => {
+      let time = prm.int(p, 'time') ?? 1;
+      if (time < -1) time = 1;
+      const off: [number, number] = [iu(prm.num(p, 'pos', 0) ?? 0), iu(prm.num(p, 'pos', 1) ?? 0)];
       // Binds are stored in world units. x follows the binder's facing when
       // placed (end of its update, after a Turn).
       t.bind = { to: p, offset: off, time, byTarget: true };
@@ -636,10 +640,14 @@ const EXTRA: Record<string, Impl> = {
       t.bind = b;
     };
   },
+  // run_targets: every Target* controller evaluates its parameters for each
+  // target, in the original's order (a Random in the value is drawn per
+  // target: Kim's 2060 sends its two targets to 2020+random%2 each).
   targetstate: (_c, prm) => (p) => {
-    const v = prm.int(p, 'value');
-    if (v === undefined) return;
     eachTarget(p, prm, (t) => {
+      let v = prm.int(p, 'value');
+      if (v === undefined) return;
+      if (v < 0) v = 0;
       t.stateOwner = p;
       // Like p1stateno: the statedef (poweradd, anim...) applies when the
       // state first runs (measured: KFM's 821 adds its power a tick later).
@@ -647,23 +655,27 @@ const EXTRA: Record<string, Impl> = {
     });
   },
   targetfacing: (_c, prm) => (p) => {
-    // 0 (the default) does nothing; > 0 faces like p, < 0 away from it.
-    const v = prm.int(p, 'value') ?? 0;
-    if (v === 0) return;
-    eachTarget(p, prm, (t) => {
-      t.facing = v > 0 ? p.facing : -p.facing;
-    });
+    // Every target (no ID): > 0 faces like p, < 0 away from it, 0 nothing.
+    for (const t of [...p.targets.keys()]) {
+      const v = prm.int(p, 'value') ?? 0;
+      if (v > 0) t.facing = p.facing;
+      else if (v < 0) t.facing = -p.facing;
+    }
   },
   targetlifeadd: (_c, prm) => (p) => {
-    const v = prm.int(p, 'value') ?? 0;
-    const kill = (prm.int(p, 'kill') ?? 1) !== 0;
-    const abs = (prm.int(p, 'absolute') ?? 0) !== 0;
     // No attack multiplier: only the target's defence (Player_ApplyDamage).
-    eachTarget(p, prm, (t) => t.applyLifeAdd(v, kill, abs));
+    eachTarget(p, prm, (t) => {
+      const abs = (prm.int(p, 'absolute') ?? 0) !== 0;
+      const kill = (prm.int(p, 'kill') ?? 1) !== 0;
+      const v = prm.int(p, 'value') ?? 0;
+      t.applyLifeAdd(v, kill, abs);
+    });
   },
   targetpoweradd: (_c, prm) => (p) => {
-    const v = prm.int(p, 'value') ?? 0;
-    eachTarget(p, prm, (t) => t.addPower(v));
+    for (const t of [...p.targets.keys()]) {
+      const v = prm.int(p, 'value') ?? 0;
+      if (targetMatches(t, prm.int(p, 'id') ?? -1)) t.addPower(v);
+    }
   },
   targetvelset: (_c, prm) => (p) => {
     eachTarget(p, prm, (t) => {
@@ -676,18 +688,22 @@ const EXTRA: Record<string, Impl> = {
   },
   targetveladd: (_c, prm) => (p) => {
     eachTarget(p, prm, (t) => {
+      const x = prm.num(p, 'x');
+      const y = prm.num(p, 'y');
       const k = p.scale / t.scale;
-      t.vel.x += (prm.num(p, 'x') ?? 0) * k;
-      t.vel.y += (prm.num(p, 'y') ?? 0) * k;
+      if (x !== undefined) t.vel.x += x * k;
+      if (y !== undefined) t.vel.y += y * k;
     });
   },
   targetdrop: (_c, prm) => (p) => {
-    const keep = prm.int(p, 'excludeid') ?? -1;
-    const keepOne = (prm.int(p, 'keepone') ?? 1) !== 0;
+    // A target hit by the excluded ID stays (only the first one with
+    // keepone); every other target is dropped.
     let kept = false;
-    for (const [t, id] of p.targets) {
-      if (keep !== -1 && id === keep && (!keepOne || !kept)) {
-        kept = true;
+    for (const t of [...p.targets.keys()]) {
+      const keep = prm.int(p, 'excludeid') ?? -1;
+      const keepOne = (prm.int(p, 'keepone') ?? 1) !== 0;
+      if (keep === t.ghv.chainid && !kept) {
+        if (keepOne) kept = true;
         continue;
       }
       p.targets.delete(t);
