@@ -332,4 +332,15 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('kyo-kofa', 'iori-yagami-kofa', 'benimaru-kofa', 'athena-kofa'))(
+    'Kyo+Benimaru vs Iori+Athena (simul 2v2) on stage0, CPU level 4: the whole match, 6651 frames (freed default Clsn, pre-1.0 flags in hit pause, removing projectiles)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kyo-beni-vs-iori-athena-stage0-simul.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['kyo-kofa', 'iori-yagami-kofa'], partners: ['benimaru-kofa', 'athena-kofa'], frames: 14000, seed: 16808, stage: 'stage0' });
+      expect(ours.length).toBe(6651);
+      // Frame 6651 is mugen.exe's next match.
+      expect(peekDiff(ref, ours, 14, 6650)).toEqual([]);
+    },
+    120_000,
+  );
 });
