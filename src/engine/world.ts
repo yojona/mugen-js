@@ -744,8 +744,10 @@ export class World {
     // Turning keeps the world velocity (the facing setter flips vel x).
     p.facing = -p.facing;
     p.cmdInput?.syncFacing(p.facing < 0);
-    if (p.stateType === 's' && p.hasAnim(5)) p.changeAnim(5);
-    else if (p.stateType === 'c' && p.hasAnim(6)) p.changeAnim(6);
+    // Anim_SetAction: the same action keeps running (a second turn within
+    // the turning action does not restart it).
+    const want = p.stateType === 's' ? 5 : p.stateType === 'c' ? 6 : undefined;
+    if (want !== undefined && p.hasAnim(want) && !(p.animNo === want && p.animProg === p.prog)) p.changeAnim(want);
   }
 
 
