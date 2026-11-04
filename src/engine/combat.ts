@@ -228,6 +228,8 @@ function applyReversal(r: Player, a: Player): void {
   a.hitPause = rv.hd.pause[1];
   r.hitPauseFresh = a.hitPauseFresh = true;
   r.targets.set(a, rv.hd.id);
+  reversalGetHitVars(r, a, rv.hd);
+  if (rv.hd.p1Facing) r.nextFacing = -r.facing;
   r.world.spawnSpark(r, a, rv.hd.spark, [(rv.hd.sparkXY[0] + (a.hitDef?.sparkXY[0] ?? 0)) * r.scale, (rv.hd.sparkXY[1] + (a.hitDef?.sparkXY[1] ?? 0)) * r.scale], { x: r.wx, y: r.wy });
   r.world.playHitSound(r, rv.hd.hitSound);
   if (rv.hd.p1StateNo >= 0) r.changeState(rv.hd.p1StateNo);
@@ -242,6 +244,44 @@ function applyReversal(r: Player, a: Player): void {
     a.changeState(rv.hd.p2StateNo);
     a.ctrl = false;
   }
+}
+
+/**
+ * HitDef_Apply of a ReversalDef on the reversed player: no get-hit state,
+ * only the get-hit vars (fall stays as it was unless the ReversalDef has
+ * fall or forcenofall) and the fall parameters.
+ */
+function reversalGetHitVars(r: Player, a: Player, hd: HitDefData): void {
+  const g = a.ghv;
+  const conv = r.scale / a.scale;
+  // p2facing turns the reversed player at its next update (dir = the
+  // reverser's facing).
+  if (hd.p2Facing === 1 && a.facing !== -r.facing) a.nextFacing = -r.facing;
+  else if (hd.p2Facing === -1 && a.facing !== r.facing) a.nextFacing = r.facing;
+  a.ghvAttacker = r;
+  g.chainid = hd.id;
+  g.xvel = g.yvel = 0;
+  g.guarded = 0;
+  g.groundtype = hd.groundType;
+  g.airtype = hd.airType;
+  if (hd.fall) g.fall = 1;
+  else if (hd.forceNoFall) g.fall = 0;
+  g.animtype = g.fall ? hd.fallAnimType : hd.animType;
+  g.yaccel = hd.yaccel * conv;
+  if (hd.envShake) r.world.envShake = makeEnvShake(hd.envShake.time, hd.envShake.freq, hd.envShake.ampl, hd.envShake.phase, r.scale * (r.world.gameWidth / r.world.screenWidth));
+  g['fall.xvel'] = hd.fallXVel === undefined ? Number.NaN : hd.fallXVel * conv;
+  g['fall.yvel'] = hd.fallYVel * conv;
+  g['fall.recover'] = hd.fallRecover ? 1 : 0;
+  g['fall.time'] = 0;
+  g['fall.recovertime'] = hd.fallRecoverTime;
+  g['fall.kill'] = hd.fallKill ? 1 : 0;
+  if (hd.fallEnvShake) {
+    g['fall.envshake.time'] = hd.fallEnvShake.time;
+    g['fall.envshake.freq'] = hd.fallEnvShake.freq;
+    g['fall.envshake.ampl'] = hd.fallEnvShake.ampl;
+    g['fall.envshake.phase'] = hd.fallEnvShake.phase;
+  }
+  g['fall.damage'] = hd.fallDamage;
 }
 
 /**
