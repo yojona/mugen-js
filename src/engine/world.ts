@@ -462,6 +462,7 @@ export class World {
       // mugen.exe Player_Update: the projectile contact clock runs after the
       // states, unless in hit pause; so do the HitBy / NotHitBy clocks.
       if (!frozen) {
+        p.countShake();
         p.projContactTime++;
         p.hitByTail();
         // The movetimes, in the same tail (before the hits): with a pause

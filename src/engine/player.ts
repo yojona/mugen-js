@@ -1298,6 +1298,17 @@ export class Player {
     this.anim.tick(this.hitPause > 0);
   }
 
+  /**
+   * Player_Update, after the states (not in hit pause): a player being hit
+   * counts its shake down, so players updating after it see it this tick
+   * (Gato's corner push waits for target, HitShakeOver).
+   */
+  countShake(): void {
+    const g = this.ghv;
+    // Like the attacker's pause, the shake starts counting next tick.
+    if (this.moveType === 'h' && g.hitshaketime > 0 && this.shakeTick !== this.world.gameTime) g.hitshaketime--;
+  }
+
   /** End of tick: advance state time. */
   advance(): void {
     // Player_Update: an override with time t (0 included) lasts until t updates ran out.
@@ -1321,8 +1332,8 @@ export class Player {
     // ticks into the jump that ended it; a throw with hittime 0 is not over
     // during its shake).
     const shakeFresh = this.shakeTick === this.world.gameTime;
-    // Like the attacker's pause, the shake starts counting next tick.
-    if (g.hitshaketime > 0 && !shakeFresh) g.hitshaketime--;
+    // The shake counted down in the update (countShake); the hit time runs
+    // once it is over.
     if (g.hitshaketime <= 0 && !shakeFresh && g.hittime >= 0) g.hittime--;
     // gethit_fall_time counts while falling in a hit, the hit shake
     // included (measured: a CPU recovers from 5050 one tick earlier than
