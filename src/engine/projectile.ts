@@ -53,6 +53,8 @@ export interface Projectile {
   hitTargets: Set<P>;
   /** Hit someone this tick (Projectiles_ApplyHits takes its hit and pause). */
   hitPending?: boolean;
+  /** Ending as mugen.exe's state 2 (bounds, removetime, a HitDef's hit): it can still hit players. */
+  removed?: boolean;
 }
 
 export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) => void {
@@ -169,8 +171,9 @@ export function noteProjContact(p: P, kind: 1 | 2 | 3, id: number): void {
 }
 
 /** Switch to an ending animation (hit / remove / cancel); -1 removes immediately. */
-export function endProjectile(pr: Projectile, anim: number, vel?: [number, number]): void {
+export function endProjectile(pr: Projectile, anim: number, vel?: [number, number], removed = false): void {
   if (pr.phase !== 'active') return;
+  pr.removed = removed;
   const a = anim >= 0 ? pr.owner.prog.data.anims.get(anim) : undefined;
   // Projectiles_Update: an ending projectile (removed, cancelled or hit)
   // still moves by its old velocity on its first ending tick, then by
@@ -254,7 +257,7 @@ function removeNow(pr: Projectile): void {
   }
   pr.x += pr.vel[0] * pr.facing;
   pr.y += pr.vel[1];
-  endProjectile(pr, pr.remAnim, pr.remVel);
+  endProjectile(pr, pr.remAnim, pr.remVel, true);
   pr.vel = [...pr.remVel];
   pr.endVel = undefined;
   if (pr.anim.totalTime <= 0) pr.phase = 'dead';

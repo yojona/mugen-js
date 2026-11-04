@@ -363,7 +363,10 @@ export function detectProjectileHits(projs: Projectile[], players: Player[]): Pe
   const hitPlayer = (owner: Player, d: Player) => {
     if (!d.alive && d.stateType === 'l') return;
     for (const pr of projs) {
-      if (pr.owner !== owner || pr.phase !== 'active' || pr.hitPause > 0) continue;
+      // Projectiles_HitPlayer: states 1 (flying) and 2 (being removed by
+      // bounds, removetime or a HitDef) still hit (Benimaru's 2006).
+      if (pr.owner !== owner || pr.hitPause > 0) continue;
+      if (pr.phase !== 'active' && !(pr.phase === 'ending' && pr.removed)) continue;
       if (!affectsTeam(pr.hd, owner, d)) continue;
       if (pr.hitsLeft <= 0 || pr.missTimer > 0) continue;
       const atk = projBoxes(pr, 1);
@@ -427,7 +430,7 @@ export function hitProjectilesByHitDefs(projs: Projectile[], order: Player[]): v
       p.hitDefActive = false;
       if (hd.p1StateNo >= 0) p.changeState(hd.p1StateNo);
       pr.hitsLeft--;
-      if (pr.hitsLeft <= 0 && pr.removeOnHit) endProjectile(pr, pr.remAnim, pr.remVel);
+      if (pr.hitsLeft <= 0 && pr.removeOnHit) endProjectile(pr, pr.remAnim, pr.remVel, true);
       else pr.hitPause = pr.hd.pause[0];
     }
   };
