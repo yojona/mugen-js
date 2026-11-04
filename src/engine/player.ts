@@ -1,5 +1,6 @@
 // Player runtime: state machine, physics and per-tick processing.
 
+import { isPre10 } from './sctrl-params';
 import { hitDefAttrBits } from './hitdef';
 import { STATEDEF_SPEC } from './sctrl-spec';
 import { compileExprList, R, truthy, type Fn } from '../expr/compile';
@@ -805,6 +806,10 @@ export class Player {
   /** Reset effects that last a single tick unless re-asserted. */
   private resetTickFlags(): void {
     this.special.clear();
+    // Player_Update resets the per-tick flags only for 1.0+ characters or
+    // when not in hit pause: a frozen older character keeps last tick's
+    // (Benimaru's ScreenBound = 0 holds through his hit pause).
+    if (this.hitPause > 0 && isPre10(this.prog.data.def.mugenVersion)) return;
     this.trans = undefined;
     this.angleDraw = false;
     this.drawScale = [1, 1];
