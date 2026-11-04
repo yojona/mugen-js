@@ -1266,6 +1266,12 @@ export class Player {
       this.hitPause--;
       return;
     }
+    // Player_Update decided the pause at its start: a player already paused
+    // that hits someone else (simul) takes the new pause without advancing.
+    if (this.hitPauseFresh && this.paused) {
+      this.hitPauseFresh = false;
+      return;
+    }
     // HitBy / NotHitBy run out only outside hit pause (Player_Update's
     // unfrozen tail); HitOverride slots count down regardless.
     for (const s of this.hitBy) if (s.time > 0) s.time--;
