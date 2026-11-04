@@ -84,6 +84,11 @@ export function parseAir(text: string): AnimationMap {
   let def2: Clsn[] | null = null;
   let next1: Clsn[] | null = null;
   let next2: Clsn[] | null = null;
+  // A ClsnNDefault and then a ClsnN in the same element's lines: mugen.exe
+  // releases the default box set (Anim_Load's Clsn_Release) and the new set
+  // takes its freed memory, so the default the next elements get is that set.
+  let defHere1 = false;
+  let defHere2 = false;
   let pendingInterp = { offset: false, blend: false, scale: false, angle: false };
   let interpBeforeFirst = { offset: false, blend: false, scale: false, angle: false };
   let setLoopStart = false;
@@ -115,6 +120,7 @@ export function parseAir(text: string): AnimationMap {
       // MUGEN keeps the first definition of a duplicated action.
       if (!anims.has(action)) anims.set(action, cur);
       def1 = def2 = next1 = next2 = null;
+      defHere1 = defHere2 = false;
       clsnTarget = null;
       pendingInterp = { offset: false, blend: false, scale: false, angle: false };
       interpBeforeFirst = { ...pendingInterp };
@@ -129,11 +135,21 @@ export function parseAir(text: string): AnimationMap {
       const isDefault = !!hm[2];
       clsnTarget = { which, isDefault, boxes: [] };
       if (which === 1) {
-        if (isDefault) def1 = clsnTarget.boxes;
-        else next1 = clsnTarget.boxes;
+        if (isDefault) {
+          def1 = clsnTarget.boxes;
+          defHere1 = true;
+        } else {
+          next1 = clsnTarget.boxes;
+          if (defHere1) def1 = next1;
+        }
       } else {
-        if (isDefault) def2 = clsnTarget.boxes;
-        else next2 = clsnTarget.boxes;
+        if (isDefault) {
+          def2 = clsnTarget.boxes;
+          defHere2 = true;
+        } else {
+          next2 = clsnTarget.boxes;
+          if (defHere2) def2 = next2;
+        }
       }
       continue;
     }
@@ -191,6 +207,7 @@ export function parseAir(text: string): AnimationMap {
     }
     cur.elements.push(el);
     next1 = next2 = null;
+    defHere1 = defHere2 = false;
     clsnTarget = null;
   }
   closeAction();
