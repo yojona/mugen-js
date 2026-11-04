@@ -51,4 +51,7 @@ const screen = new FightScreen(ctx, {
 const frame = Number(q.get('frame') ?? 1);
 for (let i = 1; i <= frame; i++) screen.tick();
 screen.draw();
+const w = screen.world;
+const k = w.gameWidth / w.screenWidth;
+document.title = `cam ${(w.camera.x * k).toFixed(3)} ${(w.camera.y * k).toFixed(3)} ground ${(w.groundY * k).toFixed(1)} sw ${w.screenWidth}x${w.screenHeight}`;
 (window as unknown as { __done: boolean }).__done = true;
