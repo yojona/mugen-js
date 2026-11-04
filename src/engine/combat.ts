@@ -229,7 +229,8 @@ function applyReversal(r: Player, a: Player): void {
   r.hitPauseFresh = a.hitPauseFresh = true;
   r.targets.set(a, rv.hd.id);
   reversalGetHitVars(r, a, rv.hd);
-  if (rv.hd.p1Facing) r.nextFacing = -r.facing;
+  // hd->p1facing is p1facing < 0 (and off with p1getp2facing).
+  if (rv.hd.p1Facing < 0 && !rv.hd.p1GetP2Facing) r.nextFacing = -r.facing;
   r.world.spawnSpark(r, a, rv.hd.spark, [(rv.hd.sparkXY[0] + (a.hitDef?.sparkXY[0] ?? 0)) * r.scale, (rv.hd.sparkXY[1] + (a.hitDef?.sparkXY[1] ?? 0)) * r.scale], { x: r.wx, y: r.wy });
   r.world.playHitSound(r, rv.hd.hitSound);
   if (rv.hd.p1StateNo >= 0) r.changeState(rv.hd.p1StateNo);
