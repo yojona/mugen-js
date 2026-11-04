@@ -29,6 +29,16 @@ export interface PeekOptions {
   partners?: [string | undefined, string | undefined];
 }
 
+/**
+ * QuickVs_SetupTeams: player n takes the character's pal.defaults[n] (n + 1
+ * when missing or outside 1..12); the harness gives P2 -p2.color 2.
+ */
+export function quickVsPal(defaults: number[], slot: number): number {
+  if (slot === 2) return 2;
+  const v = defaults[slot - 1];
+  return v === undefined || !(v >= 1 && v <= 12) ? slot : v;
+}
+
 export const REF_DIR = join(import.meta.dirname, '..', '..', 'ref', 'mugen-1.1b1');
 
 export async function peekMatch(o: PeekOptions): Promise<string[]> {
@@ -46,7 +56,7 @@ export async function peekMatch(o: PeekOptions): Promise<string[]> {
   const partnerProg = await Promise.all(partner.map(async (c) => (c ? loadProgram(vfs, await loadCharacter(vfs, `chars/${c}/${c}.def`)) : undefined)));
   const mk = (prog: typeof prog1, side: number, slot: number) => {
     const p = new Player(prog, w, side);
-    if (slot === 2) p.palNo = 2;
+    p.palNo = quickVsPal(prog.data.def.palDefaults, slot);
     p.ai = new MugenAI(p, levels[side]!);
     return p;
   };

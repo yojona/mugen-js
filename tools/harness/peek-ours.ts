@@ -12,6 +12,7 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadCharacter } from '../../src/engine/character';
 import { Match } from '../../src/engine/match';
+import { quickVsPal } from './peek-run';
 import { nodeSource } from '../../src/engine/node-source';
 import { loadProgram, Player } from '../../src/engine/player';
 import { Vfs } from '../../src/engine/vfs';
@@ -42,7 +43,7 @@ const partner = [process.env.P3, process.env.P4];
 const partnerProg = await Promise.all(partner.map(async (c) => (c ? loadProgram(vfs, await loadCharacter(vfs, `chars/${c}/${c}.def`)) : undefined)));
 const mkPlayer = (prog: typeof prog1, side: number, slot: number) => {
   const p = new Player(prog, w, side);
-  if (slot === 2) p.palNo = 2;
+  p.palNo = quickVsPal(prog.data.def.palDefaults, slot);
   p.ai = new MugenAI(p, levels[side] ?? 4);
   p.warn = (msg) => console.error(`${p.name}: ${msg}`);
   return p;
