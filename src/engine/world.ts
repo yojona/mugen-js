@@ -548,7 +548,9 @@ export class World {
       hitProjectilesByHitDefs(this.projectiles, hitters);
     }
     if (hitsOn) {
-      applyHits(detectProjectileHits(this.projectiles, active));
+      // Projectiles_HitPlayer runs for every pair of the hit list, paused
+      // players included (Kisarah, frozen by a SuperPause's last tick).
+      applyHits(detectProjectileHits(this.projectiles, this.allPlayers().filter((p) => !p.destroyed)));
       applyProjectileHits(this.projectiles);
       // Players_CheckHits: projectiles against projectiles come after.
       collideProjectiles(this.projectiles, this.allPlayers().filter((p) => !p.destroyed));
