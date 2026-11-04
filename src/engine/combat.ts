@@ -582,6 +582,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
   if (guarded) {
     const dmg = hitDamage(d, hd.guardDamage, hd.guardKill, world.gameTime);
     d.shakeTick = world.gameTime;
+    // Player_Guard: no air jumps left after guarding (Leo cannot air-jump
+    // out of 155).
+    d.airJumpsLeft = 0;
     g.guarded = 1;
     g.chainid = hd.id;
     d.ghvAttacker = a;
