@@ -178,4 +178,17 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('kyo-kofa', 'iori-yagami-kofa', 'akuma-kofa'))(
+    'Kyo+Iori (simul) vs Akuma, CPU level 4: the whole match, 6502 frames (hits during the hit pause, a projectile hitting both partners, combo target order)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kyo-iori-vs-akuma-simul.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['kyo-kofa', 'akuma-kofa'], partners: ['iori-yagami-kofa', undefined], frames: 7000, seed: 16808 });
+      expect(ours.length).toBe(6502);
+      // The capture's framestep slipped around frame 400 (398 read three
+      // times, then 399, 401, 403); frame 6502 is mugen.exe's next match.
+      expect(peekDiff(ref, ours, 14, 398)).toEqual([]);
+      expect(peekDiff(ref, ours, 404, 6501)).toEqual([]);
+    },
+    120_000,
+  );
 });
