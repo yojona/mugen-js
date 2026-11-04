@@ -257,4 +257,15 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('hotaru-kofa', 'kasumi-kofa', 'lee-kofa', 'duolon-kofa'))(
+    'Hotaru+Lee vs Kasumi+Duolon (simul 2v2), CPU level 4: the whole match, 12737 frames (commands held in a pause, throw reversal)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'hotaru-lee-vs-kasumi-duolon-simul.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['hotaru-kofa', 'kasumi-kofa'], partners: ['lee-kofa', 'duolon-kofa'], frames: 14000, seed: 16808 });
+      expect(ours.length).toBe(12737);
+      // Frame 12737 is mugen.exe's next match.
+      expect(peekDiff(ref, ours, 14, 12736)).toEqual([]);
+    },
+    120_000,
+  );
 });
