@@ -142,7 +142,9 @@ export interface PendingHit {
 export function detectHits(players: Player[]): PendingHit[] {
   const hits: PendingHit[] = [];
   for (const a of players) {
-    if (!a.hitDefActive || !a.hitDef || a.hitPause > 0) continue;
+    // Player_CanHit: an active HitDef of a player not idle; its own hit
+    // pause does not stop it from hitting someone else.
+    if (!a.hitDefActive || !a.hitDef || a.moveType === 'i') continue;
     const atk = worldBoxes(a, a.anim.current?.clsn1 ?? null);
     if (!atk.length) continue;
     for (const d of players) {
