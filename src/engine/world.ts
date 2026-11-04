@@ -453,6 +453,17 @@ export class World {
       if (!frozen) {
         p.projContactTime++;
         p.hitByTail();
+        // The movetimes, in the same tail (before the hits): with a pause
+        // running since the tick began the player's movetime for it counts
+        // down; with none, a player in a hit state loses both (a Pause owner
+        // hit this tick keeps its own: it was not in H yet).
+        const sp = this.superPause && !this.superPause.fresh;
+        const pz = !this.superPause && this.pause && !this.pause.fresh;
+        if (sp) {
+          if (p.superMoveTime > 0) p.superMoveTime--;
+        } else if (pz) {
+          if (p.pauseMoveTime > 0) p.pauseMoveTime--;
+        } else if (p.moveType === 'h') p.superMoveTime = p.pauseMoveTime = 0;
       }
       if (this.inputLocked && !p.isHelper) p.ctrl = false;
       p.physicsStep();
@@ -553,18 +564,6 @@ export class World {
     for (const p of this.allPlayers()) {
       for (const e of p.events) this.sounds.push(e);
       p.events.length = 0;
-      // Player_Update's end: with a pause running (not one starting this
-      // tick) the player's movetime for it counts down; with none, a player
-      // being hit loses its movetimes (a Pause owner hit into H included).
-      const sp = this.superPause && !this.superPause.fresh;
-      const pz = !this.superPause && this.pause && !this.pause.fresh;
-      // It is part of the unfrozen tail: a player in its own hit pause keeps them.
-      if (p.paused) continue;
-      if (sp) {
-        if (p.superMoveTime > 0 && active.includes(p)) p.superMoveTime--;
-      } else if (pz) {
-        if (p.pauseMoveTime > 0 && active.includes(p)) p.pauseMoveTime--;
-      } else if (p.moveType === 'h') p.superMoveTime = p.pauseMoveTime = 0;
     }
     if (this.helperSlots.some((h) => h?.destroyed)) {
       this.helperSlots = this.helperSlots.map((h) => (h && !h.destroyed ? h : null));
