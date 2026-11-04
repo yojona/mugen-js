@@ -260,5 +260,8 @@ function removeNow(pr: Projectile): void {
   endProjectile(pr, pr.remAnim, pr.remVel, true);
   pr.vel = [...pr.remVel];
   pr.endVel = undefined;
-  if (pr.anim.totalTime <= 0) pr.phase = 'dead';
+  // Projectiles_Update, same update: an end animation with no length goes
+  // at once, and so does one already at its end (projremanim = projanim
+  // keeps the time: Benimaru's 1220 does not hit after its removetime).
+  if (pr.anim.totalTime <= 0 || pr.anim.animTime() >= 0) pr.phase = 'dead';
 }
