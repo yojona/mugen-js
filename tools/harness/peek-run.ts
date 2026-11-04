@@ -6,7 +6,7 @@
 import { join } from 'node:path';
 import { MugenAI } from '../../src/engine/ai';
 import { loadCharacter } from '../../src/engine/character';
-import { Match } from '../../src/engine/match';
+import { Match, type TeamPlan } from '../../src/engine/match';
 import { nodeSource } from '../../src/engine/node-source';
 import { loadProgram, Player } from '../../src/engine/player';
 import { Vfs } from '../../src/engine/vfs';
@@ -25,6 +25,8 @@ export interface PeekOptions {
   stage?: string;
   /** Full precision positions (not 4 decimals). */
   exact?: boolean;
+  /** Simul partners of P1 / P2 (mugen.exe quick VS -p3 / -p4); P3 is logged after P2. */
+  partners?: [string | undefined, string | undefined];
 }
 
 export const REF_DIR = join(import.meta.dirname, '..', '..', 'ref', 'mugen-1.1b1');
@@ -39,22 +41,40 @@ export async function peekMatch(o: PeekOptions): Promise<string[]> {
   const w = new World();
   w.applyStage(stage.info);
   w.fightFx = { anims: parseAir(await vfs.text('data/fightfx.air')), sff: await parseSff(await vfs.read('data/fightfx.sff')) };
-  const p1 = new Player(prog1, w, 0);
-  const p2 = new Player(prog2, w, 1);
-  p2.palNo = 2;
-  w.players.push(p1, p2);
   const levels = o.ai ?? [4, 4];
-  [p1, p2].forEach((p, i) => (p.ai = new MugenAI(p, levels[i]!)));
-  const m = new Match(w, hud.roundConfig(), [
-    { x: stage.info.p1.x, y: stage.info.p1.y, facing: stage.info.p1.facing },
-    { x: stage.info.p2.x, y: stage.info.p2.y, facing: stage.info.p2.facing },
-  ]);
+  const partner = o.partners ?? [undefined, undefined];
+  const partnerProg = await Promise.all(partner.map(async (c) => (c ? loadProgram(vfs, await loadCharacter(vfs, `chars/${c}/${c}.def`)) : undefined)));
+  const mk = (prog: typeof prog1, side: number, slot: number) => {
+    const p = new Player(prog, w, side);
+    if (slot === 2) p.palNo = 2;
+    p.ai = new MugenAI(p, levels[side]!);
+    return p;
+  };
+  let m: Match;
+  if (partnerProg.some(Boolean)) {
+    const teams = [0, 1].map((side) => {
+      const pp = partnerProg[side];
+      return {
+        mode: pp ? ('simul' as const) : ('single' as const),
+        count: pp ? 2 : 1,
+        spawn: (_m: number, k: number) => mk(k ? pp! : side ? prog2 : prog1, side, side + 1 + 2 * k),
+      };
+    }) as [TeamPlan, TeamPlan];
+    m = new Match(w, hud.roundConfig(), [stage.info.p1, stage.info.p2, stage.info.p3, stage.info.p4], { teams, quickVs: true });
+  } else {
+    w.players.push(mk(prog1, 0, 1), mk(prog2, 1, 2));
+    m = new Match(w, hud.roundConfig(), [
+      { x: stage.info.p1.x, y: stage.info.p1.y, facing: stage.info.p1.facing },
+      { x: stage.info.p2.x, y: stage.info.p2.y, facing: stage.info.p2.facing },
+    ]);
+  }
   w.seed = o.seed;
   const lines: string[] = [];
   const f = (x: number) => (o.exact ? String(x) : x.toFixed(4));
   for (let i = 1; i <= o.frames; i++) {
     if (m.tick()) w.tick([0, 0]);
-    const pl = [p1, p2].flatMap((p) => [p.stateNo, p.time, p.life, f(p.pos.x), f(p.pos.y), f(p.vel.x * p.facing), f(p.vel.y)]);
+    const shown = partner.some(Boolean) ? [w.slot(1), w.slot(2), w.slot(3)].filter((p): p is Player => !!p) : w.players.slice(0, 2);
+    const pl = shown.flatMap((p) => [p.stateNo, p.time, p.life, f(p.pos.x), f(p.pos.y), f(p.vel.x * p.facing), f(p.vel.y)]);
     lines.push(`P|${i}|${[i, w.roundState, w.seed, ...pl].join(',')}`);
     if (m.finished) break;
   }
@@ -82,14 +102,15 @@ export function peekDiff(mugen: string, ours: string[], from: number, to: number
   };
   const m = load(mugen.split('\n'));
   const o = load(ours);
-  const names = ['rs', 'rng', ...[1, 2].flatMap((s) => ['state', 'time', 'life', 'x', 'y', 'vx', 'vy'].map((k) => `p${s}.${k}`))];
+  // P1, P2, then P3 when both sides logged a simul partner.
+  const names = ['rs', 'rng', ...[1, 2, 3].flatMap((s) => ['state', 'time', 'life', 'x', 'y', 'vx', 'vy'].map((k) => `p${s}.${k}`))];
   const out: string[] = [];
   for (let gt = from; gt <= to && out.length < limit; gt++) {
     const a = m.get(gt);
     const b = o.get(gt);
     if (!a || !b) continue;
     const bad: string[] = [];
-    names.forEach((n, i) => {
+    names.slice(0, Math.min(a.length, b.length)).forEach((n, i) => {
       const x = Number(a[i]);
       let y = Number(b[i]);
       if (/\.(x|y|vx|vy)$/.test(n)) {
