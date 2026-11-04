@@ -1231,6 +1231,19 @@ export class Player {
       this.releaseTargets();
       this.world.explods = this.world.explods.filter((e) => !(e.owner === this && !e.system && e.removeOnGetHit));
     }
+    // Player_Update: a KOed player with a partner slot filled (simul) does
+    // not push, and from 5150 time 10 on leaves the screen bounds and the
+    // camera alone.
+    if (!this.alive && !this.isHelper) {
+      const partner = this.slotNo > 0 ? this.world.slot(this.slotNo > 2 ? this.slotNo - 2 : this.slotNo + 2) : undefined;
+      if (partner) {
+        this.pushEnabled = false;
+        if (this.stateNo === 5150 && this.time >= 10) {
+          this.screenBound = false;
+          this.moveCamera = [false, false];
+        }
+      }
+    }
   }
 
   /**
