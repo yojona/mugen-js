@@ -731,8 +731,11 @@ export class World {
         // above it; crouching and airborne players skip this test
         // (mugen.exe 0x43df60).
         const above = (p: Player, q: Player) => p.stateType === 's' && p.wy - q.wy > p.const('size.height') * p.scale;
-        if (above(a, b) || above(b, a)) continue;
-        this.pushApart(a, b);
+        if (!above(a, b) && !above(b, a)) this.pushApart(a, b);
+        // Players_Push: both go back inside the stage and, with screenbound,
+        // the screen right after each pair (the next pair sees them there).
+        this.clampPlayer(a);
+        this.clampPlayer(b);
       }
     }
   }
