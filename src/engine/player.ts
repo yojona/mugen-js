@@ -648,7 +648,6 @@ export class Player {
     if (w.roundState === 3 && this.alive && (w.roundClock ?? 0) >= w.overHitTime) return;
     // The kill = 0 limit was applied when the hit landed (Player_HitDamage).
     this.life = Math.max(0, Math.min(this.lifeMax, this.life - d.amount));
-    if (this.life <= 0) this.ghv.fall = 1;
   }
 
   addPower(v: number): void {
