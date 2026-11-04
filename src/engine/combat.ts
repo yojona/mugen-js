@@ -459,6 +459,11 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
   // p2getp1state (a throw) makes the hit do nothing at all.
   if (!proj && (hd.p1StateNo >= 0 || hd.p2GetP1State) && d.hitOverrides.some((o) => overrides(o, hd))) return;
   a.targets.set(d, hd.id);
+  // Player_Hit / Projectiles_HitPlayer: unless a HitOverride takes the hit,
+  // the attacker's target entry loses its TargetBind (a hit at the end of a
+  // hold lets the target go).
+  const overridden = d.hitOverrides.some((o) => overrides(o, hd));
+  if (!overridden && d.bind?.byTarget && d.bind.to === a) d.bind.time = 0;
   // Player_AddTarget: a new entry starts with the attacker's airjuggle.
   if (!a.targetJuggle.has(d)) a.targetJuggle.set(d, a.const('data.airjuggle'));
   // HitDef_Apply: a HitDef with ground.type (air.type in the air) = None
@@ -770,6 +775,13 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     return;
   }
   a.sprPriority = hd.p1SprPriority;
+  // Player_Hit: a hit (not guarded or overridden) binds the target for
+  // snap's time at the snap offset (bind_x/y = Ftol(FromLocal(snap))).
+  if (!guarded && !overridden && hd.snapTime !== 0) {
+    const k = world.gameWidth / world.screenWidth;
+    const iu = (v: number | undefined) => (v === undefined ? 0 : Math.trunc(Math.trunc(v) * a.scale * k) / k);
+    d.bind = { to: a, offset: [iu(hd.snap[0]), iu(hd.snap[1])], time: hd.snapTime, byTarget: true };
+  }
   // p1stateno: the statedef applies when the state first runs (measured: a
   // KFM throw keeps anim 800 and its MoveContact on the hit tick).
   if (!guarded && hd.p1StateNo >= 0) a.enterLater(hd.p1StateNo);

@@ -59,6 +59,8 @@ export interface HitDefData {
   minDist: [number | undefined, number | undefined];
   maxDist: [number | undefined, number | undefined];
   snap: [number | undefined, number | undefined];
+  /** snap's time (p2bindtime): the attacker's TargetBind time on its target after the hit (0 = none). */
+  snapTime: number;
   guardVel: number;
   airVel: [number, number];
   airGuardVel: [number, number];
@@ -356,6 +358,8 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
       minDist: [n('mindist', 0), n('mindist', 1)],
       maxDist: [n('maxdist', 0), n('maxdist', 1)],
       snap: [n('snap', 0), n('snap', 1)],
+      // sctrl.c: snap's third value (fourth before 1.0, after z); below -1 is 1.
+      snapTime: ((v) => (v < -1 ? 1 : v))(ni('snap', pre10 ? 3 : 2) ?? 0),
       guardVel,
       airVel,
       airGuardVel: [n('airguard.velocity', 0) ?? airVel[0] * 1.5, n('airguard.velocity', 1) ?? airVel[1] / 2],
