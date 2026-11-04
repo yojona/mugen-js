@@ -609,14 +609,17 @@ export class Player {
 
   /** Drop targets that are no longer being hit. */
   pruneTargets(): void {
-    // Player_UpdateCombo: a target still being hit (or a ReversalDef up) keeps the side's combo going.
+    // Player_UpdateCombo: a target still being hit (or a ReversalDef up)
+    // keeps the side's combo going and ends the walk; the targets before it
+    // that are not are dropped, those after it stay listed (FindEnemy still
+    // picks among them).
     for (const [t] of this.targets) {
-      if ((t.moveType === 'h' && (t.stateNo !== 5150 || t.time === 0)) || (this.reversal && this.hitDefActive)) {
+      if (t.world === this.world && ((t.moveType === 'h' && (t.stateNo !== 5150 || t.time === 0)) || (this.reversal && this.hitDefActive))) {
         this.world.comboOngoing[this.side] = true;
         break;
       }
+      this.targets.delete(t);
     }
-    for (const [t] of this.targets) if (t.moveType !== 'h' || t.world !== this.world) this.targets.delete(t);
     for (const [t] of this.targetJuggle) if (!this.targets.has(t)) this.targetJuggle.delete(t);
   }
   /** Juggle points left per target (the target entries of mugen.exe). */
