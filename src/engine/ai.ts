@@ -367,8 +367,10 @@ export class MugenAI {
     this.stateTime++;
     if (this.cooldown > 0) this.cooldown--;
     const w = this.watched;
-    // Frozen while the watched player is in hit pause (p+0xef8), like its recording.
-    if (this.watching && w && w.hitPause <= 0 && !this.p.world.pause && !this.p.world.superPause) this.watchTime++;
+    // Frozen while the watched player was paused in its last update
+    // (Player.paused, p+0xef8: a pause from a hit it lands this tick
+    // shows only next tick), like its recording.
+    if (this.watching && w && !w.paused && !this.p.world.pause && !this.p.world.superPause) this.watchTime++;
   }
 
   /** 0x430900: returns true when the state changed. */

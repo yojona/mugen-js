@@ -549,7 +549,10 @@ export class World {
     // The recording clock stands still in hit pause, a tick late like the
     // pause flag p+0xef8 (measured: KFM's 640 records its last active tick
     // exactly its 12 pause ticks earlier than counting them).
-    for (const p of [...this.players].reverse()) p.recorder?.tick(!this.frozen(p) && !p.hitPauseLastTick);
+    // Ai_UpdateLearn's tick: the player ran this tick (player_tick), was not
+    // in hit pause and no pause ran (pause_kind), all as the tick began: a
+    // pause ending during the tick still holds the clock.
+    for (const p of [...this.players].reverse()) p.recorder?.tick(active.includes(p) && !p.hitPauseLastTick && !pausedAtStart);
     this.updateCamera();
     this.updateZoom();
     for (const p of active) {
