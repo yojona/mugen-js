@@ -339,7 +339,10 @@ export function simpleExplod(p: P, a: Animation, common: boolean, x: number, y: 
 export function updateExplod(e: Explod): boolean {
   const time = e.removeTime === -2 ? (e.anim.totalTime < 0 ? -1 : e.anim.totalTime) : e.removeTime;
   if (time !== -1 && e.age >= time) return false;
-  e.anim.tick();
+  // SysDraw_Start -> Anim_Step: the element of the current time is shown,
+  // then the time moves on (a new explod shows its first element).
+  e.anim.resync();
+  e.anim.tick(true);
   if (e.age > 0) {
     e.x += e.vel[0] * e.velDir;
     e.y += e.vel[1];
