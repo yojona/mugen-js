@@ -144,6 +144,11 @@ export interface PendingHit {
   proj?: Projectile;
 }
 
+/** Player_CanHit's affectteam test: bit 1 the attacker's team, bit 2 the other one. */
+function affectsTeam(hd: HitDefData, a: Player, d: Player): boolean {
+  return (hd.affectTeam & (d.side === a.side ? 1 : 2)) !== 0;
+}
+
 export function detectHits(players: Player[]): PendingHit[] {
   const hits: PendingHit[] = [];
   for (const a of players) {
@@ -153,10 +158,11 @@ export function detectHits(players: Player[]): PendingHit[] {
     const atk = worldBoxes(a, a.anim.current?.clsn1 ?? null);
     if (!atk.length) continue;
     for (const d of players) {
-      if (d === a || d.side === a.side || (!d.alive && d.stateType === 'l')) continue;
+      if (d === a || !affectsTeam(a.hitDef, a, d) || (!d.alive && d.stateType === 'l')) continue;
       if (a.hitTargets.has(d)) continue;
-      // ReversalDef: the defender's Clsn1 against the attacker's Clsn1.
-      if (d.reversal && attrMatches(d.reversal.attrs, a.hitDef.attrState, a.hitDef.attrType)) {
+      // ReversalDef: the defender's Clsn1 against the attacker's Clsn1
+      // (reversals only between teams).
+      if (d.side !== a.side && d.reversal && attrMatches(d.reversal.attrs, a.hitDef.attrState, a.hitDef.attrType)) {
         if (clsnTouchInternal(d, 1, a, 1)) {
           applyReversal(d, a);
           continue;
@@ -355,9 +361,10 @@ function intCollide(
 export function detectProjectileHits(projs: Projectile[], players: Player[]): PendingHit[] {
   const hits: PendingHit[] = [];
   const hitPlayer = (owner: Player, d: Player) => {
-    if (d.side === owner.side || (!d.alive && d.stateType === 'l')) return;
+    if (!d.alive && d.stateType === 'l') return;
     for (const pr of projs) {
       if (pr.owner !== owner || pr.phase !== 'active' || pr.hitPause > 0) continue;
+      if (!affectsTeam(pr.hd, owner, d)) continue;
       if (pr.hitsLeft <= 0 || pr.missTimer > 0) continue;
       const atk = projBoxes(pr, 1);
       if (!atk.length) continue;

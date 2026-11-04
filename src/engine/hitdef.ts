@@ -29,6 +29,8 @@ export interface HitDefData {
   attrType: string; // 'na', 'sa', 'ht', ...
   hitFlag: string;
   guardFlag: string;
+  /** affectteam: 1 the attacker's own team, 2 the enemy team, 3 both (HitDef_ParseParams, by first letter). */
+  affectTeam: number;
   animType: number;
   airAnimType: number;
   fallAnimType: number;
@@ -333,6 +335,7 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
       attrType,
       hitFlag: (raw('hitflag') ?? 'MAF').toLowerCase(),
       guardFlag: (raw('guardflag') ?? '').toLowerCase(),
+      affectTeam: ((c) => (c === 'b' ? 3 : c === 'f' ? 1 : 2))((raw('affectteam') ?? 'e').trim().toLowerCase()[0]),
       animType,
       airAnimType,
       fallAnimType,
@@ -434,7 +437,7 @@ export function hitDefAttrBits(state: string, type: string): number {
 
 /** HitDef_SetFromParams' evaluation order (sctrl.c 0x450300): key and value index. */
 const EVAL_ORDER: readonly [string, number][] = [
-  ['affectteam', 0], ['id', 0], ['chainid', 0], ['nochainid', 0], ['nochainid', 1], ['kill', 0], ['guard.kill', 0], ['fall.kill', 0],
+  ['id', 0], ['chainid', 0], ['nochainid', 0], ['nochainid', 1], ['kill', 0], ['guard.kill', 0], ['fall.kill', 0],
   ['hitonce', 0], ['air.juggle', 0], ['damage', 0], ['damage', 1], ['getpower', 0], ['getpower', 1], ['givepower', 0], ['givepower', 1],
   ['pausetime', 1], ['pausetime', 0], ['numhits', 0], ['priority', 0], ['p1stateno', 0], ['p2stateno', 0], ['p2getp1state', 0],
   ['p1sprpriority', 0], ['p2sprpriority', 0], ['forcestand', 0], ['forcenofall', 0], ['fall', 0], ['fall.damage', 0],
