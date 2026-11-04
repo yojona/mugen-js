@@ -3,7 +3,8 @@
 Usage: peek-diff.py mugen.log ours.log [scale] [max reports]
 scale: mugen.exe internal units per character unit for x/y/vel (GameWidth / char localcoord width)."""
 import sys
-NAMES = ['rs', 'rng'] + [f'p{s}.{k}' for s in (1, 2) for k in ('state', 'time', 'life', 'x', 'y', 'vx', 'vy')]
+# P1, P2, then P3 / P4 when both logs have them (simul captures).
+NAMES = ['rs', 'rng'] + [f'p{s}.{k}' for s in (1, 2, 3, 4) for k in ('state', 'time', 'life', 'x', 'y', 'vx', 'vy')]
 def load(path):
     rows = {}
     for line in open(path):
@@ -30,7 +31,7 @@ for gt in sorted(set(m) & set(o)):
         continue
     compared += 1
     bad = []
-    for i, n in enumerate(NAMES):
+    for i, n in enumerate(NAMES[:min(len(a), len(b))]):
         x, y = float(a[i]), float(b[i])
         if n.split('.')[-1] in ('x', 'y', 'vx', 'vy'):
             y *= scale

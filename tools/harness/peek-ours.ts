@@ -105,7 +105,7 @@ for (let i = 1; i <= ticks; i++) {
   const f = (x: number) => x.toFixed(4);
   // Frames, like mugen.exe's counter (G+0x11e98), which runs on through the KO slowdown.
   const row = [i, w.roundState, w.seed];
-  const shown = [w.slot(1), w.slot(2), ...(partner.some(Boolean) ? [w.slot(3)] : [])].filter((p): p is Player => !!p);
+  const shown = [w.slot(1), w.slot(2), ...(partner.some(Boolean) ? [w.slot(3)] : []), ...(partner[1] ? [w.slot(4)] : [])].filter((p): p is Player => !!p);
   const pl = shown.flatMap((p: Player) => [p.stateNo, p.time, p.life, f(p.pos.x), f(p.pos.y), f(p.vel.x * p.facing), f(p.vel.y)]);
   if (process.env.AIQ) {
     const q = [p1, p2].flatMap((p) => [p.stateNo, p.time, p.hitPause, p.ai!.state, p.ai!.stateTime, p.ai!.queued, p.moveContact]);
