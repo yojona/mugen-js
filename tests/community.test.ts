@@ -217,4 +217,17 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('chizuru&maki-kofa', 'kula-kofa', 'andy-kofa', 'king-kofa'))(
+    'Chizuru&Maki+Andy vs Kula+King (simul 2v2), CPU level 4: the whole match, 11343 frames (AI learn clock fixed at the tick start, second auto-turn keeps the turning action)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'chizuru-andy-vs-kula-king-simul.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['chizuru&maki-kofa', 'kula-kofa'], partners: ['andy-kofa', 'king-kofa'], frames: 12000, seed: 16808 });
+      expect(ours.length).toBe(11343);
+      // The capture's framestep slipped at frame 413; frame 11343 is
+      // mugen.exe's next match.
+      expect(peekDiff(ref, ours, 14, 412)).toEqual([]);
+      expect(peekDiff(ref, ours, 414, 11342)).toEqual([]);
+    },
+    120_000,
+  );
 });
