@@ -782,7 +782,13 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
       // by statetype only: common1's 5000/5010 switch to air themselves when yvel != 0.
       // air.type = Trip sends an airborne target to 5070 too (HitDef_Apply).
       const hitState = lying ? 5080 : (inAir ? hd.airType : hd.groundType) === 3 ? 5070 : inAir ? 5020 : d.stateType === 'c' ? 5010 : 5000;
-      if (override && override.stateNo >= 0) d.changeState(override.stateNo);
+      if (override && override.stateNo >= 0) {
+        d.changeState(override.stateNo);
+        // The statedef runs first in the next update (Player_RunState at
+        // Time = 0): its anim starts there, not stepped a tick before
+        // (Lin's 1560 HitOverride).
+        if (d.compiledState(override.stateNo)?.def.params.has('anim')) d.skipAnimTick = true;
+      }
       else if (hd.p2StateNo >= 0) {
         // HitDef_Apply sets only the number of the common hit state, then
         // p2stateno changes from it (measured: KFM's Fast Kung Fu Palm shows
