@@ -404,10 +404,16 @@ export class World {
       p.keyEventRecovery();
     }
     // Keyctrl helpers read the keys into their own command state (copied
-    // from the root's when created): the AI's commands never reach them, so
-    // a CPU root's helper sees none (what characters' AI detectors test).
+    // from the root's when created). A CPU root's helper copies the root's
+    // command state instead (Player_HandleInput): its held directions (the
+    // AI's guard) match again, plus the commands the AI chose.
     for (const h of this.helpers) {
       if (!h.keyCtrl || h.destroyed || !h.cmdInput) continue;
+      if (h.root.ai && h.root.cmdInput) {
+        h.cmdInput.followRoot(h.root.cmdInput, this.gameTime, this.cmdFloor(h), h.root.ai.cmds);
+        h.commands = h.cmdInput.active();
+        continue;
+      }
       const i = this.players.indexOf(h.root);
       const raw = h.root.ai ? 0 : (inputs[i] ?? 0);
       h.cmdInput.ingest(raw, h.facing, !h.root.ai);

@@ -407,6 +407,36 @@ export class CommandInput {
     if (aiCmds) for (const i of aiCmds) if (i >= 0 && i < this.buffer.length) this.buffer[i] = 1;
   }
 
+  /**
+   * A keyctrl helper of a CPU root (char.c Player_HandleInput): it takes a
+   * copy of the root's command state (its queue of key entries, this tick's
+   * already included) and matches it with its own buffers, then gets the
+   * commands the AI chose (Ai_UpdatePlayer).
+   */
+  followRoot(root: CommandInput, time: number, floor2: boolean, aiCmds?: readonly number[], holdBuffers = false): void {
+    this.qBits.set(root.qBits);
+    this.qTime.set(root.qTime);
+    this.qHold.set(root.qHold);
+    this.qStart = root.qStart;
+    this.qWrite = root.qWrite;
+    this.qRead = root.qRead;
+    this.dirState = root.dirState;
+    this.pending = root.pending;
+    this.pressTime.set(root.pressTime);
+    this.heldBits = root.heldBits;
+    const floor = floor2 ? 2 : 0;
+    if (!holdBuffers) for (let i = 0; i < this.buffer.length; i++) {
+      if (this.buffer[i]! > 0) {
+        this.buffer[i]!--;
+        if (this.buffer[i]! < floor) this.buffer[i] = floor;
+      }
+    }
+    // The copied position is the root's, past this tick's entries: only
+    // the commands of one held direction match again.
+    this.process(time);
+    if (aiCmds) for (const i of aiCmds) if (i >= 0 && i < this.buffer.length) this.buffer[i] = 1;
+  }
+
   private push(bits: number, time: number, hold: number): void {
     this.qBits[this.qWrite] = bits;
     this.qTime[this.qWrite] = time;
