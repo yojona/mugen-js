@@ -494,7 +494,10 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
   // Player_Hit / Projectiles_HitPlayer: a guard the defender would not
   // survive (life left after everything pending) is a KO hit instead
   // (guard_ko is always on).
-  let guarded = guardedIn;
+  // Player_Hit decides the guard when the hit applies: a hit taken earlier
+  // this tick cleared in_guard_dist (HitDef_Apply), so a second attacker's
+  // guardable hit lands (Kyo-233 hit by Jae Hoon, then Kaede).
+  let guarded = guardedIn && !d.guardDistCleared;
   let guardKo = false;
   if (guarded && d.life - previewDamage(d, hd.guardDamage, hd.guardKill) <= 0) {
     guarded = false;
@@ -618,6 +621,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     world.spawnSpark(a, d, hd.guardSpark, sparkXY, src);
     world.playHitSound(a, hd.guardSound);
   } else {
+    d.guardDistCleared = true;
     // Damage lands on the following tick (measured against MUGEN 1.1).
     const dmg = hitDamage(d, hd.damage, hd.kill, world.gameTime);
     // HitDef_Apply: a player hit is not guarding any more.

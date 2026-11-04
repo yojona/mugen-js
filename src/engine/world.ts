@@ -539,6 +539,7 @@ export class World {
       const hitters = this.allPlayers().filter((p) => !p.destroyed);
       // Players_CheckHits: nohit_time runs out first.
       for (const p of hitters) {
+        p.guardDistCleared = false;
         if (p.nohitTime > 0) p.nohitTime--;
         p.hitdefJuggle = 0;
       }
