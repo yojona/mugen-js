@@ -749,10 +749,13 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     d.addPower(hd.givePower[0]);
     const aFacing = dir;
     // Applied when P2 next updates (measured: one tick after the hit).
-    if (!proj) {
+    {
       // HitDef_Apply works out mindist/maxdist (and snap) as offsets from the
       // positions at the hit; the target moves by them in its next update.
-      const [xoff, yoff] = placementOffsets(a, d, hd, dir);
+      let [xoff, yoff] = proj ? [0, 0] : placementOffsets(a, d, hd, dir);
+      // A hit bouncing a lying player (down.velocity y != 0) adds 15 (in 320
+      // units) to its y offset: Jhun shows y = 15 on the hit.
+      if (lying && vel[1] !== 0) yoff += Math.fround((15 * world.gameWidth) / 320) / (world.gameWidth / world.screenWidth);
       if (xoff || yoff) {
         d.pendingPlacement = () => {
           d.setWorldPos(d.wx + xoff, d.wy + yoff);
