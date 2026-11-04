@@ -54,6 +54,7 @@ RNG_SITES = [0x410c3e, 0x410ce0, 0x4255ea, 0x425663, 0x42e838, 0x431c0b, 0x431c6
              0x432110, 0x432284, 0x432305, 0x4323a7, 0x432417, 0x432501, 0x441664, 0x4416ce]
 RNG_CAVE = 0x4dda60
 RNG_IDX = 0x505700
+RNG_TMP = 0x505d10  # after the ring (RNG_RING + RNG_MAX * 16)
 RNG_RING = 0x505710
 RNG_MAX = 96
 
@@ -66,18 +67,28 @@ def install_rnglog(pid):
         def w(a, b):
             mem.seek(a)
             mem.write(b)
-        cave = RNG_CAVE
+        # RNGVAL stubs are longer: start at the head of the cave (only
+        # flow.py's lockstep stubs use it, never in this harness).
+        cave = 0x4dda00 if os.environ.get('RNGVAL') else RNG_CAVE
         for site in RNG_SITES:
             orig = rd(site, 6)
             assert orig[0] == 0x89 and orig[2:] == b'\x40\x28\x01\x00', (hex(site), orig.hex())
             c = bytearray(orig)
             c += b'\x9c\x50\x51'                                   # pushfd; push eax; push ecx
+            if os.environ.get('RNGVAL'):
+                # RNGVAL: the value written (the source register of the
+                # patched mov) replaces the first stack dword.
+                reg = (orig[1] >> 3) & 7
+                c += bytes([0x89, 0x05 | (reg << 3)]) + struct.pack('<I', RNG_TMP)  # mov [tmp], reg
             c += b'\x8b\x0d' + struct.pack('<I', RNG_IDX)          # mov ecx, [idx]
             c += b'\x83\xf9' + bytes([RNG_MAX - 1])                 # cmp ecx, MAX-1
             c += b'\x76\x02\x31\xc9'                               # jbe +2; xor ecx, ecx
             c += b'\x89\xc8\xc1\xe0\x04'                           # mov eax, ecx; shl eax, 4
             c += b'\xc7\x80' + struct.pack('<II', RNG_RING, site)  # mov [eax+ring], site
-            c += b'\x8b\x4c\x24\x0c\x89\x88' + struct.pack('<I', RNG_RING + 4)   # [esp+12]
+            if os.environ.get('RNGVAL'):
+                c += b'\x8b\x0d' + struct.pack('<I', RNG_TMP) + b'\x89\x88' + struct.pack('<I', RNG_RING + 4)  # [tmp]
+            else:
+                c += b'\x8b\x4c\x24\x0c\x89\x88' + struct.pack('<I', RNG_RING + 4)   # [esp+12]
             c += b'\x8b\x4c\x24\x10\x89\x88' + struct.pack('<I', RNG_RING + 8)   # [esp+16]
             c += b'\x8b\x4c\x24\x14\x89\x88' + struct.pack('<I', RNG_RING + 12)  # [esp+20]
             c += b'\xff\x05' + struct.pack('<I', RNG_IDX)          # inc dword [idx]
