@@ -191,4 +191,17 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('kim-kofa', 'benimaru-kofa', 'clark-kofa', 'kula-kofa'))(
+    'Kim+Benimaru vs Clark+Kula (simul 2v2), CPU level 4: the whole match, 8450 frames (AI helper sees the root key state, KOed partner push, push clamps, per-target TargetState, frozen NotHitBy, juggle per tick)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kim-beni-vs-clark-kula-simul.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['kim-kofa', 'clark-kofa'], partners: ['benimaru-kofa', 'kula-kofa'], frames: 9000, seed: 16808 });
+      expect(ours.length).toBe(8450);
+      // The capture's framestep slipped at frame 400; frame 8450 is
+      // mugen.exe's next match.
+      expect(peekDiff(ref, ours, 14, 399)).toEqual([]);
+      expect(peekDiff(ref, ours, 401, 8449)).toEqual([]);
+    },
+    120_000,
+  );
 });

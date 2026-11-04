@@ -73,7 +73,7 @@ export async function peekMatch(o: PeekOptions): Promise<string[]> {
   const f = (x: number) => (o.exact ? String(x) : x.toFixed(4));
   for (let i = 1; i <= o.frames; i++) {
     if (m.tick()) w.tick([0, 0]);
-    const shown = partner.some(Boolean) ? [w.slot(1), w.slot(2), w.slot(3)].filter((p): p is Player => !!p) : w.players.slice(0, 2);
+    const shown = partner.some(Boolean) ? [w.slot(1), w.slot(2), w.slot(3), ...(partner[1] ? [w.slot(4)] : [])].filter((p): p is Player => !!p) : w.players.slice(0, 2);
     const pl = shown.flatMap((p) => [p.stateNo, p.time, p.life, f(p.pos.x), f(p.pos.y), f(p.vel.x * p.facing), f(p.vel.y)]);
     lines.push(`P|${i}|${[i, w.roundState, w.seed, ...pl].join(',')}`);
     if (m.finished) break;
@@ -102,8 +102,8 @@ export function peekDiff(mugen: string, ours: string[], from: number, to: number
   };
   const m = load(mugen.split('\n'));
   const o = load(ours);
-  // P1, P2, then P3 when both sides logged a simul partner.
-  const names = ['rs', 'rng', ...[1, 2, 3].flatMap((s) => ['state', 'time', 'life', 'x', 'y', 'vx', 'vy'].map((k) => `p${s}.${k}`))];
+  // P1, P2, then P3 / P4 when the logs have simul partners.
+  const names = ['rs', 'rng', ...[1, 2, 3, 4].flatMap((s) => ['state', 'time', 'life', 'x', 'y', 'vx', 'vy'].map((k) => `p${s}.${k}`))];
   const out: string[] = [];
   for (let gt = from; gt <= to && out.length < limit; gt++) {
     const a = m.get(gt);
