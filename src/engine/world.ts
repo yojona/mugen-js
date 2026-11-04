@@ -448,8 +448,11 @@ export class World {
       const frozen = p.hitPause > 0;
       p.runStates();
       // mugen.exe Player_Update: the projectile contact clock runs after the
-      // states, unless in hit pause.
-      if (!frozen) p.projContactTime++;
+      // states, unless in hit pause; so do the HitBy / NotHitBy clocks.
+      if (!frozen) {
+        p.projContactTime++;
+        p.hitByTail();
+      }
       if (this.inputLocked && !p.isHelper) p.ctrl = false;
       p.physicsStep();
       // Screen bounds apply as part of the player's movement, before the

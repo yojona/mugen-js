@@ -650,13 +650,27 @@ export class Player {
     this.power = Math.max(0, Math.min(this.const('data.power'), v));
   }
 
+  /**
+   * Player_Update's tail (not in hit pause), after the states: a HitBy /
+   * NotHitBy slot whose time is 0 goes back to every attribute, then the
+   * others count down.
+   */
+  hitByTail(): void {
+    for (const s of this.hitBy) {
+      if (!s) continue;
+      if (s.time === 0) s.mask = 0xfff;
+      else if (s.time > 0) s.time--;
+    }
+  }
+
   /** Is this player immune to the given HitDef (NotHitBy / HitBy)? */
   immuneTo(hd: HitDefData): boolean {
     // Player_HitByAllows: both masks and the HitDef's attr must share a
     // state bit and an attack bit.
     let m = hitDefAttrBits(hd.attrState, hd.attrType);
-    // A negative time never runs out (only 0 resets the mask).
-    for (const slot of this.hitBy) if (slot && slot.time !== 0) m &= slot.mask;
+    // A slot holds its mask until Player_Update finds its time at 0 (a
+    // frozen player keeps it); a negative time never runs out.
+    for (const slot of this.hitBy) if (slot) m &= slot.mask;
     return (m & 7) === 0 || (m & ~7) === 0;
   }
 
@@ -1288,9 +1302,6 @@ export class Player {
       this.hitPauseFresh = false;
       return;
     }
-    // HitBy / NotHitBy run out only outside hit pause (Player_Update's
-    // unfrozen tail); HitOverride slots count down regardless.
-    for (const s of this.hitBy) if (s.time > 0) s.time--;
     const fresh = this.hitPauseFresh;
     this.hitPauseFresh = false;
     const g = this.ghv;
