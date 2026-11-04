@@ -321,4 +321,15 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('kim-pk-kofa', 'leo-alphonse-kofa', 'jhun-kofa', 'lucky-kofa'))(
+    'Kim PK+Jhun vs Leo+Lucky (simul 2v2), CPU level 4: the whole match, 5808 frames (affectteam, down bounce offset, guard takes air jumps)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kimpk-jhun-vs-leo-lucky-simul.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['kim-pk-kofa', 'leo-alphonse-kofa'], partners: ['jhun-kofa', 'lucky-kofa'], frames: 14000, seed: 16808 });
+      expect(ours.length).toBe(5808);
+      // Frame 5808 is mugen.exe's next match.
+      expect(peekDiff(ref, ours, 14, 5807)).toEqual([]);
+    },
+    120_000,
+  );
 });
