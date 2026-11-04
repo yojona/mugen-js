@@ -595,12 +595,13 @@ export class Player {
   releaseTargets(keep?: Player): void {
     for (const t of [...this.targets.keys()]) {
       if (t === keep) continue;
-      if (t.bind?.byTarget && t.bind.to === this && t.bind.time !== 0 && !t.isHelper) {
+      if ((this.targetBindActive.get(t) ?? 0) !== 0 && !t.isHelper) {
         t.returnToOwnStates();
         t.changeState(5050);
       }
       this.targets.delete(t);
       this.targetJuggle.delete(t);
+      this.targetBindActive.delete(t);
     }
   }
 
@@ -623,7 +624,10 @@ export class Player {
       this.targets.delete(t);
     }
     for (const [t] of this.targetJuggle) if (!this.targets.has(t)) this.targetJuggle.delete(t);
+    for (const [t] of this.targetBindActive) if (!this.targets.has(t)) this.targetBindActive.delete(t);
   }
+  /** TargetEntry.bind_active per target: its TargetBind time at this player's last update (before counting down). */
+  targetBindActive = new Map<Player, number>();
   /** Juggle points left per target (the target entries of mugen.exe). */
   targetJuggle = new Map<Player, number>();
 

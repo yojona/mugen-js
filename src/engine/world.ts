@@ -466,8 +466,11 @@ export class World {
       // being hit: position, the binder's velocity, pos_freeze, and their
       // pending mindist/maxdist offsets dropped.
       for (const t of p.targets.keys()) {
-        const b = t.bind;
-        if (!b?.byTarget || b.to !== p || b.time === 0 || t.moveType !== 'h') continue;
+        const b = t.bind?.byTarget && t.bind.to === p ? t.bind : undefined;
+        // bind_active: the entry's bind time before it counts down; what
+        // Targets_Release tests (a target bound this tick drops to 5050).
+        p.targetBindActive.set(t, b?.time ?? 0);
+        if (!b || b.time === 0 || t.moveType !== 'h') continue;
         this.placeBound(t);
         const k = p.scale / t.scale;
         t.vel.x = p.vel.x * p.facing * t.facing * k;
