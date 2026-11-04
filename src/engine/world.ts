@@ -145,6 +145,8 @@ export class World {
    * the slots, not the creation order. `helpers` lists them in slot order.
    */
   helperSlots: (Player | null)[] = [];
+  /** team_side the slot's player last had (0: never used): Helper_Create's Player_Reset runs before it is set. */
+  helperSlotSide: number[] = [];
   helperMax = 56;
 
   /** Returns false when every slot is taken (no helper is created). */
@@ -155,6 +157,12 @@ export class World {
       i = this.helperSlots.length;
     }
     this.helperSlots[i] = h;
+    // Helper_Create: Player_Reset points power_ref at players[team_side]
+    // while the slot still has its last player's team_side (0 on first use:
+    // the helper's own power), then team_side becomes the parent's.
+    const side = this.helperSlotSide[i] ?? 0;
+    h.powerLeader = side ? this.players.find((p) => p.slotNo === side) : undefined;
+    this.helperSlotSide[i] = h.side + 1;
     this.helpers = this.helperSlots.filter((x): x is Player => !!x && !x.destroyed);
     if (h.keyCtrl && h.root.cmdInput) h.cmdInput = h.root.cmdInput.clone();
     h.enemy = this.findEnemy(h) ?? null;
