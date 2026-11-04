@@ -100,6 +100,8 @@ export class Player {
   nextFacing = 0;
   /** Hit pause seen by the previous tick's input processing. */
   hitPauseLastTick = false;
+  /** cmd_state.frozen kept over ticks a Pause / SuperPause stops the player. */
+  cmdFrozen = false;
   /** CPU control (MUGEN's AI); undefined for human players. */
   ai?: import('./ai').MugenAI;
   /** AI learning recorder (every root player, CPU or human). */

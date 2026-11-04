@@ -406,8 +406,11 @@ export class World {
       // The hold follows the previous tick's pause: it starts and ends a
       // tick late (measured: an AI.Cheat command injected as the pause begins
       // expires).
-      const hold = p.hitPauseLastTick;
+      // cmd_state.frozen is only cleared on a tick the player runs
+      // (player_tick): a Pause / SuperPause keeps the buffers held to its end.
+      const hold = p.hitPauseLastTick || p.cmdFrozen;
       p.hitPauseLastTick = p.hitPause > 0;
+      p.cmdFrozen = hold && this.frozen(p);
       p.cmdInput!.update(this.gameTime, this.cmdFloor(p), p.ai?.cmds, hold);
       p.commands = p.noInputStates ? new Set() : p.cmdInput!.active();
       p.keyEventRecovery();
