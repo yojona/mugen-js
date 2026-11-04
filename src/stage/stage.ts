@@ -81,6 +81,9 @@ export interface BgElementDef {
   width?: [number, number];
   yscaleStart: number;
   yscaleDelta: number;
+  scaleStart: [number, number];
+  scaleDelta: [number, number];
+  zoomDelta: number;
 }
 
 export interface BgCtrl {
@@ -202,14 +205,20 @@ export function parseBackground(doc: IniDoc, bgdef: Section | undefined, prefix:
       continue;
     }
     if (lname.startsWith(`${prefix}ctrl`)) {
-      if (!curCtrlDef) continue;
+      if (!curCtrlDef) {
+        curCtrlDef = { looptime: -1, ids: null, ctrls: [] };
+        ctrlDefs.push(curCtrlDef);
+      }
       const params = new Map(sec.entries.map((e) => [e.key, e.value]));
-      const time = nums(params.get('time'), [0, -1, -1]);
+      // BgCtrl_Load: time = start[, end[, looptime]]; the looptime defaults
+      // to the CtrlDef's.
+      const tv = params.get('time') ? splitCsv(params.get('time')!) : [];
+      const time = nums(params.get('time'), [0, 0, curCtrlDef.looptime]);
       curCtrlDef.ctrls.push({
         type: (params.get('type') ?? 'null').toLowerCase(),
         start: time[0]!,
-        end: params.get('time')?.includes(',') ? time[1]! : time[0]!,
-        looptime: time[2]!,
+        end: tv.length >= 2 ? time[1]! : time[0]!,
+        looptime: tv.length >= 3 ? time[2]! : curCtrlDef.looptime,
         ids: idList(params.get('ctrlid')),
         params,
       });
@@ -251,6 +260,9 @@ export function parseBackground(doc: IniDoc, bgdef: Section | undefined, prefix:
       width: v('width') !== undefined ? (nums(v('width'), [0, 0]) as [number, number]) : undefined,
       yscaleStart: num(v('yscalestart'), 100),
       yscaleDelta: num(v('yscaledelta'), 0),
+      scaleStart: nums(v('scalestart'), [1, 1]) as [number, number],
+      scaleDelta: nums(v('scaledelta'), [0, 0]) as [number, number],
+      zoomDelta: num(v('zoomdelta'), 1),
     });
   }
   return { elements, ctrlDefs };
@@ -266,14 +278,21 @@ function idList(v: string | undefined): number[] | null {
 
 export interface BgElementState {
   def: BgElementDef;
-  /** Offset added by BGCtrl PosSet/PosAdd and velocity. */
-  offset: [number, number];
+  /** BGCtrl position and velocity (pos_x/y, vel_x/y): Bg_Tick adds the velocity every tick. */
+  pos: [number, number];
   vel: [number, number];
   visible: boolean;
   enabled: boolean;
+  /** Sine waves: amplitude, period, offset (ticks), and their own clocks. */
   sinX: [number, number, number];
   sinY: [number, number, number];
+  sinTime: [number, number];
   anim: AnimPlayer | undefined;
+  /** Bg_SetCamera results: axis position (x from the screen centre), draw scale, parallax y scale. */
+  x: number;
+  y: number;
+  drawScale: [number, number];
+  yscale: number;
 }
 
 /** Anything with background elements: a stage, a motif screen, a storyboard layer. */
@@ -284,65 +303,141 @@ export interface Background {
   ctrlDefs: BgCtrlDef[];
 }
 
+interface CtrlState {
+  c: BgCtrl;
+  ids: number[] | null;
+  looptime: number;
+  timer: number;
+}
+
+const f32 = Math.fround;
+
 export class StageRuntime {
   elements: BgElementState[];
+  /** Bg ticks (bg->ticks). */
   time = 0;
-  private ctrlTimers: number[];
+  private ctrls: CtrlState[];
 
   constructor(readonly stage: Background) {
     this.elements = stage.elements.map((def) => this.makeState(def));
-    this.ctrlTimers = stage.ctrlDefs.map(() => 0);
+    this.ctrls = this.makeCtrls();
+  }
+
+  private makeCtrls(): CtrlState[] {
+    return this.stage.ctrlDefs.flatMap((cd) => cd.ctrls.map((c) => ({ c, ids: c.ids ?? cd.ids, looptime: c.looptime, timer: 0 })));
   }
 
   private makeState(def: BgElementDef): BgElementState {
     const a = def.actionNo >= 0 ? this.stage.anims.get(def.actionNo) : undefined;
-    return { def, offset: [0, 0], vel: [...def.velocity], visible: true, enabled: true, sinX: [...def.sinX], sinY: [...def.sinY], anim: a ? new AnimPlayer(a) : undefined };
+    return {
+      def,
+      pos: [0, 0],
+      vel: [0, 0],
+      visible: true,
+      enabled: true,
+      sinX: [...def.sinX],
+      sinY: [...def.sinY],
+      sinTime: [0, 0],
+      anim: a ? new AnimPlayer(a) : undefined,
+      x: 0,
+      y: 0,
+      drawScale: [1, 1],
+      yscale: 1,
+    };
   }
 
+  /** Bg_Reset. */
   reset(): void {
     this.elements = this.stage.elements.map((def) => this.makeState(def));
-    this.ctrlTimers = this.stage.ctrlDefs.map(() => 0);
+    this.ctrls = this.makeCtrls();
     this.time = 0;
   }
 
+  /** Bg_Tick: controllers, then the animations and sine clocks of enabled elements, and every element's velocity. */
   tick(): void {
     this.runControllers();
     for (const e of this.elements) {
-      if (!e.enabled) continue;
-      e.offset[0] += e.vel[0];
-      e.offset[1] += e.vel[1];
-      e.anim?.tick();
+      if (e.enabled) {
+        e.anim?.tick();
+        if (e.sinX[1] !== 0) e.sinTime[0] = f32(e.sinTime[0] + 1);
+        if (e.sinY[1] !== 0) e.sinTime[1] = f32(e.sinTime[1] + 1);
+      }
+      e.pos[0] = f32(e.vel[0] + e.pos[0]);
+      e.pos[1] = f32(e.vel[1] + e.pos[1]);
     }
     this.time++;
   }
 
+  /** BgCtrl_Run: each controller has its own timer (start <= timer <= end, or start -1 on the first tick). */
   private runControllers(): void {
-    this.stage.ctrlDefs.forEach((cd, i) => {
-      const t = this.ctrlTimers[i]!;
-      for (const c of cd.ctrls) {
-        const lt = c.looptime > 0 ? t % c.looptime : t;
-        if (lt < c.start || (c.end >= c.start && lt > c.end)) continue;
-        const ids = c.ids ?? cd.ids;
-        const targets = this.elements.filter((e) => ids === null || ids.includes(e.def.id));
+    for (const cs of this.ctrls) {
+      const c = cs.c;
+      if ((cs.timer >= c.start && cs.timer <= c.end) || (c.start === -1 && this.time === 0)) {
+        const targets = this.elements.filter((e) => cs.ids === null || cs.ids.length === 0 || cs.ids.includes(e.def.id));
         applyBgCtrl(c, targets, this.stage);
       }
-      this.ctrlTimers[i] = cd.looptime > 0 && t + 1 >= cd.looptime ? 0 : t + 1;
-    });
+      cs.timer++;
+      if (cs.timer >= cs.looptime && cs.looptime !== -1) cs.timer = 0;
+    }
   }
 
-  /** Position of an element's axis on screen (bgs.html start/delta rules). */
-  position(e: BgElementState, cam: { x: number; y: number }, screenW: number, prev?: [number, number]): [number, number] {
-    const d = e.def;
-    const sx = sinValue(e.sinX, this.time);
-    const sy = sinValue(e.sinY, this.time);
-    if (d.positionLink && prev) return [prev[0] + d.start[0] + e.offset[0] + sx, prev[1] + d.start[1] + e.offset[1] + sy];
-    return [screenW / 2 + d.start[0] + e.offset[0] - cam.x * d.delta[0] + sx, d.start[1] + e.offset[1] - cam.y * d.delta[1] + sy];
+  /**
+   * Bg_SetCamera: every element's position for camera (x, y) in stage
+   * units (float32 like mugen.exe). A positionlink element follows the
+   * last element without one (its velocity, delta and wave, plus start).
+   */
+  setCamera(x: number, y: number, offX = 0, offY = 0, zoom = 1, cx = 0, cy = 0): void {
+    let linkX = 0;
+    let linkY = 0;
+    const zm1 = zoom - 1;
+    for (const e of this.elements) {
+      const d = e.def;
+      const z = f32(d.zoomDelta * zm1 + 1);
+      let waveX = 0;
+      let waveY = 0;
+      if (e.sinX[1] !== 0) {
+        const a = ((e.sinTime[0] + e.sinX[2]) / e.sinX[1]) * Math.PI;
+        waveX = f32(Math.sin(a + a) * e.sinX[0]);
+      }
+      if (e.sinY[1] !== 0) {
+        const a = ((e.sinTime[1] + e.sinY[2]) / e.sinY[1]) * Math.PI;
+        waveY = f32(Math.sin(a + a) * e.sinY[0]);
+      }
+      let px: number;
+      let py: number;
+      let ys: number;
+      if (!d.positionLink) {
+        const t = f32(this.time);
+        // delta is stored negated in mugen.exe (delta_x * -1).
+        px = f32(d.velocity[0] * t + -d.delta[0] * x + waveX);
+        py = f32(t * d.velocity[1] + -d.delta[1] * y + waveY);
+        linkX = f32(px + d.start[0]);
+        linkY = f32(d.start[1] + py);
+        px = f32(px + e.pos[0]);
+        py = f32(py + e.pos[1]);
+        e.x = f32((px + d.start[0] - cx) * z + cx);
+        ys = d.start[1] + py;
+      } else {
+        px = f32(e.pos[0] + d.start[0] + waveX);
+        py = f32(e.pos[1] + d.start[1] + waveY);
+        e.x = f32((px + linkX - cx) * z + cx);
+        ys = py + linkY;
+      }
+      e.y = f32((ys - cy) * z + cy);
+      e.x = f32(e.x + offX);
+      e.y = f32(e.y + offY);
+      e.drawScale = [f32((px * -d.scaleDelta[0] + d.scaleStart[0]) * z), f32((-d.scaleDelta[1] * py + d.scaleStart[1]) * z)];
+      if (d.type === 'parallax') {
+        const v = f32(d.yscaleStart * 0.01) - f32(d.yscaleDelta * 0.01) * y;
+        e.yscale = v > 0 ? f32(1 / v) : 1e6;
+      }
+    }
   }
-}
 
-function sinValue(s: [number, number, number], t: number): number {
-  if (!s[0] || !s[1]) return 0;
-  return s[0] * Math.sin(((t + s[2] / 360 * s[1]) * 2 * Math.PI) / s[1]);
+  /** Position of an element's axis on screen after setCamera. */
+  position(e: BgElementState, screenW: number): [number, number] {
+    return [e.x + screenW / 2, e.y];
+  }
 }
 
 function applyBgCtrl(c: BgCtrl, targets: BgElementState[], stage: Background): void {
@@ -356,38 +451,41 @@ function applyBgCtrl(c: BgCtrl, targets: BgElementState[], stage: Background): v
   for (const e of targets) {
     switch (c.type) {
       case 'visible':
-        e.visible = (n('value') ?? 1) !== 0;
+        e.visible = (n('value') ?? 0) !== 0;
         break;
       case 'enable':
-        e.enabled = (n('value') ?? 1) !== 0;
-        e.visible = e.enabled;
+        e.enabled = (n('value') ?? 0) !== 0;
         break;
       case 'velset':
-        if (n('x') !== undefined) e.vel[0] = n('x')!;
-        if (n('y') !== undefined) e.vel[1] = n('y')!;
+        if (n('x') !== undefined) e.vel[0] = f32(n('x')!);
+        if (n('y') !== undefined) e.vel[1] = f32(n('y')!);
         break;
       case 'veladd':
-        e.vel[0] += n('x') ?? 0;
-        e.vel[1] += n('y') ?? 0;
+        if (n('x') !== undefined) e.vel[0] = f32(e.vel[0] + f32(n('x')!));
+        if (n('y') !== undefined) e.vel[1] = f32(e.vel[1] + f32(n('y')!));
         break;
+      // PosSet / PosAdd move the element from its start (pos_x / pos_y).
       case 'posset':
-        if (n('x') !== undefined) e.offset[0] = n('x')! - e.def.start[0];
-        if (n('y') !== undefined) e.offset[1] = n('y')! - e.def.start[1];
+        if (n('x') !== undefined) e.pos[0] = f32(n('x')!);
+        if (n('y') !== undefined) e.pos[1] = f32(n('y')!);
         break;
       case 'posadd':
-        e.offset[0] += n('x') ?? 0;
-        e.offset[1] += n('y') ?? 0;
+        if (n('x') !== undefined) e.pos[0] = f32(e.pos[0] + f32(n('x')!));
+        if (n('y') !== undefined) e.pos[1] = f32(e.pos[1] + f32(n('y')!));
         break;
       case 'anim': {
-        const a = stage.anims.get(n('value') ?? -1);
+        // Only animated elements change action (Anim_SetAction + Anim_Reset).
+        if (!e.anim) break;
+        const a = stage.anims.get(n('value') ?? 0);
         if (a) e.anim = new AnimPlayer(a);
         break;
       }
+      // SinX / SinY: value = amplitude, period, offset (missing ones are 0).
       case 'sinx':
-        e.sinX = [n('value', 0) ?? e.sinX[0], n('value', 1) ?? e.sinX[1], n('value', 2) ?? e.sinX[2]];
+        e.sinX = [f32(n('value', 0) ?? 0), f32(n('value', 1) ?? 0), f32(n('value', 2) ?? 0)];
         break;
       case 'siny':
-        e.sinY = [n('value', 0) ?? e.sinY[0], n('value', 1) ?? e.sinY[1], n('value', 2) ?? e.sinY[2]];
+        e.sinY = [f32(n('value', 0) ?? 0), f32(n('value', 1) ?? 0), f32(n('value', 2) ?? 0)];
         break;
     }
   }

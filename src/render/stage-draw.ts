@@ -6,12 +6,11 @@ import type { Renderer } from './renderer';
 
 export function drawStageLayer(r: Renderer, rt: StageRuntime, cam: { x: number; y: number }, layer: 0 | 1, screenW: number, screenH: number, shakeY = 0): void {
   const sff = rt.stage.sff;
-  let prev: [number, number] | undefined;
+  rt.setCamera(cam.x, cam.y);
   for (const e of rt.elements) {
     const d = e.def;
-    const pos = rt.position(e, cam, screenW, prev);
-    prev = pos;
-    if (d.layer !== layer || !e.visible || d.type === 'dummy') continue;
+    const pos = rt.position(e, screenW);
+    if (d.layer !== layer || !e.visible || !e.enabled || d.type === 'dummy') continue;
     let sprite: Sprite | undefined;
     let ox = 0;
     let oy = 0;
@@ -47,8 +46,10 @@ export function drawStageLayer(r: Renderer, rt: StageRuntime, cam: { x: number; 
     }
 
     // Tiling: 0 = once, 1 = infinite, n > 1 = n copies.
-    const stepX = (e.anim ? 0 : sprite.width) + d.tileSpacing[0];
-    const stepY = (e.anim ? 0 : sprite.height) + d.tileSpacing[1];
+    // scalestart / scaledelta (Bg_SetCamera's draw scale).
+    const [dsx, dsy] = e.drawScale;
+    const stepX = ((e.anim ? 0 : sprite.width) + d.tileSpacing[0]) * dsx;
+    const stepY = ((e.anim ? 0 : sprite.height) + d.tileSpacing[1]) * dsy;
     const range = (count: number, step: number, origin: number, size: number, screen: number): number[] => {
       if (count === 0 || step <= 0) return [0];
       if (count > 1) return Array.from({ length: count }, (_, i) => i);
@@ -58,11 +59,11 @@ export function drawStageLayer(r: Renderer, rt: StageRuntime, cam: { x: number; 
       for (let i = first; i <= last; i++) out.push(i);
       return out;
     };
-    const left = x - sprite.axisX;
-    const top = y - sprite.axisY;
-    for (const ty of range(d.tile[1], stepY, top, sprite.height, screenH)) {
-      for (const tx of range(d.tile[0], stepX, left, sprite.width, screenW)) {
-        r.draw({ sprite, palette, x: x + tx * stepX, y: y + ty * stepY, scaleX: flipH ? -1 : 1, scaleY: flipV ? -1 : 1, blend, mask: d.mask });
+    const left = x - sprite.axisX * dsx;
+    const top = y - sprite.axisY * dsy;
+    for (const ty of range(d.tile[1], stepY, top, sprite.height * dsy, screenH)) {
+      for (const tx of range(d.tile[0], stepX, left, sprite.width * dsx, screenW)) {
+        r.draw({ sprite, palette, x: x + tx * stepX, y: y + ty * stepY, scaleX: (flipH ? -1 : 1) * dsx, scaleY: (flipV ? -1 : 1) * dsy, blend, mask: d.mask });
       }
     }
     if (win) r.setClip(undefined);
