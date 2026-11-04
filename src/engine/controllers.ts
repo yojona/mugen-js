@@ -183,7 +183,7 @@ const IMPLS: Record<string, Impl> = {
   },
   powerset: (_c, prm) => (p) => {
     const v = prm.int(p, 'value');
-    if (v !== undefined) p.power = Math.max(0, Math.min(p.const('data.power'), v));
+    if (v !== undefined) p.setPower(v);
   },
 
   varset: (c, prm, env) => varController(c, prm, env, 'set'),

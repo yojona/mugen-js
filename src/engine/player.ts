@@ -637,7 +637,14 @@ export class Player {
   }
 
   addPower(v: number): void {
-    this.power = Math.max(0, Math.min(this.const('data.power'), Math.trunc(this.power + v)));
+    this.setPower(Math.trunc(this.power + v));
+  }
+
+  /** Player_SetPower: clamped to 0..max; nothing changes once the round is over (RoundState 3 and 4). */
+  setPower(v: number): void {
+    const rs = this.world.roundState;
+    if (rs === 3 || rs === 4) return;
+    this.power = Math.max(0, Math.min(this.const('data.power'), v));
   }
 
   /** Is this player immune to the given HitDef (NotHitBy / HitBy)? */
