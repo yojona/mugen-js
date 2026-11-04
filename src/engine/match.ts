@@ -428,7 +428,10 @@ export class Match {
   private step(): boolean {
     const w = this.world;
     const c = this.cfg;
-    w.inputLocked = this.phase !== 'fight' && this.phase !== 'ko';
+    // Before the fight nobody has control; once the round is over control
+    // is only taken once, at RoundState 4 (Round_RunState), and states may
+    // give it back (measured: Clark's 195 ends with ctrl in RoundState 4).
+    w.inputLocked = this.phase === 'wait' || this.phase === 'intro' || this.phase === 'announce';
     // hits_enabled (Round_RunState): no collisions in RoundState 0 and 4,
     // nor in 3 from over.waittime + 180 ticks.
     w.hitsEnabled = this.phase !== 'wait' && this.phase !== 'over';

@@ -81,7 +81,9 @@ for (let i = 1; i <= ticks; i++) {
   if (process.env.EVAL && evalAt && i >= evalAt[0]! && i <= (evalAt[1] ?? evalAt[0]!)) {
     // Evaluate expressions on P1 right before this tick (EVAL='a;b;c').
     for (const e of process.env.EVAL.split(';')) {
-      const v = compileExpr(e, playerEnv)(p1);
+      // EVALSLOT=n: evaluate on player slot n instead of P1.
+      const who = process.env.EVALSLOT ? (w.slot(Number(process.env.EVALSLOT)) ?? p1) : p1;
+      const v = compileExpr(e, playerEnv)(who);
       console.log(`EVAL frame ${i} gt ${w.gameTime + 1} ${e} = ${v}`);
     }
   }
