@@ -722,9 +722,19 @@ const EXTRA: Record<string, Impl> = {
     const build = compileHitDef(c, env);
     const attrs = parseAttrList(c.params.get('reversal.attr'));
     return (p) => {
-      p.reversal = { attrs, hd: build(p) };
-      // ...and a ReversalDef replaces a HitDef.
+      const hd = build(p);
+      p.reversal = { attrs, hd };
+      // ...and a ReversalDef replaces a HitDef: it is the player's HitDef
+      // (SCTRL_REVERSALDEF shares SCTRL_HITDEF's code: attr, guard.dist and
+      // active, which the AI and HitDefAttr read), though it never hits.
+      if (hd.guardDist === -1) hd.guardDist = p.guardDist;
+      p.guardDist = hd.guardDist;
+      if (p.stateType === 's' || p.stateType === 'c' || p.stateType === 'a') hd.attrState = p.stateType;
+      p.hitDef = hd;
       p.hitDefActive = false;
+      p.hitDefSet = true;
+      p.hitDefAttrOn = true;
+      p.hitTargets.clear();
     };
   },
   hitoverride: (c, prm) => {
