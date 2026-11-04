@@ -204,6 +204,9 @@ function resolvePriority(hits: PendingHit[]): PendingHit[] {
 function applyReversal(r: Player, a: Player): void {
   const rv = r.reversal!;
   r.reversal = undefined;
+  // Player_Reverse: a hitonce ReversalDef (a throw's default) lets go of
+  // the reverser's other targets.
+  if (rv.hd.hitOnce) r.releaseTargets(a);
   a.hitDefActive = false;
   a.hitDefSet = false;
   // move_contact is one value: the reverser hit, the attacker was reversed.
@@ -235,6 +238,7 @@ function applyReversal(r: Player, a: Player): void {
     a.moveType = 'h';
   }
   if (rv.hd.p2StateNo >= 0) {
+    a.releaseTargets();
     a.changeState(rv.hd.p2StateNo);
     a.ctrl = false;
   }
