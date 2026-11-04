@@ -223,8 +223,8 @@ export class FightScreen implements Screen {
       r.view = { s: zv.scale, ox: (W / 2) * (1 - zv.scale) - (zv.shakeX / k) * zv.scale, oy: top * (1 - zv.scale) - (zv.shakeY / k) * zv.scale };
     }
     drawScene(r, w, {
-      background: () => drawStageLayer(r, this.bg, w.camera, 0, W, H),
-      foreground: () => drawStageLayer(r, this.bg, w.camera, 1, W, H),
+      background: () => drawStageLayer(r, this.bg, w.camera, 0, W, H, -w.shakeBase),
+      foreground: () => drawStageLayer(r, this.bg, w.camera, 1, W, H, -w.shakeBase),
     });
     r.view = { s: 1, ox: 0, oy: 0 };
     const [mw, mh] = this.ctx.motif.localCoord;

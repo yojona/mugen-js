@@ -127,6 +127,7 @@ export class World {
   resetRoundFx(): void {
     this.pause = this.superPause = this.queuedPause = undefined;
     this.envShake = undefined;
+    this.shakeBase = 0;
     this.envColor = undefined;
     this.zoom = undefined;
     this.zoomView = { l: 0, r: 0, shakeX: 0, shakeY: 0, scale: 1, active: false };
@@ -567,9 +568,30 @@ export class World {
     this.updateExplods();
     this.tickPauses();
     tickPalFx(this.bgPalFx);
-    if (this.envShake && this.envShake.time > 0) this.envShake.time--;
+    this.tickEnvShake();
     this.gameTime++;
     if (!this.framesDriven) this.frames++;
+  }
+
+  /** Vertical camera shift of the EnvShake, in whole stage units (GameVars.camera_y_base). */
+  shakeBase = 0;
+
+  /**
+   * Round_Tick's EnvShake: sin((freq * elapsed + phase) degrees) * ampl,
+   * in stage units rounded to whole ones, shifts the camera (everything in
+   * the stage, backgrounds included); it ends at time.
+   */
+  private tickEnvShake(): void {
+    const s = this.envShake;
+    if (!s || s.time <= 0) return;
+    const k = this.gameWidth / this.screenWidth;
+    const v = Math.sin(((Math.fround(s.freq) * s.elapsed + s.phase) * Math.PI) / 180);
+    this.shakeBase = Math.floor(Math.fround(v * (s.ampl / k)) + 0.5);
+    s.elapsed++;
+    if (s.elapsed === s.time) {
+      s.time = 0;
+      this.shakeBase = 0;
+    }
   }
 
   private tickPauses(): void {

@@ -9,6 +9,7 @@ import type { Clsn } from '../formats/air';
 import { clsnTouchInternal, guardFlagBits } from './ai-learn';
 import { attrMatches, hitDefAttrBits, type HitDefData } from './hitdef';
 import { endProjectile, noteProjContact, type Projectile } from './projectile';
+import { makeEnvShake } from './fx';
 import type { Player } from './player';
 
 interface Box {
@@ -672,7 +673,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
       g['fall.envshake.ampl'] = hd.fallEnvShake.ampl;
       g['fall.envshake.phase'] = hd.fallEnvShake.phase;
     }
-    if (hd.envShake) world.envShake = { ...hd.envShake };
+    if (hd.envShake) world.envShake = makeEnvShake(hd.envShake.time, hd.envShake.freq, hd.envShake.ampl, hd.envShake.phase, a.scale * (world.gameWidth / world.screenWidth));
     if (hd.palFx) d.palFx = { time: hd.palFx.time, elapsed: 0, add: hd.palFx.add, mul: hd.palFx.mul, sinAdd: [0, 0, 0], sinPeriod: 0, invertAll: hd.palFx.invertAll, color: hd.palFx.color };
     g.chainid = hd.id;
     d.ghvAttacker = a;

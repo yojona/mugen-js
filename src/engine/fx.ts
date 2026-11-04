@@ -121,12 +121,20 @@ export function afterImageDraws(a: AfterImageState): { frame: AfterImageFrame; a
 export interface EnvShake {
   time: number;
   freq: number;
+  /** Amplitude in game (internal) units (EnvShake_Apply: ampl * GameWidth / localcoord). */
   ampl: number;
   phase: number;
+  /** Ticks run so far (GameVars.envshake[0]). */
+  elapsed: number;
 }
 
-/** Vertical camera offset for the current shake tick. */
-export function envShakeOffset(s: EnvShake | undefined): number {
-  if (!s || s.time <= 0) return 0;
-  return s.ampl * Math.sin(((s.phase + s.freq * s.time) * Math.PI) / 180);
+/**
+ * EnvShake_Apply: an EnvShake from the given parameters, in game units for a
+ * player whose units are `unit` (GameWidth / localcoord). freq 0 becomes
+ * 0.001 and a negative one positive; without a phase, freq 90 or more gives
+ * phase 90.
+ */
+export function makeEnvShake(time: number, freq: number, ampl: number, phase: number | undefined, unit: number): EnvShake {
+  const f = freq === 0 ? 0.001 : Math.abs(freq);
+  return { time, freq: Math.fround(f), ampl: Math.fround(ampl * unit), phase: Math.fround(phase ?? (f >= 90 ? 90 : 0)), elapsed: 0 };
 }

@@ -10,7 +10,7 @@ import type { ControllerDef } from './cns';
 import { compileHitDef, parseAttrList } from './hitdef';
 import { attrBits } from './ai-learn';
 import { compileExplod, compileExplodBindTime, compileGameMakeAnim, compileMakeDust, compileModifyExplod, compileRemoveExplod, simpleExplod, transBlend } from './explod';
-import { newAfterImage, type PalFxState } from './fx';
+import { makeEnvShake, newAfterImage, type PalFxState } from './fx';
 import { compileBindTo, compileDestroySelf, compileHelper, compileParentVar } from './helper';
 import { compileProjectile } from './projectile';
 import type { MoveType, Physics, Player, StateType } from './player';
@@ -450,18 +450,14 @@ const EXTRA: Record<string, Impl> = {
     p.afterImage.time = t;
   },
   envshake: (_c, prm) => (p) => {
-    const freq = prm.num(p, 'freq') ?? 60;
-    p.world.envShake = {
-      time: prm.int(p, 'time') ?? 0,
-      freq,
-      ampl: prm.int(p, 'ampl') ?? Math.trunc((-4 * p.prog.data.def.localCoord[0]) / 320),
-      phase: prm.num(p, 'phase') ?? (freq >= 90 ? 90 : 0),
-    };
+    const unit = p.scale * (p.world.gameWidth / p.world.screenWidth);
+    p.world.envShake = makeEnvShake(prm.int(p, 'time') ?? 0, prm.num(p, 'freq') ?? 60, prm.num(p, 'ampl') ?? Math.trunc((-4 * p.prog.data.def.localCoord[0]) / 320), prm.num(p, 'phase'), unit);
   },
   fallenvshake: () => (p) => {
     const g = p.ghv;
     if (g['fall.envshake.time'] <= 0) return;
-    p.world.envShake = { time: g['fall.envshake.time'], freq: g['fall.envshake.freq'], ampl: g['fall.envshake.ampl'], phase: g['fall.envshake.phase'] };
+    const unit = (p.ghvAttacker ?? p).scale * (p.world.gameWidth / p.world.screenWidth);
+    p.world.envShake = makeEnvShake(g['fall.envshake.time'], g['fall.envshake.freq'], g['fall.envshake.ampl'], g['fall.envshake.phase'], unit);
     g['fall.envshake.time'] = 0;
   },
   pause: (_c, prm) => (p) => {

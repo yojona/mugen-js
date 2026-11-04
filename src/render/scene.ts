@@ -3,7 +3,7 @@
 import type { Blend } from '../formats/air';
 import type { Sprite } from '../formats/sff';
 import type { Explod } from '../engine/explod';
-import { afterImageDraws, envShakeOffset, palFxUniforms } from '../engine/fx';
+import { afterImageDraws, palFxUniforms } from '../engine/fx';
 import type { Player } from '../engine/player';
 import type { World } from '../engine/world';
 import type { PalFx, Renderer } from './renderer';
@@ -25,7 +25,8 @@ export interface SceneOptions {
 
 export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void {
   const camLeft = w.camera.x - w.screenWidth / 2;
-  const shakeY = envShakeOffset(w.envShake);
+  // EnvShake: the camera moves by whole stage units (camera_y_base).
+  const shakeY = -w.shakeBase;
   const sx = (x: number) => x - camLeft;
   // Stage-space y to screen: ground line, minus the camera's vertical follow.
   const sy = (y: number) => w.groundY + y - w.camera.y + shakeY;

@@ -89,8 +89,8 @@ export class ContinueScreen implements Screen {
     r.setProjection(W, H);
     r.clear(0, 0, 0);
     drawScene(r, w, {
-      background: () => drawStageLayer(r, this.bg, w.camera, 0, W, H),
-      foreground: () => drawStageLayer(r, this.bg, w.camera, 1, W, H),
+      background: () => drawStageLayer(r, this.bg, w.camera, 0, W, H, -w.shakeBase),
+      foreground: () => drawStageLayer(r, this.bg, w.camera, 1, W, H, -w.shakeBase),
     });
     // The stage shows darkened behind the question.
     r.setProjection(W, H);
