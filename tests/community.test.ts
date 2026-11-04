@@ -299,4 +299,15 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('k9999-kofa', 'jae-hoon-kofa', 'kyo-233-kofa', 'kaede-kofa'))(
+    'K9999+Kyo-233 vs Jae Hoon+Kaede (simul 2v2), CPU level 4: the whole match, 8241 frames (guard decided per hit, fall kept on KO damage)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'k9999-kyo233-vs-jaehoon-kaede-simul.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['k9999-kofa', 'jae-hoon-kofa'], partners: ['kyo-233-kofa', 'kaede-kofa'], frames: 14000, seed: 16808 });
+      expect(ours.length).toBe(8241);
+      // Frame 8241 is mugen.exe's next match.
+      expect(peekDiff(ref, ours, 14, 8240)).toEqual([]);
+    },
+    120_000,
+  );
 });
