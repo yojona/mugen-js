@@ -200,7 +200,7 @@ export function updateProjectile(pr: Projectile): void {
   pr.fresh = false;
   if (pr.hitPause > 0) {
     // Projectiles_Update: in hit pause the animation still steps.
-    if (!fresh) pr.anim.tick();
+    if (!fresh) stepAnim(pr);
     pr.hitPause--;
     return;
   }
@@ -215,10 +215,10 @@ export function updateProjectile(pr: Projectile): void {
     // total_time <= 0) removes the projectile at once; otherwise it goes
     // when the animation time reached its length before this tick's step.
     if (pr.anim.totalTime <= 0 || pr.anim.animTime() >= 0) pr.phase = 'dead';
-    else if (!fresh) pr.anim.tick();
+    else if (!fresh) stepAnim(pr);
     return;
   }
-  if (!fresh) pr.anim.tick();
+  if (!fresh) stepAnim(pr);
   pr.x += pr.vel[0] * pr.facing;
   pr.y += pr.vel[1];
   pr.vel = [pr.vel[0] * pr.velMul[0] + pr.accel[0], pr.vel[1] * pr.velMul[1] + pr.accel[1]];
@@ -264,4 +264,13 @@ function removeNow(pr: Projectile): void {
   // at once, and so does one already at its end (projremanim = projanim
   // keeps the time: Benimaru's 1220 does not hit after its removetime).
   if (pr.anim.totalTime <= 0 || pr.anim.animTime() >= 0) pr.phase = 'dead';
+}
+
+/**
+ * Anim_Step seeks the element before the time moves on: the step that
+ * reaches the end of the action still shows its last element (not the
+ * loop's first), as the hit check sees it (Benimaru's 1230 at its end).
+ */
+function stepAnim(pr: Projectile): void {
+  pr.anim.tick(pr.anim.animTime() === -1);
 }
