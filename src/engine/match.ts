@@ -450,7 +450,6 @@ export class Match {
         w.roundState = 1;
         // Intros last while any player asserts "intro".
         if ((this.round > 1 || this.phaseTime > 1) && !this.players.some((p) => p.special.has('intro'))) {
-          for (const p of this.players) if (p.stateNo === 190 || p.stateNo === 191) p.changeState(0);
           this.enter('announce');
         }
         break;
