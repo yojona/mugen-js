@@ -558,6 +558,8 @@ export class World {
       // being hit loses its movetimes (a Pause owner hit into H included).
       const sp = this.superPause && !this.superPause.fresh;
       const pz = !this.superPause && this.pause && !this.pause.fresh;
+      // It is part of the unfrozen tail: a player in its own hit pause keeps them.
+      if (p.paused) continue;
       if (sp) {
         if (p.superMoveTime > 0 && active.includes(p)) p.superMoveTime--;
       } else if (pz) {
