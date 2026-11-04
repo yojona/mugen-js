@@ -289,4 +289,14 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('geo-kensou-kofa', 'hon-fu-kofa', 'lin-kofa', 'gato-kofa'))(
+    'Geo Kensou+Lin vs Hon Fu+Gato (simul 2v2), CPU level 4: 14000 frames (intro, HitDef eval order, hit shake count, pause movetime)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'geokensou-lin-vs-honfu-gato-simul.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['geo-kensou-kofa', 'hon-fu-kofa'], partners: ['lin-kofa', 'gato-kofa'], frames: 14000, seed: 16808 });
+      expect(ours.length).toBe(14000);
+      expect(peekDiff(ref, ours, 14, 14000)).toEqual([]);
+    },
+    120_000,
+  );
 });
