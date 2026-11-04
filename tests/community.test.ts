@@ -310,4 +310,15 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('iori-xiii-kofa', 'lien-kofa', 'kensou-ex-kofa', 'kisarah-kofa'))(
+    'Iori XIII+Kensou EX vs Lien+Kisarah (simul 2v2), CPU level 4: the whole match, 11058 frames (projectiles hit paused players)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'iorixiii-kensouex-vs-lien-kisarah-simul.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['iori-xiii-kofa', 'lien-kofa'], partners: ['kensou-ex-kofa', 'kisarah-kofa'], frames: 14000, seed: 16808 });
+      expect(ours.length).toBe(11058);
+      // Frame 11058 is mugen.exe's next match.
+      expect(peekDiff(ref, ours, 14, 11057)).toEqual([]);
+    },
+    120_000,
+  );
 });
