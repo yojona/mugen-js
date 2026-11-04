@@ -201,19 +201,23 @@ export function updateProjectile(pr: Projectile): void {
     pr.hitPause--;
     return;
   }
-  if (!fresh) pr.anim.tick();
-  pr.x += pr.vel[0] * pr.facing;
-  pr.y += pr.vel[1];
   if (pr.phase === 'ending') {
+    pr.x += pr.vel[0] * pr.facing;
+    pr.y += pr.vel[1];
     if (pr.endVel) {
       pr.vel = pr.endVel;
       pr.endVel = undefined;
     }
     // Projectiles_Update: an end animation with no length (or endless:
-    // total_time <= 0) removes the projectile at once.
+    // total_time <= 0) removes the projectile at once; otherwise it goes
+    // when the animation time reached its length before this tick's step.
     if (pr.anim.totalTime <= 0 || pr.anim.animTime() >= 0) pr.phase = 'dead';
+    else if (!fresh) pr.anim.tick();
     return;
   }
+  if (!fresh) pr.anim.tick();
+  pr.x += pr.vel[0] * pr.facing;
+  pr.y += pr.vel[1];
   pr.vel = [pr.vel[0] * pr.velMul[0] + pr.accel[0], pr.vel[1] * pr.velMul[1] + pr.accel[1]];
   // Projectiles_Update: bounds, miss time and removetime are checked with
   // the time before this tick's increment (time++ comes last).
