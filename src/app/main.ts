@@ -374,13 +374,20 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
       // Match_Run: an arcade loss goes to the continue screen (state 13), as
       // in arcade, with the team's first character; Yes picks the team again
       // and replays this match.
-      if (res.winner === undefined || (motif.value('Continue Screen', 'enabled') ?? '1') === '0') return;
+      if (res.winner === undefined) return;
+      if ((motif.value('Continue Screen', 'enabled') ?? '1') === '0') {
+        arcadeEnd = 'gameover';
+        return;
+      }
       const first = human.picks[0]!.char;
       const sp = vfs.resolve(opp.picks[0]!.char.entry.stage ?? '') ?? stages[0]!.path;
       const again = await until<boolean>(
         await loading(async () => new ContinueScreen(ctx, { prog: await program(first), pal: first.data?.def.palDefaults[0] ?? 1, stage: await stage(sp), fightFx, font: systemFont, seed: session.matchSeed() })),
       );
-      if (!again) return;
+      if (!again) {
+        arcadeEnd = 'gameover';
+        return;
+      }
       const re = await until<SelectResult>(new SelectScreen(ctx, mode, rosterChars, stages));
       if (re.cancelled || !re.teams) return;
       human = { mode: re.teams[0].mode, picks: re.teams[0].picks, pads: padsOf(re.teams[0], 0) };
@@ -395,6 +402,7 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
   // After the last match: the ending of the arcade side's first character.
   const winner = human.picks[0]?.char;
   await storyboard(winner?.data?.def.arcade.ending, winner?.data?.dir ?? '');
+  arcadeEnd = 'ending';
 }
 
 async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | undefined, aiLevel?: () => number, demo?: { endTime: number; bars: boolean }): Promise<FightScreen> {
@@ -456,7 +464,11 @@ async function runMode(mode: GameMode): Promise<void> {
         await until(new VersusScreen(ctx, sel.p1, opp, n));
         const res = await until<{ winner: number | undefined; quote?: string }>(await loading(() => fight(mode, sel.p1, opp, undefined, () => rampedAiLevel('arcade', n - 1))));
         if (res.winner !== 0) {
-          if (res.winner === undefined || (motif.value('Continue Screen', 'enabled') ?? '1') === '0') return;
+          if (res.winner === undefined) return;
+          if ((motif.value('Continue Screen', 'enabled') ?? '1') === '0') {
+            arcadeEnd = 'gameover';
+            return;
+          }
           // Continue? Yes: pick a character again and replay this match. The
           // player shows in its first default palette (measured: KFM picked
           // with a, palette 4, continues in palette 1).
@@ -464,7 +476,10 @@ async function runMode(mode: GameMode): Promise<void> {
           const again = await until<boolean>(
             await loading(async () => new ContinueScreen(ctx, { prog: await program(sel.p1.char), pal: sel.p1.char.data?.def.palDefaults[0] ?? 1, stage: await stage(sp), fightFx, font: systemFont, seed: session.matchSeed() })),
           );
-          if (!again) return;
+          if (!again) {
+            arcadeEnd = 'gameover';
+            return;
+          }
           const re = await until<SelectResult>(new SelectScreen(ctx, mode, rosterChars, stages));
           if (re.cancelled) return;
           sel.p1 = re.p1;
@@ -477,6 +492,7 @@ async function runMode(mode: GameMode): Promise<void> {
         }
       }
       await storyboard(chosen.data?.def.arcade.ending, chosen.data?.dir ?? '');
+      arcadeEnd = 'ending';
       return;
     }
     const p2 = sel.p2 ?? randomOpponent();
@@ -522,9 +538,21 @@ async function mainLoop(): Promise<void> {
       continue;
     }
     menuPos = ['arcade', 'versus', 'teamarcade', 'teamversus', 'teamcoop', 'survival', 'survivalcoop', 'training', 'watch'].indexOf(mode);
+    arcadeEnd = undefined;
     await runMode(mode);
+    // Gameflow 14 (game over: [Game Over Screen] storyboard) or 19 (after
+    // the ending: [End Credits] storyboard), then state 3: the intro
+    // storyboard plays again (intro_played = 0) before the title.
+    if (arcadeEnd) {
+      const sec = arcadeEnd === 'gameover' ? 'Game Over Screen' : 'End Credits';
+      if ((motif.value(sec, 'enabled') ?? '0') !== '0') await storyboard(motif.value(sec, 'storyboard')?.trim() || undefined, 'data');
+      await storyboard(motif.introStoryboard);
+    }
   }
 }
+
+/** How the last arcade run ended: a game over (gameflow 14) or its ending (18 / 16). */
+let arcadeEnd: 'gameover' | 'ending' | undefined;
 
 /**
  * A demo fight (Demo_SetupTeams, Gameflow_PickStage): a random character
