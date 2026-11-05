@@ -579,7 +579,10 @@ export class Player {
     const juggle = num('juggle');
     if (juggle !== undefined) this.juggleCost = juggle;
     const anim = num('anim');
-    if (anim !== undefined) this.changeAnim(anim, 0, true);
+    // Player_RunState: the statedef's anim is always the player's own AIR
+    // (p->anim->anim = p->data->anim), in a custom state too (Elisabeth
+    // landing in Ken's states uses her own 47).
+    if (anim !== undefined) this.changeAnim(anim, 0, false);
   }
 
   /**
