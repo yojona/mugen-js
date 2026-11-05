@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { IN_D, IN_L, IN_R, IN_X } from '../src/engine/cmd';
-import { Pad } from '../src/app/input';
+import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../src/engine/cmd';
+import { Keyboard, Pad } from '../src/app/input';
+import { BROWSER_DEFAULT_KEYS, KEY_NONE } from '../src/app/sdl-keys';
 import { parseIni } from '../src/formats/text';
 import { GameOptions, OPTIONS_DEFAULTS, OPTIONS_LOAD_SAVE, OPTIONS_STORAGE_KEY, OPTIONS_TIME, pctToVolume, volumeToPct } from '../src/app/game-options';
 import { OPTIONS_MENU_INPUT, OPTIONS_MENU_MAIN, OPTIONS_MENU_TEAM, OptionsScreen, optionsChangeMain, optionsMainValueText, titlePulse } from '../src/app/options';
@@ -20,6 +21,14 @@ WavVolume = 80
 BGMVolume = 75
 [Input]
 P1.Joystick.type = 0
+`);
+
+const KEYS_CFG = parseIni(`[P1 Keys]
+Jump   = 119
+Crouch = 115
+[P2 Keys]
+Jump   = 273
+A      = 260
 `);
 
 function memoryStorage() {
@@ -170,5 +179,91 @@ describe('options screen', () => {
     press(IN_X);
     for (let i = 0; i < 12 && scr.result === undefined; i++) tick();
     expect(scr.result).toBe(true);
+  });
+});
+
+describe('key maps', () => {
+  const held = () => {
+    const target = new EventTarget();
+    const kb = new Keyboard(target);
+    const send = (type: string, code: string) => target.dispatchEvent(Object.assign(new Event(type), { code }));
+    return { kb, send };
+  };
+  const after = (kb: Keyboard, send: (t: string, c: string) => void, code: string) => {
+    send('keydown', code);
+    kb.poll();
+    const bits = [kb.pads[0]!.bits, kb.pads[1]!.bits];
+    send('keyup', code);
+    kb.poll();
+    return bits;
+  };
+
+  it('default play is the fixed maps input.ts always had', () => {
+    const { kb, send } = held();
+    const old: Record<string, number>[] = [
+      { ArrowUp: IN_U, ArrowDown: IN_D, ArrowLeft: IN_L, ArrowRight: IN_R, KeyA: IN_X, KeyS: IN_Y, KeyD: IN_Z, KeyZ: IN_A, KeyX: IN_B, KeyC: IN_C, Enter: IN_S },
+      { KeyI: IN_U, KeyK: IN_D, KeyJ: IN_L, KeyL: IN_R, KeyU: IN_X, KeyO: IN_Y, KeyP: IN_Z, KeyM: IN_A, Comma: IN_B, Period: IN_C, Backspace: IN_S },
+    ];
+    old.forEach((m, side) => {
+      for (const [code, bit] of Object.entries(m)) {
+        const bits = after(kb, send, code);
+        expect(bits[side]).toBe(bit);
+        expect(bits[1 - side]).toBe(0);
+      }
+    });
+    expect(after(kb, send, 'KeyW')).toEqual([0, 0]);
+  });
+
+  it('GameOptions without saved keys gives the same maps', () => {
+    const o = new GameOptions(KEYS_CFG).init();
+    expect(o.keys).toEqual(BROWSER_DEFAULT_KEYS);
+  });
+
+  it('keysFromCfg reads [P1 Keys] / [P2 Keys] (Options_Load)', () => {
+    let maps: number[][] = [];
+    const o = new GameOptions(KEYS_CFG, undefined, { keysFromCfg: true, onRemap: (k) => (maps = k) }).init();
+    expect(o.keys[0]!.slice(0, 2)).toEqual([119, 115]);
+    expect(o.keys[1]![4]).toBe(260);
+    expect(o.keys[0]![10]).toBe(KEY_NONE); // missing from the file: unused
+    expect(maps).toBe(o.keys);
+    const { kb, send } = held();
+    kb.setMaps(maps);
+    expect(after(kb, send, 'KeyW')).toEqual([IN_U, 0]);
+    expect(after(kb, send, 'Numpad4')).toEqual([0, IN_A]);
+    expect(after(kb, send, 'ArrowUp')).toEqual([0, IN_U]);
+  });
+
+  it('a key both players have drives only P2 (Input_Remap); KEY_NONE drives nothing', () => {
+    const { kb, send } = held();
+    const p1 = [...BROWSER_DEFAULT_KEYS[0]!];
+    const p2 = [...BROWSER_DEFAULT_KEYS[1]!];
+    p1[0] = 119;
+    p2[0] = 119;
+    p1[1] = KEY_NONE;
+    kb.setMaps([p1, p2]);
+    expect(after(kb, send, 'KeyW')).toEqual([0, IN_U]);
+    expect(after(kb, send, 'ArrowUp')).toEqual([0, 0]);
+    expect(after(kb, send, 'ArrowDown')).toEqual([0, 0]);
+  });
+
+  it('saved keys persist through Save / Load, unused entries as 0', () => {
+    const s = memoryStorage();
+    let maps: number[][] = [];
+    const o = new GameOptions(KEYS_CFG, s, { onRemap: (k) => (maps = k) }).init();
+    o.keys[0]![0] = 119;
+    o.keys[1]![10] = KEY_NONE;
+    o.save();
+    const raw = JSON.parse(s.m.get(OPTIONS_STORAGE_KEY)!);
+    expect(raw['p1 keys'].jump).toBe('119');
+    expect(raw['p2 keys'].start).toBe('0');
+    const again = new GameOptions(KEYS_CFG, s, { onRemap: (k) => (maps = k) }).init();
+    expect(again.keys[0]![0]).toBe(119);
+    expect(again.keys[1]![10]).toBe(KEY_NONE);
+    expect(maps).toBe(again.keys);
+    // Load drops what was not saved
+    again.keys[0]![1] = 97;
+    again.load();
+    expect(again.keys[0]![1]).toBe(BROWSER_DEFAULT_KEYS[0]![1]);
+    expect(again.keys[0]![0]).toBe(119);
   });
 });

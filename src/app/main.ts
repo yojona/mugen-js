@@ -88,7 +88,7 @@ const gameOptions = await (async () => {
   } catch {
     storage = undefined;
   }
-  return new GameOptions(cfg, storage).init();
+  return new GameOptions(cfg, storage, { keysFromCfg: params.has('cfgkeys'), onRemap: (k) => keys.setMaps(k) }).init();
 })();
 // The sounds play at MasterVolume * WavVolume (Sound_SetVolume).
 mixer.volume = gameOptions.wavGain;

@@ -4,6 +4,7 @@
 // would write go to localStorage, and reads look there first.
 
 import { findSection, getValue, type IniDoc } from '../formats/text';
+import { BROWSER_DEFAULT_KEYS, KEY_NONE } from './sdl-keys';
 
 /** Items of the main options menu (title.h OPTIONS_*), also the slots of GameOptions.main. */
 export const OPTIONS_DIFFICULTY = 0;
@@ -25,10 +26,26 @@ export const OPTIONS_STORAGE_KEY = 'mugen-web.mugen.cfg';
 
 type Saved = Record<string, Record<string, string>>;
 
+/** Config_ReadKeys' map: the [P<n> Keys] / [P<n> Joystick] key of each key configuration entry. */
+const KEY_NAMES = ['Jump', 'Crouch', 'Left', 'Right', 'A', 'B', 'C', 'X', 'Y', 'Z', 'Start'];
+
 /** Storage-like (window.localStorage); every access may throw (private mode, blocked site data). */
 export interface OptionsStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
+}
+
+export interface GameOptionsConfig {
+  /**
+   * Read the initial keys from mugen.cfg's [P1 Keys] / [P2 Keys], as
+   * Options_Load does. Off by default: the shipped mugen.cfg has P1 on W A S D
+   * + J K L / U I O, N and P2 on the arrows + the numeric keypad, while the
+   * browser port has always played on BROWSER_DEFAULT_KEYS, which stand in
+   * for the file then. Saved keys win either way. (?cfgkeys=1 turns it on.)
+   */
+  keysFromCfg?: boolean;
+  /** Input_Remap: the configured keys changed. */
+  onRemap?: (keys: number[][]) => void;
 }
 
 export class GameOptions {
@@ -49,6 +66,8 @@ export class GameOptions {
   readonly useJoystick: [boolean, boolean] = [false, false];
   /** team_1vs2_life, team_lose_on_ko, then option_team_unused (Options_TeamValue). */
   readonly team: number[] = [150, 0, 0, 0];
+  /** GameVars.keys: SDL key of each key configuration entry (up .. start), KEY_NONE when unused. */
+  keys: number[][] = [[], []];
   /** [Sound] MasterVolume, WavVolume, BGMVolume (percent, the configured volumes). */
   masterVolume = 100;
   wavVolume = 100;
@@ -59,6 +78,7 @@ export class GameOptions {
   constructor(
     private cfg: IniDoc | undefined,
     private storage?: OptionsStorage,
+    private config: GameOptionsConfig = {},
   ) {}
 
   get difficulty(): number {
@@ -147,8 +167,8 @@ export class GameOptions {
   /**
    * Options_Load (0x45F170): [Options] Difficulty, Life, Time, GameSpeed,
    * Team.1VS2Life, Team.LoseOnKO when present; the volume percentages from
-   * the volumes in use (not the file's); the joystick types of [Input].
-   * (The key maps and the pads are not ported.)
+   * the volumes in use (not the file's); the keys; the joystick types of
+   * [Input]. (The pads are not ported.) The motif is not reloaded here.
    */
   load(): void {
     if (this.hasSection('Options')) {
@@ -168,6 +188,7 @@ export class GameOptions {
       this.main[OPTIONS_WAV_VOLUME] = volumeToPct(this.wavVolume);
       this.main[OPTIONS_BGM_VOLUME] = volumeToPct(this.bgmVolume);
     }
+    this.readKeys();
     if (this.hasSection('Input')) {
       const p1 = this.num('Input', 'P1.Joystick.type');
       const p2 = this.num('Input', 'P2.Joystick.type');
@@ -180,11 +201,36 @@ export class GameOptions {
     // has none (Pads_Init finds no joystick), so both sides lose them.
     // TODO: Gamepad API pads.
     if (this.useJoystick[0] || this.useJoystick[1]) this.useJoystick[0] = this.useJoystick[1] = false;
+    this.remap();
+  }
+
+  /** Input_Remap: the keys take effect. */
+  remap(): void {
+    this.config.onRemap?.(this.keys);
   }
 
   /**
-   * Options_Save (0x45F5B0): the options and the joystick types are
-   * written; the volumes take the percentages (keeping their fractions)
+   * Config_ReadKeys + Config_FillUnassigned for both players: a key missing
+   * from the file keeps its value, and 0 (how Options_SaveKeys writes an
+   * unused entry) becomes KEY_NONE. Without keysFromCfg, BROWSER_DEFAULT_KEYS
+   * play the file's part: the keys go back to them unless they were saved.
+   */
+  private readKeys(): void {
+    const fromCfg = this.config.keysFromCfg === true;
+    this.keys = this.keys.map((cur, p) => {
+      const keys = fromCfg ? [...cur] : [...BROWSER_DEFAULT_KEYS[p]!];
+      const section = `P${p + 1} Keys`;
+      KEY_NAMES.forEach((name, i) => {
+        const v = fromCfg ? this.get(section, name) : this.saved()[section.toLowerCase()]?.[name.toLowerCase()];
+        if (v !== undefined) keys[i] = parseInt(v, 10) || 0;
+      });
+      return KEY_NAMES.map((_, i) => keys[i] || KEY_NONE);
+    });
+  }
+
+  /**
+   * Options_Save (0x45F5B0): the options, the joystick types and the keys
+   * are written; the volumes take the percentages (keeping their fractions)
    * and are written too. Returns false when the storage refused.
    */
   save(): boolean {
@@ -208,6 +254,10 @@ export class GameOptions {
     put('Sound', 'BGMVolume', this.bgmVolume);
     put('Input', 'P1.Joystick.type', this.input[0]![1]!);
     put('Input', 'P2.Joystick.type', this.input[1]![1]!);
+    // Options_SaveKeys: an unused entry is written as 0.
+    const putKeys = (section: string, keys: number[], none: number) => KEY_NAMES.forEach((name, i) => put(section, name, keys[i] === none ? 0 : keys[i]!));
+    putKeys('P1 Keys', this.keys[0]!, KEY_NONE);
+    putKeys('P2 Keys', this.keys[1]!, KEY_NONE);
     try {
       this.storage?.setItem(OPTIONS_STORAGE_KEY, JSON.stringify(out));
       return true;
