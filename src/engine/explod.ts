@@ -127,47 +127,19 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
     const faceParam = (prm.int(p, 'facing') ?? 1) < 0 ? -1 : 1;
     let facing = faceParam;
     const w = p.world;
-    let space: Explod['space'] = (prm.raw('space') ?? 'stage').toLowerCase() === 'screen' ? 'screen' : 'stage';
-    let x = off[0] + rx;
-    let y = off[1] + ry;
-    // Player_GetPosOrigin: the right screen edge is GameWidth - 1 internal units.
-    const rightEdge = w.screenWidth - w.screenWidth / w.gameWidth;
-    let bindTo: P | undefined;
+    // space: unset or auto, the screen for the edge postypes and else the stage.
+    const edge = posType === 'front' || posType === 'back' || posType === 'left' || posType === 'right';
+    const rawSpace = prm.raw('space')?.trim().toLowerCase();
+    const space: Explod['space'] = rawSpace === 'screen' || (rawSpace !== 'stage' && edge) ? 'screen' : 'stage';
+    const o = explodOrigin(p, posType, space);
+    facing *= o.dir;
+    let bindTo = o.bindTo;
     const bindId = prm.int(p, 'bindid') ?? -2;
-    switch (posType) {
-      case 'p1':
-      case 'p2': {
-        const ref = posType === 'p1' ? p : (w.enemyOf(p) ?? p);
-        x = ref.wx + off[0] * ref.facing + rx;
-        y = ref.wy + off[1] + ry;
-        facing *= ref.facing;
-        // p1/p2 explods always keep their anchor (bindtime defaults to 1).
-        bindTo = ref;
-        space = 'stage';
-        break;
-      }
-      case 'front':
-      case 'back':
-      case 'left':
-      case 'right': {
-        space = 'screen';
-        const edgeRight = (posType === 'front') === p.facing > 0;
-        if (posType === 'left') x = off[0];
-        else if (posType === 'right') x = rightEdge + off[0];
-        else if (posType === 'front') x = (edgeRight ? rightEdge : 0) + off[0];
-        else x = (p.facing > 0 ? 0 : rightEdge) + off[0] * p.facing;
-        x += rx;
-        y = off[1] + ry;
-        if (posType === 'back') facing *= p.facing;
-        break;
-      }
-      default:
-        if (space === 'stage' && bindId !== -2) {
-          bindTo = bindId === -1 ? p : (w.allPlayers().find((q) => q.id === bindId) ?? p);
-          x = bindTo.wx + off[0] + rx;
-          y = bindTo.wy + off[1] + ry;
-        }
+    if (bindId !== -2 && space === 'stage') {
+      bindTo = bindId === -1 ? p : bindId >= 0 ? (w.allPlayers().find((q) => q.id === bindId) ?? bindTo) : bindTo;
     }
+    const offX = o.ox + off[0] * o.dir + rx;
+    const offY = o.oy + off[1] + ry;
     const e: Explod = {
       owner: p,
       // An Explod without an id has id 0 (a ModifyExplod's default is -1).
@@ -175,17 +147,17 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
       anim: new AnimPlayer(a),
       common: anim.common,
       space,
-      x,
-      y,
+      x: o.x + offX,
+      y: o.y + offY,
       facing,
       vfacing: (prm.int(p, 'vfacing') ?? 1) < 0 ? -1 : 1,
       bindTo,
       // bindtime defaults to 1 (sctrl.c bindtime_def).
       bindTime: bindTo ? (prm.int(p, 'bindtime') ?? 1) : 0,
-      bindOffset: posType === 'p1' || posType === 'p2' ? [off[0] * (bindTo?.facing ?? 1) + rx, off[1] + ry] : [off[0] + rx, off[1] + ry],
+      bindOffset: [offX, offY],
       // Explod_ReadParams: vel, or velocity when vel is absent.
       vel: [(prm.num(p, velKey(prm), 0) ?? 0) * k, (prm.num(p, velKey(prm), 1) ?? 0) * k],
-      velDir: facing * faceParam,
+      velDir: o.dir,
       accel: [(prm.num(p, 'accel', 0) ?? 0) * k, (prm.num(p, 'accel', 1) ?? 0) * k],
       drawScale: anim.common ? p.world.fightFxScale : k,
       removeTime: prm.int(p, 'removetime') ?? -2,
@@ -231,6 +203,42 @@ export function transBlend(raw: string): Blend {
       return { kind: 'none' };
   }
   return parseBlend(raw);
+}
+
+/**
+ * Player_GetPosOrigin: where a postype puts an explod (x, y, plus an offset
+ * kept when it follows its anchor), the sign of its x parameters and the
+ * player it is bound to. A p1/p2 explod in screen space keeps the player's
+ * screen position as its offset and, while bound, adds the stage position
+ * on top (the reference does the same).
+ */
+function explodOrigin(p: P, posType: string, space: Explod['space']): { x: number; y: number; ox: number; oy: number; dir: number; bindTo: P | undefined } {
+  const w = p.world;
+  const zero = { x: 0, y: 0, ox: 0, oy: 0 };
+  switch (posType) {
+    case 'p1':
+    case 'p2': {
+      const ref = posType === 'p1' ? p : (w.enemyOf(p) ?? p);
+      if (space === 'screen') {
+        return { ...zero, ox: ref.wx - (w.camera.x - w.screenWidth / 2), oy: w.groundY + ref.wy - w.camera.y - (w.shakeBase + w.cropTop), dir: ref.facing, bindTo: ref };
+      }
+      return { ...zero, x: ref.wx, y: ref.wy, dir: ref.facing, bindTo: ref };
+    }
+    case 'front':
+    case 'back':
+    case 'left':
+    case 'right': {
+      const left = posType === 'left' || (posType === 'back' ? p.facing === 1 : posType === 'front' && p.facing === -1);
+      const width = w.screenWidth;
+      // The edge is GameWidth - 1 internal units from the other.
+      const span = width - width / w.gameWidth;
+      const dir = posType === 'back' ? p.facing : 1;
+      if (space === 'screen') return { ...zero, ox: left ? 0 : span, dir, bindTo: undefined };
+      return { ...zero, x: w.camera.x, ox: -width / 2 + (left ? 0 : span), dir, bindTo: undefined };
+    }
+    default:
+      return { ...zero, dir: 1, bindTo: undefined };
+  }
 }
 
 export function compileModifyExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => void {
