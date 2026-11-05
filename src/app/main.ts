@@ -661,7 +661,9 @@ function makeFlowHarness() {
     .filter(Boolean)
     .map((p) => {
       const [f, k, hold] = p.split(':');
-      return { from: parseInt(f!, 10), bits: parseKeys(k!), hold: parseInt(hold ?? '2', 10) };
+      // Upper case keys go to P2's pad.
+      const p2 = k! !== k!.toLowerCase();
+      return { from: parseInt(f!, 10), bits: parseKeys(k!.toLowerCase()), hold: parseInt(hold ?? '2', 10), pad: p2 ? 1 : 0 };
     });
   const mash = params.get('mash')?.split(':');
   const clamp = params
@@ -700,7 +702,11 @@ function makeFlowHarness() {
       // ?keydelay / ?mashdelay: frames the mugen.exe driver's keys take to
       // reach the game (menus run at 60 fps, fights at the GameSpeed).
       const kf = frame - keyDelay;
-      for (const k of fkeys) if (kf >= k.from && kf < k.from + k.hold) bits |= k.bits;
+      for (const k of fkeys) {
+        if (kf < k.from || kf >= k.from + k.hold) continue;
+        if (k.pad === 0) bits |= k.bits;
+        else keys.pads[k.pad]!.bits |= k.bits;
+      }
       const fighting = !(s instanceof FightScreen) || s.world.roundState === 2;
       if (mash && fighting && s.constructor.name === mash[0] && (((kf - mashDelay + keyDelay) % parseInt(mash[2]!, 10)) + parseInt(mash[2]!, 10)) % parseInt(mash[2]!, 10) < parseInt(mash[3]!, 10)) bits |= parseKeys(mash[1]!);
       if (bits) keys.pads[0]!.bits |= bits;
