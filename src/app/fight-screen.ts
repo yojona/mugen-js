@@ -37,6 +37,11 @@ export interface FightSetup {
   options?: { life?: number; team1vs2Life?: number; loseOnKo?: boolean };
   /** Survival: the human side (its opponents come one after the other from their team's list) and the per-round seeds. */
   survival?: { side: number; reseed: () => number };
+  /**
+   * Player_GetAiLevel for each computer player as it is created: by the
+   * team member (survival: the opponents fought before), else the difficulty.
+   */
+  aiLevel?: (member: number) => number;
 }
 
 export interface FightTeam {
@@ -102,7 +107,7 @@ export class FightScreen implements Screen {
           const p = new Player(t.progs[i]!, w, side);
           p.palNo = t.picks[i]!.pal;
           p.pad = t.pads[i];
-          if (p.pad === undefined) p.ai = new MugenAI(p, ctx.aiLevel);
+          if (p.pad === undefined) p.ai = new MugenAI(p, s.aiLevel?.(member) ?? ctx.aiLevel);
           return p;
         },
       })) as [TeamPlan, TeamPlan];
@@ -121,7 +126,7 @@ export class FightScreen implements Screen {
           p.pad = i === 1 && !s.human[0] ? 0 : i;
           return;
         }
-        p.ai = new MugenAI(p, ctx.aiLevel);
+        p.ai = new MugenAI(p, s.aiLevel?.(0) ?? ctx.aiLevel);
         if (s.training) p.ai.dummy = this.dummy;
       });
     }

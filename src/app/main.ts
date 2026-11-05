@@ -83,6 +83,39 @@ async function aiLevel(): Promise<number> {
   }
 }
 
+/** mugen.cfg [Arcade] <mode>.AIramp.start / .end: match, level offset (0 when missing). */
+type AiRamp = { startMatch: number; startOffset: number; endMatch: number; endOffset: number };
+async function aiRamps(): Promise<Record<'arcade' | 'team' | 'survival', AiRamp>> {
+  let sec: ReturnType<typeof findSection> | undefined;
+  try {
+    sec = findSection(parseIni(await vfs.text('data/mugen.cfg')), 'Arcade');
+  } catch {
+    sec = undefined;
+  }
+  const two = (k: string) => (sec ? (getValue(sec, k) ?? '') : '').split(',').map((x) => parseInt(x, 10));
+  const ramp = (m: string): AiRamp => {
+    const s = two(`${m}.airamp.start`);
+    const e = two(`${m}.airamp.end`);
+    const n = (v: number | undefined) => (Number.isFinite(v) ? v! : 0);
+    return { startMatch: n(s[0]), startOffset: n(s[1]), endMatch: n(e[0]), endOffset: n(e[1]) };
+  };
+  return { arcade: ramp('arcade'), team: ramp('team'), survival: ramp('survival') };
+}
+const ramps = await aiRamps();
+
+/**
+ * Player_GetAiLevel: the difficulty (4 in survival) moved along the mode's
+ * AI ramp by the match index (arcade: matches before this one; survival:
+ * the round), clamped to 1..8.
+ */
+function rampedAiLevel(kind: 'arcade' | 'team' | 'survival', match: number): number {
+  const r = ramps[kind];
+  let level = kind === 'survival' ? 4 : ctx.aiLevel;
+  if (match <= r.startMatch) level += r.startOffset;
+  else if (match >= r.endMatch) level += r.endOffset;
+  else if (r.startMatch < r.endMatch) level += Math.trunc(((r.endOffset - r.startOffset) * (match - r.startMatch)) / (r.endMatch - r.startMatch)) + r.startOffset;
+  return Math.max(1, Math.min(8, level));
+}
 const ctx: AppContext = { renderer, mixer, keys, motif, aiLevel: await aiLevel() };
 
 setStatus('Cargando personajes…');
@@ -231,7 +264,7 @@ function pickStage(s: string | undefined): string | undefined {
 }
 
 /** survival: the reseed of each new round (the next opponent's draws, then the match seed). */
-async function teamFight(sides: [TeamSide, TeamSide], stagePath: string | undefined, survival?: () => number): Promise<FightScreen> {
+async function teamFight(sides: [TeamSide, TeamSide], stagePath: string | undefined, survival?: () => number, aiLevel?: (member: number) => number): Promise<FightScreen> {
   const lead = sides[1].picks[0] ?? sides[0].picks[0]!;
   const sp = stagePath ?? vfs.resolve(lead.char.entry.stage ?? '') ?? stages[0]!.path;
   const teams = (await Promise.all(
@@ -251,6 +284,7 @@ async function teamFight(sides: [TeamSide, TeamSide], stagePath: string | undefi
     teams,
     options: teamOptions,
     survival: survival ? { side: 0, reseed: survival } : undefined,
+    aiLevel,
   });
 }
 
@@ -304,7 +338,8 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
       for (let k = 0; k < size; k++) slot(session);
       return session.matchSeed();
     };
-    const res = await until<FightResult>(await loading(() => teamFight([human, opp], sp, reseed)));
+    // Player_GetAiLevel: each opponent by the round it starts in.
+    const res = await until<FightResult>(await loading(() => teamFight([human, opp], sp, reseed, (member) => rampedAiLevel('survival', member + 1))));
     if (res.winner === undefined) return;
     // Gameflow 15: the survival results ([Survival Results Screen] enabled).
     if ((motif.value('Survival Results Screen', 'enabled') ?? '1') !== '0') {
@@ -327,7 +362,9 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
   for (let n = 0, match = 1; n + size <= order.length; n += size, match++) {
     const opp: TeamSide = { mode: theirs.mode, picks: cpuPicks(order.slice(n, n + size)), pads: new Array(size).fill(undefined) };
     await until(new VersusScreen(ctx, human.picks[0]!, opp.picks[0]!, match));
-    const res = await until<{ winner: number | undefined; quote?: string }>(await loading(() => teamFight([human, opp], undefined)));
+    // Player_GetAiLevel: the team ramp against a simul / turns team, else the arcade one, by the matches before.
+    const ramp = theirs.mode !== 'single' || size > 1 ? 'team' : 'arcade';
+    const res = await until<{ winner: number | undefined; quote?: string }>(await loading(() => teamFight([human, opp], undefined, undefined, () => rampedAiLevel(ramp, match - 1))));
     if (res.winner !== 0) {
       // Match_Run: an arcade loss goes to the continue screen (state 13), as
       // in arcade, with the team's first character; Yes picks the team again
@@ -355,7 +392,7 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
   await storyboard(winner?.data?.def.arcade.ending, winner?.data?.dir ?? '');
 }
 
-async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | undefined): Promise<FightScreen> {
+async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | undefined, aiLevel?: () => number): Promise<FightScreen> {
   const sp = stagePath ?? vfs.resolve(p2.char.entry.stage ?? '') ?? stages[0]!.path;
   const progs: [CharacterProgram, CharacterProgram] = [await program(p1.char), await program(p2.char)];
   // Same character and palette on both sides: P2 takes the next palette.
@@ -372,6 +409,7 @@ async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | und
     commonSnd,
     human: mode === 'versus' ? [true, true] : mode === 'watch' ? [false, false] : [true, false],
     training: mode === 'training',
+    aiLevel,
   });
 }
 
@@ -408,7 +446,7 @@ async function runMode(mode: GameMode): Promise<void> {
         const oc = opponents[n - 1]!;
         const opp: Pick = { char: oc, pal: session.opponentPalette((i) => !!oc.data?.palettes?.[i]) };
         await until(new VersusScreen(ctx, sel.p1, opp, n));
-        const res = await until<{ winner: number | undefined; quote?: string }>(await loading(() => fight(mode, sel.p1, opp, undefined)));
+        const res = await until<{ winner: number | undefined; quote?: string }>(await loading(() => fight(mode, sel.p1, opp, undefined, () => rampedAiLevel('arcade', n - 1))));
         if (res.winner !== 0) {
           if (res.winner === undefined || (motif.value('Continue Screen', 'enabled') ?? '1') === '0') return;
           // Continue? Yes: pick a character again and replay this match. The
