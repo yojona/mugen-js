@@ -1336,7 +1336,7 @@ export class Player {
     // Player_Update after the movement (not in hit pause): a player whose
     // life ran out is KO now (unless AssertSpecial noko); the round sees it
     // on its next tick. KO outside a hit falls through 5030.
-    if (this.life <= 0 && this.alive && !this.isHelper && !this.world.allPlayers().some((q) => q.special.has('noko'))) {
+    if (this.life <= 0 && this.alive && !this.isHelper && !this.world.globalFlag('noko')) {
       this.alive = false;
       this.ctrl = false;
       if (this.moveType !== 'h') {

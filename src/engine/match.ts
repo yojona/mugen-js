@@ -542,7 +542,7 @@ export class Match {
       case 'intro':
         w.roundState = 1;
         // Intros last while any player asserts "intro".
-        if ((this.round > 1 || this.phaseTime > 1) && !this.players.some((p) => p.special.has('intro'))) {
+        if ((this.round > 1 || this.phaseTime > 1) && !w.globalFlag('intro')) {
           // This tick intro_time reaches 1 before and 2 after Round_RunState's
           // increment (the announce phase's tick t sees t + 2 before it).
           if (c.roundSndTime === 0) this.sounds.push([0, Math.min(this.round, 9)]);
@@ -589,7 +589,7 @@ export class Match {
         // Pause / SuperPause or while AssertSpecial timerfreeze holds; time
         // is over when it reaches 0 after ctrl.time.
         let timeUp = false;
-        const timerFreeze = this.players.some((p) => p.special.has('timerfreeze')) || w.helpers.some((h) => h.special.has('timerfreeze'));
+        const timerFreeze = w.globalFlag('timerfreeze');
         if (!w.pause && !w.superPause && !timerFreeze && this.phaseTime >= c.ctrlTime && this.clock > 0) {
           this.clock--;
           timeUp = this.clock === 0 && this.phaseTime > c.ctrlTime;
@@ -598,7 +598,7 @@ export class Match {
         const ko = this.teamKo();
         const koSides = (ko[0] === 1 ? 1 : 0) + (ko[1] === 1 ? 1 : 0);
         // Not before ctrl.time, nor with AssertSpecial noko.
-        const noKo = this.players.some((p) => p.special.has('noko')) || w.helpers.some((h) => h.special.has('noko'));
+        const noKo = w.globalFlag('noko');
         if (!koSides && !timeUp) this.roundTicks++;
         if ((koSides || timeUp) && this.phaseTime > c.ctrlTime && !noKo) {
           // Fight_ReadRound adds over.hittime to ko.time and ko.sndtime: the
@@ -627,7 +627,7 @@ export class Match {
           this.koTicks = 1;
           w.roundClock = 1;
           // No slow motion on a time over or with AssertSpecial nokoslow.
-          const noKoSlow = this.players.some((p) => p.special.has('nokoslow')) || w.helpers.some((h) => h.special.has('nokoslow'));
+          const noKoSlow = w.globalFlag('nokoslow');
           this.slowRate = this.slowAcc = timeUp || noKoSlow ? 0 : 500;
           // slow_time 0: the slow motion steps below are undone every tick.
           this.noSlow = timeUp || noKoSlow;
@@ -712,7 +712,7 @@ export class Match {
         }
         // AssertSpecial roundnotover (asserted during the last tick) keeps
         // the round going for 19 more ticks.
-        if (this.players.some((p) => p.special.has('roundnotover')) || w.helpers.some((h) => h.special.has('roundnotover'))) {
+        if (w.globalFlag('roundnotover')) {
           this.overEndTime = this.phaseTime + 19;
         }
         // Its fade out shows a tick late too (measured before a round reset).

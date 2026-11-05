@@ -194,6 +194,7 @@ export class World {
   /** Round_Reset: no pause, EnvShake or palette effect carries into a new round. */
   resetRoundFx(): void {
     this.pause = this.superPause = this.queuedPause = undefined;
+    this.assertFlags.clear();
     this.envShake = undefined;
     this.shakeBase = 0;
     this.envColor = undefined;
@@ -417,9 +418,15 @@ export class World {
     return true;
   }
 
-  /** An AssertSpecial global flag (nobg, nofg, nobardisplay, globalnoshadow) asserted by any player or helper. */
+  /**
+   * The AssertSpecial global flags, cleared by Round_Tick before the players
+   * update. A player the tick doesn't run (in a pause) doesn't keep them up:
+   * Athena's roundstate != 2 NoBarDisplay leaves the HUD on during the K.O. pause.
+   */
+  assertFlags = new Set<string>();
+
   globalFlag(flag: string): boolean {
-    return this.players.some((p) => p.special.has(flag)) || this.helpers.some((h) => h.special.has(flag));
+    return this.assertFlags.has(flag);
   }
 
   get darkened(): boolean {
@@ -431,6 +438,7 @@ export class World {
     this.comboAdded = [0, 0];
     this.comboTouched = [false, false];
     this.comboOngoing = [false, false];
+    this.assertFlags.clear();
     // gameloop.c: envcolor_time counts down before the tick.
     if (this.envColor && this.envColor.time > 0 && --this.envColor.time === 0) this.envColor = undefined;
     // Before the round starts (and after it ends) input is ignored and nobody has control.

@@ -77,6 +77,9 @@ class Params {
 
 type Impl = (c: ControllerDef, prm: Params, env: TriggerEnv<P>) => (p: P) => void;
 
+/** AssertSpecial flags kept in GameVars instead of the player. */
+const GLOBAL_ASSERTS = new Set(['intro', 'roundnotover', 'noko', 'nokosnd', 'nokoslow', 'nomusic', 'globalnoshadow', 'timerfreeze', 'nobardisplay', 'nobg', 'nofg']);
+
 const IMPLS: Record<string, Impl> = {
   null: () => () => {},
 
@@ -558,7 +561,7 @@ const EXTRA: Record<string, Impl> = {
   assertspecial: (c) => (p) => {
     for (const k of ['flag', 'flag2', 'flag3']) {
       const f = c.params.get(k)?.trim().toLowerCase();
-      if (f) p.special.add(f);
+      if (f) (GLOBAL_ASSERTS.has(f) ? p.world.assertFlags : p.special).add(f);
     }
   },
   width: (_c, prm) => (p) => {
