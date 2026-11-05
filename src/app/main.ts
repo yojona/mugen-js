@@ -205,7 +205,9 @@ const systemFont = await loadFont(vfs, 'font/f-6x9.def').catch(() => undefined);
 // Options_GetFont: font/options.def at a height that fits the game, else the medium font (f-6x9).
 let optionsFont: Font | undefined;
 async function getOptionsFont(): Promise<Font | undefined> {
-  optionsFont ??= await loadFontSized(vfs, 'font/options.def', optionsFontHeight(OPTIONS_GAME_SIZE[1])).catch(() => systemFont);
+  // ?nottf: as if the truetype file were missing (the harness's Wine has no
+  // arial.ttf, so mugen.exe falls back to the medium font there).
+  optionsFont ??= params.get('nottf') ? systemFont : await loadFontSized(vfs, 'font/options.def', optionsFontHeight(OPTIONS_GAME_SIZE[1])).catch(() => systemFont);
   return optionsFont;
 }
 
