@@ -579,6 +579,9 @@ async function loading<T>(f: () => Promise<T>): Promise<T> {
   }
 }
 
+// ?debug: the running screen for the browser console.
+if (params.has('debug')) (globalThis as unknown as { mugenScreen: () => Screen }).mugenScreen = () => screen;
+
 async function mainLoop(): Promise<void> {
   let menuPos = 0;
   // Motif logo and intro storyboards play once at start-up.
