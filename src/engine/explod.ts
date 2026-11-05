@@ -180,7 +180,8 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
       // bindtime defaults to 1 (sctrl.c bindtime_def).
       bindTime: bindTo ? (prm.int(p, 'bindtime') ?? 1) : 0,
       bindOffset: posType === 'p1' || posType === 'p2' ? [off[0] * (bindTo?.facing ?? 1) + rx, off[1] + ry] : [off[0] + rx, off[1] + ry],
-      vel: [(prm.num(p, 'vel', 0) ?? 0) * k, (prm.num(p, 'vel', 1) ?? 0) * k],
+      // Explod_ReadParams: vel, or velocity when vel is absent.
+      vel: [(prm.num(p, velKey(prm), 0) ?? 0) * k, (prm.num(p, velKey(prm), 1) ?? 0) * k],
       velDir: facing * faceParam,
       accel: [(prm.num(p, 'accel', 0) ?? 0) * k, (prm.num(p, 'accel', 1) ?? 0) * k],
       drawScale: anim.common ? p.world.fightFxScale : k,
@@ -253,7 +254,7 @@ export function compileModifyExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P
             e.y = pos[1];
           }
         }
-        e.vel = v2('vel') ?? e.vel;
+        e.vel = v2(velKey(prm)) ?? e.vel;
         e.accel = v2('accel') ?? e.accel;
         if (e.bindTime === 0) e.bindTime = 1;
       }
@@ -356,4 +357,9 @@ export function updateExplod(e: Explod): boolean {
   }
   e.age++;
   return true;
+}
+
+/** Explod_ReadParams reads vel, or velocity when there is no vel. */
+function velKey(prm: { has(k: string): boolean }): string {
+  return prm.has('vel') || !prm.has('velocity') ? 'vel' : 'velocity';
 }
