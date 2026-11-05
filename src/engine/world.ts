@@ -877,8 +877,8 @@ export class World {
     const sx = xy[0] * a.localScale * k;
     const base = d.facing !== a.facing ? this.sparkEdge(d, true) + sx : -sx - this.sparkEdge(d, false);
     return {
-      x: Math.trunc((Math.trunc(base) - d.drawOffset[0] * d.scale * k) * d.facing + d.wx * k) / k,
-      y: Math.trunc(xy[1] * a.localScale * k - a.drawOffset[1] * a.scale * k + a.wy * k) / k,
+      x: Math.trunc((Math.trunc(base) - (d.clsnX - d.wx) * k) * d.facing + d.wx * k) / k,
+      y: Math.trunc(xy[1] * a.localScale * k - (a.clsnY - a.wy) * k + a.wy * k) / k,
       facing: a.facing,
     };
   }
@@ -900,8 +900,8 @@ export class World {
     const bx = rxy[0] * r.localScale * k;
     const base = a.facing !== r.facing ? this.sparkEdge(r, true) + (bx + ax) : -ax - bx - this.sparkEdge(r, false);
     return {
-      x: Math.trunc((Math.trunc(base) - r.drawOffset[0] * r.scale * k) * r.facing + r.wx * k) / k,
-      y: Math.trunc(axy[1] * a.localScale * k + rxy[1] * r.localScale * k - a.drawOffset[1] * a.scale * k + a.wy * k) / k,
+      x: Math.trunc((Math.trunc(base) - (r.clsnX - r.wx) * k) * r.facing + r.wx * k) / k,
+      y: Math.trunc(axy[1] * a.localScale * k + rxy[1] * r.localScale * k - (a.clsnY - a.wy) * k + a.wy * k) / k,
       facing: a.facing,
     };
   }

@@ -145,8 +145,8 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
     sprite(
       s,
       s ? p.prog.data.paletteFor(s, p.palRemap ?? p.palNo) : undefined,
-      sx((p.pos.x + p.facing * (v.x + p.drawOffset[0])) * k),
-      sy((p.pos.y + v.y + p.drawOffset[1]) * k),
+      sx(p.clsnX + p.facing * v.x * k),
+      sy(p.clsnY + v.y * k),
       p.facing * (v.element.flipH ? -1 : 1) * v.scaleX * p.drawScale[0] * p.const('size.xscale') * k,
       (v.element.flipV ? -1 : 1) * v.scaleY * p.drawScale[1] * p.const('size.yscale') * k,
       p.facing * angle,
@@ -262,8 +262,8 @@ function drawShadows(r: Renderer, w: World, sx: (x: number) => number, sy: (y: n
     castShadow(r, w, {
       sprite: s,
       palette: p.prog.data.paletteFor(s, p.palRemap ?? p.palNo),
-      x: sx((p.pos.x + p.facing * (v.x + p.drawOffset[0])) * k),
-      y: sy((p.pos.y + v.y + p.drawOffset[1]) * k),
+      x: sx(p.clsnX + p.facing * v.x * k),
+      y: sy(p.clsnY + v.y * k),
       top: sy(p.const('size.shadowoffset') * k),
       height: p.pos.y,
       scaleX: p.facing * (v.element.flipH ? -1 : 1) * v.scaleX * p.drawScale[0] * p.const('size.xscale') * k,
