@@ -751,7 +751,8 @@ export class World {
       if (--sp.time <= 0) {
         this.superPause = undefined;
         if (this.queuedPause) {
-          this.pause = this.queuedPause;
+          // It was set on an earlier tick: Game_Tick counts it from the next one on.
+          this.pause = { ...this.queuedPause, fresh: false };
           this.queuedPause = undefined;
         }
       }
