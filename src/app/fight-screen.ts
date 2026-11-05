@@ -101,6 +101,8 @@ export class FightScreen implements Screen {
     if (s.survival) this.fade = new Fader(0, 1);
     const info = s.stage.info;
     const cfg = s.hud.roundConfig();
+    // [Options] Time (Round_Reset: round_time from GameVars.time; -1 none).
+    if (ctx.options) cfg.roundSeconds = ctx.options.time;
     if (s.training || s.demo) cfg.roundSeconds = -1;
     const starts = [info.p1, info.p2, info.p3, info.p4];
     if (s.teams) {

@@ -1,6 +1,7 @@
 // Shared screen plumbing: fades, backgrounds and motif sounds.
 
 import type { Mixer } from '../audio/mixer';
+import type { GameOptions } from './game-options';
 import type { Renderer } from '../render/renderer';
 import { drawStageLayer } from '../render/stage-draw';
 import type { Background } from '../stage/stage';
@@ -17,6 +18,8 @@ export interface AppContext {
   aiLevel: number;
   /** GameVars.frames: ticks run on every screen since startup (GameTime, the hit order). */
   frames?: number;
+  /** The options screen's settings (mugen.cfg [Options], [Sound]). */
+  options?: GameOptions;
 }
 
 export interface Screen {

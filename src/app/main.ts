@@ -25,6 +25,7 @@ import { VersusScreen, VictoryScreen } from './interstitial';
 import type { AppContext, Screen } from './screen';
 import { SelectScreen, type Pick, type RosterChar, type SelectResult, type TeamPick } from './select';
 import { TitleScreen, type GameMode } from './title';
+import { GameOptions } from './game-options';
 import { loadStoryboard, StoryboardScreen } from './storyboard';
 import { SurvivalResultsScreen } from './results';
 
@@ -72,16 +73,24 @@ renderer.resize(mw, mh, zoom);
 const mixer = new Mixer();
 const keys = new Keyboard();
 keys.onFirstInput = () => mixer.unlock();
-// mugen.cfg [Options] Difficulty: the CPU's AILevel (default 4, clamped 1..8).
-async function aiLevel(): Promise<number> {
+// System_Init: Config_Load, Options_SetDefaults, Options_Load. The options
+// screen's saves live in localStorage (not under the flow harness, which
+// compares against a fresh mugen.cfg).
+const gameOptions = await (async () => {
+  const cfg = await vfs
+    .text('data/mugen.cfg')
+    .then(parseIni)
+    .catch(() => undefined);
+  let storage: Storage | undefined;
   try {
-    const cfg = parseIni(await vfs.text('data/mugen.cfg'));
-    const v = parseInt(getValue(findSection(cfg, 'Options'), 'difficulty') ?? '', 10);
-    return Number.isFinite(v) ? Math.max(1, Math.min(8, v)) : 4;
+    storage = params.get('flowlog') ? undefined : window.localStorage;
   } catch {
-    return 4;
+    storage = undefined;
   }
-}
+  return new GameOptions(cfg, storage).init();
+})();
+// The sounds play at MasterVolume * WavVolume (Sound_SetVolume).
+mixer.volume = gameOptions.wavGain;
 
 /** mugen.cfg [Arcade] <mode>.AIramp.start / .end: match, level offset (0 when missing). */
 type AiRamp = { startMatch: number; startOffset: number; endMatch: number; endOffset: number };
@@ -116,7 +125,8 @@ function rampedAiLevel(kind: 'arcade' | 'team' | 'survival', match: number): num
   else if (r.startMatch < r.endMatch) level += Math.trunc(((r.endOffset - r.startOffset) * (match - r.startMatch)) / (r.endMatch - r.startMatch)) + r.startOffset;
   return Math.max(1, Math.min(8, level));
 }
-const ctx: AppContext = { renderer, mixer, keys, motif, aiLevel: await aiLevel(), frames: 0 };
+// [Options] Difficulty: the CPU's AILevel (clamped 1..8).
+const ctx: AppContext = { renderer, mixer, keys, motif, aiLevel: Math.max(1, Math.min(8, gameOptions.difficulty)), frames: 0, options: gameOptions };
 
 setStatus('Cargando personajes…');
 const roster: Roster = await loadRoster(vfs, motif.selectDef);
@@ -245,20 +255,8 @@ interface TeamSide {
   pads: (number | undefined)[];
 }
 
-/** mugen.cfg [Options] Life, Team.1VS2Life, Team.LoseOnKO. */
-const teamOptions = await (async () => {
-  try {
-    const cfg = parseIni(await vfs.text('data/mugen.cfg'));
-    const o = findSection(cfg, 'Options');
-    const n = (k: string, d: number) => {
-      const v = parseInt(getValue(o, k) ?? '', 10);
-      return Number.isFinite(v) ? v : d;
-    };
-    return { life: n('Life', 100), team1vs2Life: n('Team.1VS2Life', 150), loseOnKo: n('Team.LoseOnKO', 0) !== 0 };
-  } catch {
-    return { life: 100, team1vs2Life: 150, loseOnKo: false };
-  }
-})();
+/** [Options] Life, Team.1VS2Life, Team.LoseOnKO (as the options screen left them). */
+const teamOptions = () => ({ life: gameOptions.life, team1vs2Life: gameOptions.team1vs2Life, loseOnKo: gameOptions.teamLoseOnKo });
 
 /** Charsel_End: the select screen's "random" stage is a session draw over the stage list. */
 function pickStage(s: string | undefined): string | undefined {
@@ -284,7 +282,7 @@ async function teamFight(sides: [TeamSide, TeamSide], stagePath: string | undefi
     human: [sides[0].pads.some((x) => x !== undefined), sides[1].pads.some((x) => x !== undefined)],
     training: false,
     teams,
-    options: teamOptions,
+    options: teamOptions(),
     survival: survival ? { side: 0, reseed: survival } : undefined,
     aiLevel,
   });
@@ -449,6 +447,7 @@ async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | und
     commonSnd,
     human: mode === 'versus' ? [true, true] : mode === 'watch' ? [false, false] : [true, false],
     training: mode === 'training',
+    options: { life: gameOptions.life },
     aiLevel,
     demo,
   });
@@ -765,15 +764,17 @@ if (ticksParam) {
     document.title = 'listo';
   })();
 } else {
-  const TICK = 1000 / 60;
   let acc = 0;
   let last = performance.now();
   const frame = (now: number) => {
     acc += Math.min(now - last, 250);
     last = now;
-    while (acc >= TICK) {
+    // Match_Setup: a match runs at the game speed's frame rate, the other screens at 60.
+    for (;;) {
+      const tick = 1000 / (screen instanceof FightScreen ? gameOptions.matchFps : 60);
+      if (acc < tick) break;
       stepOnce();
-      acc -= TICK;
+      acc -= tick;
     }
     if (!busy) screen.draw();
     requestAnimationFrame(frame);
