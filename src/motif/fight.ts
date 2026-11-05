@@ -245,6 +245,9 @@ export class FightHud {
 
   /** Turns: the members still waiting (small faces) and a KO mark on those beaten. */
   private drawTeammates(r: Renderer, m: Match, side: number, sec: Section | undefined): void {
+    // Fight_DrawHud: not for survival's computer team.
+    const sv = m.opts.survivalSide;
+    if (sv !== undefined && sv !== side) return;
     const t = m.teamView(side);
     const pre = `p${side + 1}.teammate`;
     const [x0, y0] = pair(getValue(sec, `${pre}.pos`));
