@@ -2,7 +2,8 @@
 // a panel of plain rectangles over [OptionBGdef], drawn in game pixels
 // (g_targetWidth x g_targetHeight) with font/options.def, with the main
 // menu and its two sub-menus (input config: one column per player; team
-// mode config). The values live in GameOptions (GameVars 0x12C00..).
+// mode config), and the key configuration (KeyConfig_Run). The values live in
+// GameOptions (GameVars 0x12C00..).
 
 import { IN_D, IN_L, IN_R, IN_S, IN_U } from '../engine/cmd';
 import { ElementInstance, drawText, parseElement } from '../motif/element';
@@ -25,6 +26,26 @@ import {
   type GameOptions,
 } from './game-options';
 import { BUTTONS } from './input';
+import {
+  JOY_NONE,
+  KEY_NONE,
+  KEYBOARD_RELEASE,
+  PAD_RELEASE,
+  SDLK_DOWN,
+  SDLK_ESCAPE,
+  SDLK_F1,
+  SDLK_F2,
+  SDLK_F3,
+  SDLK_F4,
+  SDLK_LAST,
+  SDLK_LEFT,
+  SDLK_RETURN,
+  SDLK_RIGHT,
+  SDLK_SPACE,
+  SDLK_UP,
+  sdlk,
+  sdlKeyName,
+} from './sdl-keys';
 import { fader, MotifBackground, motifSound, type AppContext, type Fader, type Screen } from './screen';
 
 /** OptionsState.menu (OPTIONS_MENU_*). */
@@ -242,8 +263,244 @@ function fillRect(r: Renderer, x1: number, y1: number, x2: number, y2: number, r
   r.rect(Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2) + 1, Math.max(y1, y2) + 1, [rgb[0], rgb[1], rgb[2], 255], b);
 }
 
+/** title.c KEYCONFIG_*: up, down, left, right, a, b, c, x, y, z, start between "Config all" and "Default", then "Exit". */
+const KEYCONFIG_ENTRIES = 11;
+const KEYCONFIG_ITEMS = 14;
+const KEYCONFIG_DEFAULT = 12;
+const KEYCONFIG_EXIT = 13;
+const KEYCONFIG_NAMES = ['Config all', 'Up', 'Down', 'Left', 'Right', 'A', 'B', 'C', 'X', 'Y', 'Z', 'Start', 'Default', 'Exit'];
+/** .rdata 0x4F2038: the "Default" keys of each player (not mugen.cfg's, nor the browser's). */
+const KEYCONFIG_DEFAULT_KEYS = [
+  [SDLK_UP, SDLK_DOWN, SDLK_LEFT, SDLK_RIGHT, sdlk(','), sdlk('.'), sdlk('/'), sdlk('l'), sdlk(';'), sdlk("'"), SDLK_RETURN],
+  [...'wsadfghrtyu'].map(sdlk),
+];
+/** .rdata 0x4F2090: the "Default" joystick buttons of each player (pad << 5 | button). */
+const KEYCONFIG_DEFAULT_JOY = [
+  [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b],
+  [0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b],
+];
+
+/** KeyConfig_KeyName: the name of a configured key or joystick button. */
+export function keyConfigKeyName(joystick: boolean, v: number, none: number): string {
+  if (v === none) return 'Not used';
+  if (!joystick) return v < SDLK_LAST ? sdlKeyName(v) : '';
+  return `${String.fromCharCode(65 + ((v >> 5) & 3))}-${String(v & ~0x60).padStart(2, '0')}`;
+}
+
+/**
+ * KeyConfig_Run (0x42BA60): the key (joystick = false) or joystick button
+ * (true) configuration of both players over the options background. The
+ * original runs its own 60 fps loop inside Options_Update; here OptionsScreen
+ * hands it its frames. It reads the raw key and pad queues, one code of each
+ * per frame (a key's release uses up a frame too).
+ * Not ported: Alt+Enter (Video_HandleFullscreenKey) and g_quitRequested.
+ */
+export class KeyConfig {
+  /** The frames counter, shared with the options screen (the cursor's blink). */
+  ticks: number;
+  /** Set on the frame "Exit" was chosen: that frame is still drawn. */
+  done = false;
+  /** 0 browsing, 1 or 2: assigning the entries of that player. */
+  state = 0;
+  /** Column of the cursor. */
+  player = 0;
+  item = 0;
+  /** Next entry to assign. */
+  entry = 0;
+  readonly cur: number[][];
+  private backup: number[][] = [[], []];
+  private none: number;
+
+  constructor(
+    private ctx: AppContext,
+    private font: Font,
+    private opts: GameOptions,
+    private bg: MotifBackground,
+    private joystick: boolean,
+    ticks: number,
+  ) {
+    this.ticks = ticks;
+    this.none = joystick ? JOY_NONE : KEY_NONE;
+    this.cur = (joystick ? opts.joyKeys : opts.keys).map((k) => [...k]);
+    ctx.keys.resetQueues();
+    ctx.keys.capture = true;
+  }
+
+  tick(): void {
+    this.ticks++;
+    const keys = this.ctx.keys;
+    let key = keys.popKey();
+    let pad = keys.popPad();
+    const button = pad & ~0x60;
+    let accept = key === SDLK_RETURN || (button >= 5 && button <= 31);
+    let up = key === SDLK_UP || button === 1;
+    let down = key === SDLK_DOWN || button === 2;
+    let left = key === SDLK_LEFT || button === 3;
+    let right = key === SDLK_RIGHT || button === 4;
+    if (this.state !== 0) up = down = left = right = accept = false;
+    if (key === SDLK_F1 || key === SDLK_F2) {
+      this.player = key !== SDLK_F1 ? 1 : 0;
+      this.item = 0;
+      accept = true;
+    }
+    if (key === SDLK_F3 || key === SDLK_F4) {
+      this.player = key !== SDLK_F3 ? 1 : 0;
+      this.item = KEYCONFIG_DEFAULT;
+      accept = true;
+    }
+    if (key === SDLK_ESCAPE && this.state === 0) {
+      this.item = KEYCONFIG_EXIT;
+      accept = true;
+    }
+    if (key === SDLK_ESCAPE && this.state !== 0) {
+      // cancel "Config all"
+      this.item = 0;
+      accept = false;
+      this.state = 0;
+      this.cur[this.player] = [...this.backup[this.player]!];
+    }
+    // The cursor only stops on "Config all", "Default" and "Exit".
+    if (up) {
+      if (this.item <= 0) this.item = KEYCONFIG_EXIT;
+      else {
+        this.item--;
+        if (this.item >= 1 && this.item < KEYCONFIG_DEFAULT) this.item = 0;
+      }
+    }
+    if (down) {
+      if (this.item >= KEYCONFIG_EXIT) this.item = 0;
+      else {
+        this.item++;
+        if (this.item >= 1 && this.item <= 11) this.item = KEYCONFIG_DEFAULT;
+      }
+    }
+    if (left) this.player = 0;
+    if (right) this.player = 1;
+    if (accept && this.item === 0) {
+      // "Config all": the following key presses fill the entries
+      this.backup[this.player] = [...this.cur[this.player]!];
+      this.state = this.player + 1;
+      this.entry = 0;
+      key = 0;
+      pad = 0;
+    } else if (this.item === KEYCONFIG_DEFAULT && accept) {
+      this.cur[this.player] = [...(this.joystick ? KEYCONFIG_DEFAULT_JOY : KEYCONFIG_DEFAULT_KEYS)[this.player]!];
+    }
+    if (this.state !== 0 && key !== SDLK_ESCAPE) {
+      let assigned = true;
+      const target = this.cur[this.state - 1]!;
+      if (!this.joystick && key !== 0 && !(key & KEYBOARD_RELEASE)) target[this.entry] = key === SDLK_SPACE ? this.none : key;
+      else if (this.joystick && pad !== 0 && !(pad & PAD_RELEASE)) target[this.entry] = key === SDLK_SPACE ? this.none : pad;
+      else if (key === SDLK_SPACE) target[this.entry] = this.none;
+      else assigned = false;
+      if (assigned && ++this.entry >= KEYCONFIG_ENTRIES) this.state = 0;
+    }
+    this.bg.tick();
+    if (accept && this.item === KEYCONFIG_EXIT) this.finish();
+  }
+
+  /** The end of KeyConfig_Run: the map takes the new values, then Input_Remap. */
+  private finish(): void {
+    const o = this.opts;
+    if (this.joystick) o.joyKeys = this.cur;
+    else o.keys = this.cur;
+    o.remap();
+    this.ctx.keys.capture = false;
+    this.done = true;
+  }
+
+  draw(): void {
+    const r = this.ctx.renderer;
+    const [mw, mh] = this.ctx.motif.localCoord;
+    r.setProjection(mw, mh);
+    this.bg.drawBack();
+    this.drawPanel(r);
+    r.setProjection(mw, mh);
+    this.bg.drawFront();
+  }
+
+  private drawPanel(r: Renderer): void {
+    const [W, H] = OPTIONS_GAME_SIZE;
+    r.setProjection(W, H);
+    const font = this.font;
+    const lineH = font.spacing[1] + font.height;
+    const charW = font.spacing[0] + font.spaceWidth;
+    const lineGap = Math.trunc(lineH / 6);
+    const rowH = lineGap + lineH;
+    const boxH = rowH * 16 + lineH;
+    const valueX = charW * 14;
+    const boxW = charW * 32;
+    const boxX = Math.trunc((W - boxW) / 2);
+    const halfW = Math.trunc(boxW / 2);
+    const boxY = lineH + 40;
+    const colX = halfW + 15;
+    const { joystick, none, state, player, item, entry, cur, ticks } = this;
+
+    const x2 = boxX + boxW + 15;
+    const y2 = boxY + boxH;
+    const bgColor: Rgb = [0x80, 0x60, 0x40];
+    const border: Rgb = [0x40, 0x30, 0x20];
+    fillRect(r, boxX - 15, boxY - 14, x2 - 1, y2 - 1, bgColor, 'sub');
+    fillRect(r, boxX - 16, boxY - 13, boxX - 16, y2 - 2, border, 'sub');
+    fillRect(r, x2, boxY - 13, x2, y2 - 2, border, 'sub');
+    fillRect(r, boxX - 14, boxY - 15, x2 - 2, boxY - 15, border, 'sub');
+    fillRect(r, boxX - 14, y2, x2 - 2, y2, border, 'sub');
+
+    fontDrawText(r, font, joystick ? 'JOYSTICK CONFIG' : 'KEY CONFIG', Math.trunc(W / 2), boxY - 30, ALIGN_CENTER, [0x100, 0x100, 0x100]);
+    const py = boxY - lineGap + lineH;
+    fontDrawText(r, font, 'PLAYER 1', Math.trunc(boxW / 4) + boxX, py, ALIGN_CENTER, [0x80, 0x100, 0x100]);
+    fontDrawText(r, font, 'PLAYER 2', Math.trunc((boxW * 3) / 4) + boxX, py, ALIGN_CENTER, [0x100, 0x80, 0x80]);
+    const help = ticks % 450 < 150 ? 'Press a key to assign to entry' : ticks % 450 < 300 ? 'Press spacebar to disable entry' : 'Press esc to cancel';
+    const helpY = rowH * 15 + boxY + lineH;
+    if (state === 1) fontDrawText(r, font, help, boxX, helpY, ALIGN_LEFT, [0xc0, 0xc0, 0xc0]);
+    else if (state === 2) fontDrawText(r, font, help, boxX + boxW, helpY, ALIGN_RIGHT, [0xc0, 0xc0, 0xc0]);
+
+    const pulse = titlePulse(ticks * 4, 64, 32);
+    const hintColor: Rgb = [0x100, 0x100, 0x80];
+    let gaps = 0;
+    for (let i = 0; i < KEYCONFIG_ITEMS; i++) {
+      let label: Rgb = [0xc0, 0xc0, 0xc0]; // player 1
+      let value: Rgb = [0xc0, 0xc0, 0xc0]; // player 2
+      if (i === KEYCONFIG_DEFAULT || i === 0) gaps++;
+      const y = (i + gaps) * rowH + boxY + lineH;
+      if (i === item) {
+        const c: Rgb = state === 0 ? [pulse, pulse, pulse] : [0x60, 0x60, 0x60];
+        const x = i < KEYCONFIG_EXIT ? player * colX + boxX : boxX;
+        fillRect(r, x - 5, y - lineH, x + halfW - 15, y + lineGap, c, 'add');
+        if (player !== 0 && item !== KEYCONFIG_EXIT) value = [0xf8, 0x100, 0x100];
+        else label = [0xf8, 0x100, 0x100];
+      }
+      if (i > 11 && state !== 0) break; // "Default" and "Exit" are hidden while assigning
+      fontDrawText(r, font, KEYCONFIG_NAMES[i]!, boxX, y, ALIGN_LEFT, label);
+      if (i <= KEYCONFIG_DEFAULT) fontDrawText(r, font, KEYCONFIG_NAMES[i]!, boxX + colX, y, ALIGN_LEFT, value);
+      let hint: string | undefined;
+      if (i === 0) {
+        fontDrawText(r, font, '(F1)', boxX + valueX, y, ALIGN_RIGHT, hintColor);
+        hint = '(F2)';
+      } else if (i === KEYCONFIG_DEFAULT) {
+        fontDrawText(r, font, '(F3)', boxX + valueX, y, ALIGN_RIGHT, hintColor);
+        hint = '(F4)';
+      } else if (i === KEYCONFIG_EXIT) {
+        fontDrawText(r, font, '(Esc)', boxX + valueX, y, ALIGN_RIGHT, hintColor);
+      } else {
+        fontDrawText(r, font, keyConfigKeyName(joystick, cur[0]![i - 1]!, none), boxX + valueX, y, ALIGN_RIGHT, label);
+        fontDrawText(r, font, keyConfigKeyName(joystick, cur[1]![i - 1]!, none), boxX + valueX + colX, y, ALIGN_RIGHT, value);
+      }
+      if (hint !== undefined) fontDrawText(r, font, hint, boxX + valueX + colX, y, ALIGN_RIGHT, hintColor);
+    }
+    if (state !== 0) {
+      // the bar on the entry being assigned
+      const y = (entry + 2) * rowH + boxY + lineH;
+      const x = state === 1 ? boxX : boxX + colX;
+      fillRect(r, x - 5, y - lineH, x + halfW - 15, y + lineGap, [pulse, 0x60 - pulse, 0x60 - Math.trunc(pulse / 2)], 'add');
+    }
+  }
+}
+
 export class OptionsScreen implements Screen {
   result: true | undefined;
+  /** KeyConfig_Run while it runs, inside the frame of Options_Update that started it. */
+  private keyConfig: KeyConfig | undefined;
   private bg: MotifBackground;
   private fade: Fader;
   private title: ElementInstance | undefined;
@@ -304,9 +561,30 @@ export class OptionsScreen implements Screen {
     return this.cursor[side]!;
   }
 
+  /** The running key configuration, if any; public for tests. */
+  get activeKeyConfig(): KeyConfig | undefined {
+    return this.keyConfig;
+  }
+
   tick(): void {
-    this.ticks++;
-    this.update();
+    const kc = this.keyConfig;
+    if (kc && !kc.done) {
+      kc.tick();
+      return;
+    }
+    if (kc) {
+      // KeyConfig_Run returned: the rest of the frame that started it.
+      this.keyConfig = undefined;
+      this.ticks = kc.ticks + 1;
+      this.snd('cancel.snd');
+    } else {
+      this.ticks++;
+      this.update();
+      if (this.keyConfig) {
+        this.keyConfig.tick();
+        return;
+      }
+    }
     this.bg.tick();
     this.title?.tick();
     this.fade.tick();
@@ -375,13 +653,12 @@ export class OptionsScreen implements Screen {
   }
 
   /**
-   * Options_RunKeyConfig: the key or joystick configuration (KeyConfig_Run,
-   * its own frame loop) between the done and cancel sounds.
-   * TODO: port KeyConfig_Run (title.c ~1388-1800); the browser's key maps
-   * are fixed for now (input.ts MAPS).
+   * Options_RunKeyConfig: the key or joystick configuration between the done
+   * and cancel sounds (played when it returns, see tick).
    */
-  private runKeyConfig(_joystick: boolean): void {
+  private runKeyConfig(joystick: boolean): void {
     this.snd('cursor.done.snd');
+    this.keyConfig = new KeyConfig(this.ctx, this.font, this.opts, this.bg, joystick, this.ticks - 1);
   }
 
   /** Values the rest of the app reads straight from the context. */
@@ -608,6 +885,10 @@ export class OptionsScreen implements Screen {
   }
 
   draw(): void {
+    if (this.keyConfig) {
+      this.keyConfig.draw();
+      return;
+    }
     const r = this.ctx.renderer;
     const [mw, mh] = this.ctx.motif.localCoord;
     r.setProjection(mw, mh);

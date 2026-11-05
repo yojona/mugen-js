@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../src/engine/cmd';
 import { Keyboard, Pad } from '../src/app/input';
-import { BROWSER_DEFAULT_KEYS, KEY_NONE } from '../src/app/sdl-keys';
+import { BROWSER_DEFAULT_KEYS, JOY_NONE, KEY_NONE, KEYBOARD_RELEASE, SDLK_DOWN, SDLK_ESCAPE, SDLK_F1, SDLK_F2, SDLK_F3, SDLK_F4, SDLK_RETURN, SDLK_RIGHT, SDLK_SPACE, SDLK_UP, sdlk } from '../src/app/sdl-keys';
 import { parseIni } from '../src/formats/text';
 import { GameOptions, OPTIONS_DEFAULTS, OPTIONS_LOAD_SAVE, OPTIONS_STORAGE_KEY, OPTIONS_TIME, pctToVolume, volumeToPct } from '../src/app/game-options';
-import { OPTIONS_MENU_INPUT, OPTIONS_MENU_MAIN, OPTIONS_MENU_TEAM, OptionsScreen, optionsChangeMain, optionsMainValueText, titlePulse } from '../src/app/options';
+import { OPTIONS_MENU_INPUT, OPTIONS_MENU_MAIN, OPTIONS_MENU_TEAM, OptionsScreen, keyConfigKeyName, optionsChangeMain, optionsMainValueText, titlePulse } from '../src/app/options';
 
 const CFG = parseIni(`[Options]
 Difficulty = 4
@@ -38,7 +38,9 @@ function memoryStorage() {
 
 function make(opts = new GameOptions(CFG).init()) {
   const pads = [new Pad(), new Pad()];
-  const keys = { pads, escape: false, pressed: [] as string[] };
+  const queue: number[] = [];
+  const padQueue: number[] = [];
+  const keys = { pads, escape: false, pressed: [] as string[], capture: false, resetQueues() {}, popKey: () => queue.shift() ?? 0, popPad: () => padQueue.shift() ?? 0 };
   const font = { height: 20, spaceWidth: 10, spacing: [1, 0], offset: [0, 0], glyph: () => undefined, palette: () => undefined, trueType: true };
   const ctx = {
     renderer: {},
@@ -63,7 +65,7 @@ function make(opts = new GameOptions(CFG).init()) {
     tick(pad, bit);
     tick();
   };
-  return { scr, opts, ctx, tick, press };
+  return { scr, opts, ctx, tick, press, queue, padQueue };
 }
 
 describe('options values', () => {
@@ -265,5 +267,122 @@ describe('key maps', () => {
     again.load();
     expect(again.keys[0]![1]).toBe(BROWSER_DEFAULT_KEYS[0]![1]);
     expect(again.keys[0]![0]).toBe(119);
+  });
+});
+
+describe('key config (KeyConfig_Run)', () => {
+  /** The input menu with the cursor on "Key Config", which is entered with a button. */
+  const open = (opts?: GameOptions) => {
+    const m = make(opts);
+    m.tick(0, 0, 'F1');
+    m.press(IN_X);
+    const kc = m.scr.activeKeyConfig!;
+    expect(kc).toBeDefined();
+    return { ...m, kc };
+  };
+  /** Queues one key press and its release, and runs the two frames they take. */
+  const key = (m: ReturnType<typeof open>, sdl: number) => {
+    m.queue.push(sdl);
+    m.tick();
+    m.queue.push(sdl | KEYBOARD_RELEASE);
+    m.tick();
+  };
+
+  it('names keys and joystick buttons like KeyConfig_KeyName', () => {
+    expect(keyConfigKeyName(false, 106, KEY_NONE)).toBe('j');
+    expect(keyConfigKeyName(false, 260, KEY_NONE)).toBe('[4]');
+    expect(keyConfigKeyName(false, KEY_NONE, KEY_NONE)).toBe('Not used');
+    expect(keyConfigKeyName(true, 9, JOY_NONE)).toBe('A-09');
+    expect(keyConfigKeyName(true, 0x21, JOY_NONE)).toBe('B-01');
+    expect(keyConfigKeyName(true, JOY_NONE, JOY_NONE)).toBe('Not used');
+  });
+
+  it('starts with the configured keys and takes the screen over', () => {
+    const { kc, opts, ctx } = open();
+    expect(kc.cur).toEqual(opts.keys);
+    expect(kc.cur).not.toBe(opts.keys);
+    expect(ctx.keys.capture).toBe(true);
+  });
+
+  it('Config all fills every entry in order; space disables one; the end returns to browsing', () => {
+    const m = open();
+    const { kc } = m;
+    key(m, SDLK_RETURN);
+    expect(kc.state).toBe(1);
+    const codes = [...'qwertyuiop'].map(sdlk);
+    key(m, codes[0]!);
+    key(m, SDLK_SPACE);
+    expect(kc.entry).toBe(2);
+    expect(kc.cur[0]!.slice(0, 2)).toEqual([codes[0], KEY_NONE]);
+    for (let i = 2; i < 11; i++) key(m, sdlk('a') + i);
+    expect(kc.state).toBe(0);
+    expect(kc.cur[0]![10]).toBe(sdlk('a') + 10);
+  });
+
+  it('Escape cancels Config all, restoring the keys; then exits with the sounds and the remap', () => {
+    const remaps: number[][][] = [];
+    const m = open(new GameOptions(CFG, undefined, { onRemap: (k) => remaps.push(k) }).init());
+    const { kc, opts, ctx } = m;
+    const before = opts.keys[1]!.slice();
+    key(m, SDLK_RIGHT);
+    expect(kc.player).toBe(1);
+    key(m, SDLK_RETURN);
+    expect(kc.state).toBe(2);
+    key(m, sdlk('q'));
+    expect(kc.cur[1]![0]).toBe(sdlk('q'));
+    key(m, SDLK_ESCAPE);
+    expect(kc.state).toBe(0);
+    expect(kc.cur[1]).toEqual(before);
+    const count = remaps.length;
+    key(m, SDLK_F2); // straight to Config all of P2
+    expect(kc.state).toBe(2);
+    key(m, sdlk('q'));
+    key(m, SDLK_ESCAPE); // cancels
+    m.queue.push(SDLK_ESCAPE); // exits
+    m.tick();
+    expect(kc.done).toBe(true);
+    expect(remaps.length).toBe(count + 1);
+    expect(ctx.keys.capture).toBe(false);
+    expect(m.scr.activeKeyConfig).toBe(kc); // its last frame is still drawn
+    m.tick();
+    expect(m.scr.activeKeyConfig).toBeUndefined();
+    expect(m.scr.menu).toBe(OPTIONS_MENU_INPUT);
+  });
+
+  it('assigned keys reach the options and, through onRemap, the keyboard', () => {
+    const target = new EventTarget();
+    const kb = new Keyboard(target);
+    const m = open(new GameOptions(CFG, undefined, { onRemap: (k) => kb.setMaps(k) }).init());
+    key(m, SDLK_F1);
+    key(m, sdlk('q'));
+    for (let i = 0; i < 10; i++) key(m, SDLK_SPACE);
+    key(m, SDLK_ESCAPE);
+    expect(m.opts.keys[0]![0]).toBe(sdlk('q'));
+    target.dispatchEvent(Object.assign(new Event('keydown'), { code: 'KeyQ' }));
+    kb.poll();
+    expect(kb.pads[0]!.bits).toBe(IN_U);
+    target.dispatchEvent(Object.assign(new Event('keyup'), { code: 'KeyQ' }));
+    target.dispatchEvent(Object.assign(new Event('keydown'), { code: 'ArrowUp' }));
+    kb.poll();
+    expect(kb.pads[0]!.bits).toBe(0);
+  });
+
+  it('the cursor stops on Config all, Default and Exit; F3 / F4 load the Default keys', () => {
+    const m = open();
+    const { kc } = m;
+    key(m, SDLK_DOWN);
+    expect(kc.item).toBe(12);
+    key(m, SDLK_DOWN);
+    expect(kc.item).toBe(13);
+    key(m, SDLK_DOWN);
+    expect(kc.item).toBe(0);
+    key(m, SDLK_UP);
+    expect(kc.item).toBe(13);
+    key(m, SDLK_F4);
+    expect(kc.item).toBe(12);
+    expect(kc.player).toBe(1);
+    expect(kc.cur[1]).toEqual([...'wsadfghrtyu'].map(sdlk));
+    key(m, SDLK_F3);
+    expect(kc.cur[0]![4]).toBe(sdlk(','));
   });
 });

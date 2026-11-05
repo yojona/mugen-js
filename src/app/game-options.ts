@@ -4,7 +4,7 @@
 // would write go to localStorage, and reads look there first.
 
 import { findSection, getValue, type IniDoc } from '../formats/text';
-import { BROWSER_DEFAULT_KEYS, KEY_NONE } from './sdl-keys';
+import { BROWSER_DEFAULT_KEYS, JOY_NONE, KEY_NONE } from './sdl-keys';
 
 /** Items of the main options menu (title.h OPTIONS_*), also the slots of GameOptions.main. */
 export const OPTIONS_DIFFICULTY = 0;
@@ -68,6 +68,14 @@ export class GameOptions {
   readonly team: number[] = [150, 0, 0, 0];
   /** GameVars.keys: SDL key of each key configuration entry (up .. start), KEY_NONE when unused. */
   keys: number[][] = [[], []];
+  /**
+   * GameVars.joy_keys: joystick code (pad << 5 | button) of each entry,
+   * JOY_NONE when unused. Config_Load starts the directions at buttons 1..4.
+   */
+  joyKeys: number[][] = [
+    [1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0],
+    [1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0],
+  ];
   /** [Sound] MasterVolume, WavVolume, BGMVolume (percent, the configured volumes). */
   masterVolume = 100;
   wavVolume = 100;
@@ -189,6 +197,14 @@ export class GameOptions {
       this.main[OPTIONS_BGM_VOLUME] = volumeToPct(this.bgmVolume);
     }
     this.readKeys();
+    this.joyKeys = this.joyKeys.map((cur, p) => {
+      const keys = [...cur];
+      KEY_NAMES.forEach((name, i) => {
+        const v = this.get(`P${p + 1} Joystick`, name);
+        if (v !== undefined) keys[i] = parseInt(v, 10) || 0;
+      });
+      return keys.map((k) => k || JOY_NONE);
+    });
     if (this.hasSection('Input')) {
       const p1 = this.num('Input', 'P1.Joystick.type');
       const p2 = this.num('Input', 'P2.Joystick.type');
@@ -258,6 +274,8 @@ export class GameOptions {
     const putKeys = (section: string, keys: number[], none: number) => KEY_NAMES.forEach((name, i) => put(section, name, keys[i] === none ? 0 : keys[i]!));
     putKeys('P1 Keys', this.keys[0]!, KEY_NONE);
     putKeys('P2 Keys', this.keys[1]!, KEY_NONE);
+    putKeys('P1 Joystick', this.joyKeys[0]!, JOY_NONE);
+    putKeys('P2 Joystick', this.joyKeys[1]!, JOY_NONE);
     try {
       this.storage?.setItem(OPTIONS_STORAGE_KEY, JSON.stringify(out));
       return true;

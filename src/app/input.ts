@@ -46,6 +46,8 @@ export class Keyboard {
    * off, and KeyConfig_Run's g_keyboardKeepRepeat only matters in Keyboard_Init.
    */
   private keyQueue: number[] = [];
+  /** g_padQueue: joystick codes in order, releases with PAD_RELEASE. */
+  private padQueue: number[] = [];
   /** While set (KeyConfig_Run), every key belongs to the game, not the browser's shortcuts. */
   capture = false;
 
@@ -103,9 +105,15 @@ export class Keyboard {
     return this.keyQueue.shift() ?? 0;
   }
 
+  /** The oldest code of g_padQueue, 0 when empty. */
+  popPad(): number {
+    return this.padQueue.shift() ?? 0;
+  }
+
   /** KeyConfig_Run's start: empties the queues. */
   resetQueues(): void {
     this.keyQueue = [];
+    this.padQueue = [];
   }
 
   /** Sample the keyboard for this tick. */
