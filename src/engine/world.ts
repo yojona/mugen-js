@@ -851,21 +851,65 @@ export class World {
     }
   }
 
-  /** Hit spark at the defender's front edge, facing the attacker (sctrls.html sparkxy). */
-  /** `xy` and `src` are in world units. */
-  spawnSpark(a: Player, d: Player, ref: SparkRef, xy: [number, number], src: { x: number; y: number } = { x: a.wx, y: a.wy }): void {
-    const anims = ref.own ? a.prog.data.anims : this.fightFx?.anims;
+  /** Internal units per world unit. */
+  private get internalUnit(): number {
+    return this.gameWidth / this.screenWidth;
+  }
+
+  /** PS_RoundWidth of a size constant of `p`, in internal units. */
+  private sparkEdge(p: Player, front: boolean): number {
+    const name = p.stateType === 'a' ? (front ? 'size.air.front' : 'size.air.back') : front ? 'size.ground.front' : 'size.ground.back';
+    return Math.trunc(Math.floor(Math.fround(this.internalUnit * p.scale * p.const(name)) + 0.5));
+  }
+
+  /**
+   * Player_SparkPos: sparkxy from the target's front edge (its back edge when
+   * both face the same way), at the attacker's height, whichever way the
+   * spark faces: the attacker's. Taken before the hit changes the target.
+   */
+  sparkPos(a: Player, d: Player, xy: readonly [number, number]): SparkPos {
+    const k = this.internalUnit;
+    const sx = xy[0] * a.localScale * k;
+    const base = d.facing !== a.facing ? this.sparkEdge(d, true) + sx : -sx - this.sparkEdge(d, false);
+    return {
+      x: Math.trunc((Math.trunc(base) - d.drawOffset[0] * d.scale * k) * d.facing + d.wx * k) / k,
+      y: Math.trunc(xy[1] * a.localScale * k - a.drawOffset[1] * a.scale * k + a.wy * k) / k,
+      facing: a.facing,
+    };
+  }
+
+  /** Projectile hit: sparkxy from the projectile, facing its way. */
+  projSparkPos(owner: Player, pr: { x: number; y: number; facing: number }, xy: readonly [number, number]): SparkPos {
+    const k = this.internalUnit;
+    return {
+      x: Math.trunc(xy[0] * owner.scale * k * pr.facing + pr.x * k) / k,
+      y: Math.trunc(xy[1] * owner.scale * k + pr.y * k) / k,
+      facing: pr.facing,
+    };
+  }
+
+  /** Player_Reverse: both sparkxy from the reverser's edge, facing the attacker's way. */
+  reversalSparkPos(r: Player, a: Player, rxy: readonly [number, number], axy: readonly [number, number]): SparkPos {
+    const k = this.internalUnit;
+    const ax = axy[0] * a.localScale * k;
+    const bx = rxy[0] * r.localScale * k;
+    const base = a.facing !== r.facing ? this.sparkEdge(r, true) + (bx + ax) : -ax - bx - this.sparkEdge(r, false);
+    return {
+      x: Math.trunc((Math.trunc(base) - r.drawOffset[0] * r.scale * k) * r.facing + r.wx * k) / k,
+      y: Math.trunc(axy[1] * a.localScale * k + rxy[1] * r.localScale * k - a.drawOffset[1] * a.scale * k + a.wy * k) / k,
+      facing: a.facing,
+    };
+  }
+
+  /** Spark_Create: id 0, no owner, on top of everything; it plays through pauses. */
+  spawnSpark(owner: Player, ref: SparkRef, at: SparkPos): void {
+    const anims = ref.own ? owner.prog.data.anims : this.fightFx?.anims;
     const anim = anims?.get(ref.action);
     if (!anim) return;
-    const dirToA = src.x >= d.wx ? 1 : -1;
-    const width = (dirToA === d.facing ? d.const('size.ground.front') : d.const('size.ground.back')) * d.scale;
-    const x = d.wx + dirToA * width + dirToA * xy[0];
-    const y = src.y + xy[1];
-    const e = simpleExplod(a, anim, !ref.own, x, y, 9, -dirToA);
-    // Player_MakeSpark: id 0, no owner, and it plays through pauses
-    // (pause move times = its remove time).
+    const e = simpleExplod(owner, anim, !ref.own, at.x, at.y, 9, at.facing);
     e.id = 0;
     e.system = true;
+    e.onTop = true;
     e.removeTime = e.anim.totalTime;
     e.superMoveTime = e.pauseMoveTime = e.removeTime;
     this.explods.push(e);
@@ -1316,6 +1360,13 @@ export class World {
  * Player_BodyDistX, in world units: from p's front edge to e's front edge
  * when p is in front of it, else (level included) to its back edge.
  */
+/** Where a hit spark goes, in world units, and the way it faces. */
+export interface SparkPos {
+  x: number;
+  y: number;
+  facing: number;
+}
+
 /** A sound to start (PlaySnd and engine sounds) or a channel control. */
 export type SoundCmd =
   | { kind?: 'play'; owner: Player | null; group: number; number: number; key?: string; lowPriority?: boolean; volume?: number; loop?: boolean; pan?: number }

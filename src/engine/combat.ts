@@ -211,6 +211,7 @@ function resolvePriority(hits: PendingHit[]): PendingHit[] {
 function applyReversal(r: Player, a: Player): void {
   const rv = r.reversal!;
   r.reversal = undefined;
+  const sparkAt = r.world.reversalSparkPos(r, a, rv.hd.sparkXY, a.hitDef?.sparkXY ?? [0, 0]);
   // Player_Reverse: a hitonce ReversalDef (a throw's default) lets go of
   // the reverser's other targets.
   if (rv.hd.hitOnce) r.releaseTargets(a);
@@ -239,7 +240,7 @@ function applyReversal(r: Player, a: Player): void {
   reversalGetHitVars(r, a, rv.hd);
   // hd->p1facing is p1facing < 0 (and off with p1getp2facing).
   if (rv.hd.p1Facing < 0 && !rv.hd.p1GetP2Facing) r.nextFacing = -r.facing;
-  r.world.spawnSpark(r, a, rv.hd.spark, [(rv.hd.sparkXY[0] + (a.hitDef?.sparkXY[0] ?? 0)) * r.scale, (rv.hd.sparkXY[1] + (a.hitDef?.sparkXY[1] ?? 0)) * r.scale], { x: r.wx, y: r.wy });
+  r.world.spawnSpark(r, rv.hd.spark, sparkAt);
   r.world.playHitSound(r, rv.hd.hitSound);
   if (rv.hd.p1StateNo >= 0) r.changeState(rv.hd.p1StateNo);
   // Player_Reverse: p2getp1state makes the attacker a hit player right away
@@ -520,6 +521,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
   // Player_Hit: a HitOverride matching a HitDef with p1stateno or
   // p2getp1state (a throw) makes the hit do nothing at all.
   if (!proj && (hd.p1StateNo >= 0 || hd.p2GetP1State) && d.hitOverrides.some((o) => overrides(o, hd))) return;
+  const sparkAt = proj ? world.projSparkPos(a, proj, hd.sparkXY) : world.sparkPos(a, d, hd.sparkXY);
   a.targets.set(d, hd.id);
   // Player_Hit / Projectiles_HitPlayer: unless a HitOverride takes the hit,
   // the attacker's target entry loses its TargetBind (a hit at the end of a
@@ -537,7 +539,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     d.ghvAttacker = a;
     d.ghvAttr = hitDefAttrBits(hd.attrState, hd.attrType);
     world.playHitSound(a, hd.hitSound);
-    world.spawnSpark(a, d, hd.spark, [hd.sparkXY[0] * a.scale, hd.sparkXY[1] * a.scale], { x: a.wx, y: a.wy });
+    world.spawnSpark(a, hd.spark, sparkAt);
     return;
   }
   // HitDef_Apply: a hit player lets go of its own targets and loses its
@@ -582,7 +584,6 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
   const towardA = src.x >= d.wx ? 1 : -1;
   // HitDef values are in the attacker's units; the defender stores its own.
   const conv = a.scale / d.scale;
-  const sparkXY: [number, number] = [hd.sparkXY[0] * a.scale, hd.sparkXY[1] * a.scale];
   const facesA = d.facing === towardA;
   // Hit and guard velocities push along the attacker's facing (the
   // projectile's for projectiles; p1facing = -1 turns it), whichever side
@@ -637,7 +638,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     d.guardFlag = true;
     d.prevStateNo = prev;
     if (!proj) cornerPush(a, d, airborne ? hd.airGuardCornerPush : hd.guardCornerPush);
-    world.spawnSpark(a, d, hd.guardSpark, sparkXY, src);
+    world.spawnSpark(a, hd.guardSpark, sparkAt);
     world.playHitSound(a, hd.guardSound);
   } else {
     d.guardDistCleared = true;
@@ -848,7 +849,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     }
     d.moveType = 'h';
     if (!proj) cornerPush(a, d, lying ? hd.downCornerPush : inAir ? hd.airCornerPush : hd.groundCornerPush);
-    world.spawnSpark(a, d, hd.spark, sparkXY, src);
+    world.spawnSpark(a, hd.spark, sparkAt);
     world.playHitSound(a, hd.hitSound);
   }
   d.sprPriority = hd.p2SprPriority;
