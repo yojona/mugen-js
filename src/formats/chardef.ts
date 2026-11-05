@@ -9,6 +9,10 @@ export interface CharDef {
   mugenVersion: string;
   localCoord: [number, number];
   palDefaults: number[];
+  /** [Palette Keymap] per button a b c x y z a2 .. z2 (1-based palettes). */
+  palKeymap: number[];
+  /** The palettes a character can reserve: the keymap's, else the pal1..pal12 it names (bit n = palette n, 0-based). */
+  palMask: number;
   files: {
     cmd?: string;
     cns?: string;
@@ -40,6 +44,21 @@ export function parseCharDef(text: string): CharDef {
   }
   const pal: (string | undefined)[] = [];
   for (let i = 1; i <= 12; i++) pal.push(getValue(files, `pal${i}`) || undefined);
+  // Select_LoadCharInfo: with a [Palette Keymap] missing keys mean palette 1
+  // and only the keys given count as available; without one a = 1, b = 2 ...
+  const keymapSec = findSection(doc, 'Palette Keymap');
+  let palMask = 0;
+  const palKeymap = PAL_KEYMAP_KEYS.map((k, i) => {
+    if (!keymapSec) return i + 1;
+    const v = getValue(keymapSec, k);
+    if (v === undefined) return 1;
+    const n = Math.max(1, Math.min(12, parseInt(v, 10) || 0));
+    palMask |= 1 << (n - 1);
+    return n;
+  });
+  if (!palMask) pal.forEach((f, i) => {
+    if (f) palMask |= 1 << i;
+  });
   const name = unquote(getValue(info, 'name') ?? '');
   const arcade = findSection(doc, 'Arcade');
   return {
@@ -48,6 +67,8 @@ export function parseCharDef(text: string): CharDef {
     author: unquote(getValue(info, 'author') ?? ''),
     mugenVersion: getValue(info, 'mugenversion') ?? '',
     localCoord: [lc[0] || 320, lc[1] || 240],
+    palKeymap,
+    palMask,
     palDefaults: splitCsv(getValue(info, 'pal.defaults') ?? '1')
       .map((v) => parseInt(v, 10))
       .filter((v) => v > 0),
@@ -65,3 +86,6 @@ export function parseCharDef(text: string): CharDef {
     arcade: { intro: getValue(arcade, 'intro.storyboard') || undefined, ending: getValue(arcade, 'ending.storyboard') || undefined },
   };
 }
+
+/** g_palKeymapKeys: the [Palette Keymap] keys, in button order. */
+const PAL_KEYMAP_KEYS = ['a', 'b', 'c', 'x', 'y', 'z', 'a2', 'b2', 'c2', 'x2', 'y2', 'z2'];

@@ -51,15 +51,8 @@ export interface SelectResult {
   teams?: [TeamPick, TeamPick];
 }
 
-/** Button -> palette number (default [Palette Keymap]: x y z a b c = 1..6). */
-const PAL_BUTTONS: [number, number][] = [
-  [IN_X, 1],
-  [IN_Y, 2],
-  [IN_Z, 3],
-  [IN_A, 4],
-  [IN_B, 5],
-  [IN_C, 6],
-];
+/** Charsel_MoveCursor: the buttons in [Palette Keymap] order (the last one pressed in this order wins). */
+const PAL_BUTTONS = [IN_A, IN_B, IN_C, IN_X, IN_Y, IN_Z];
 
 
 // ---- select scripts (Charsel_SetupMode, select.c 0x408b20) ----
@@ -552,14 +545,13 @@ export class SelectScreen implements Screen {
     box.state = 'active';
     box.side = swap ? 1 - side : side;
     const stay = { advanced: false, pad: padIndex };
-    let pal = 0;
-    for (const [bit, n] of PAL_BUTTONS) {
-      if (bits & bit) {
-        pal = n;
-        break;
-      }
-    }
-    if (!pal) return stay;
+    let button = -1;
+    PAL_BUTTONS.forEach((bit, k) => {
+      if (bits & bit) button = k;
+    });
+    if (button < 0) return stay;
+    // Start held: palettes 7..12 of the keymap.
+    if ((this.ctx.keys.pads[padIndex]?.bits ?? 0) & IN_S) button += 6;
     let ch = this.cellAtPos(cur.row, cur.col);
     if (!ch) return stay;
     if (ch.entry.def === 'randomselect') {
@@ -569,7 +561,7 @@ export class SelectScreen implements Screen {
     }
     if (!ch.data) return stay;
     motifSound(this.ctx, this.v(`p${side + 1}.cursor.done.snd`));
-    pal = this.reservePal(ch, pal - 1) + 1;
+    const pal = this.reservePal(ch, ch.data.def.palKeymap[button]! - 1) + 1;
     box.state = 'done';
     box.pal = pal;
     // Charsel_FlashCell: the flash slot that is further along.
@@ -593,14 +585,8 @@ export class SelectScreen implements Screen {
    * get the same palette. pal is 0-based; returns the palette reserved.
    */
   private reservePal(ch: RosterChar, pal: number): number {
-    const available = ch.data?.palettes ?? [];
     let free = this.palFree.get(ch);
-    if (free === undefined) {
-      free = 0;
-      available.forEach((p, i) => {
-        if (p && i < 12) free! |= 1 << i;
-      });
-    }
+    if (free === undefined) free = ch.data?.def.palMask ?? 0;
     // No palette information: keep the palette that was asked for.
     if (free === 0) return pal;
     const bit = (n: number) => 1 << n;

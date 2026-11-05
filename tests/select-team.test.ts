@@ -15,7 +15,7 @@ function make(mode: GameMode) {
     aiLevel: 1,
     motif: { value: (_s: string, k: string) => values[k], section: () => undefined, localCoord: [320, 240], backgrounds: new Map(), assets: {}, fonts: [], snd: undefined },
   };
-  const mk = (n: string): RosterChar => ({ entry: { def: n } as never, data: { def: { displayName: n, localCoord: [320, 240] }, palettes: [new Uint8Array(1), new Uint8Array(1)] } as never, defPath: n });
+  const mk = (n: string): RosterChar => ({ entry: { def: n } as never, data: { def: { displayName: n, localCoord: [320, 240], palKeymap: [1, 2, 3, 4, 5, 6, 1, 1, 1, 1, 1, 1], palMask: 3 }, palettes: [new Uint8Array(1), new Uint8Array(1)] } as never, defPath: n });
   const roster = [mk('a'), mk('b'), mk('c')];
   const sel = new SelectScreen(ctx as never, mode, roster, []);
   const press = (pad: number, bit: number) => {
