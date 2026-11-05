@@ -101,7 +101,8 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
 
   for (const e of w.explods) {
     const d: Drawable = { priority: e.sprPriority, order: order++, draw: () => tinted(e.common ? dimBg : dimOf(e.owner), () => drawExplod(e)) };
-    if (e.onTop || e.space === 'screen') top.push(d);
+    // explod.c: only ontop leaves the sprite queue; a screen-space explod sorts by priority too.
+    if (e.onTop) top.push(d);
     else list.push(d);
   }
 
