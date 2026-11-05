@@ -173,11 +173,16 @@ export class Match {
    * starts, out to black over the last 16 ticks of RoundState 4 (black stays
    * until the next round's fade in). Drawing only.
    */
-  fade: { out: boolean; ticks: number; time: number; bars?: boolean } | undefined;
+  /** This tick shows black: the screen clear before the next round. */
+  private clearFrame = false;
+  /** hold: the alpha shown while ticks is negative (a palette fade that has not started showing). */
+  fade: { out: boolean; ticks: number; time: number; bars?: boolean; hold?: number } | undefined;
   /** 0 clear .. 1 black (the palette fade; a bars fade is drawn with fadeBars). */
   get fadeAlpha(): number {
     const f = this.fade;
+    if (this.clearFrame) return 1;
     if (!f || f.bars) return 0;
+    if (f.ticks < 0) return f.hold ?? 0;
     const k = Math.min(1, f.ticks / f.time);
     return f.out ? k : 1 - k;
   }
@@ -487,6 +492,7 @@ export class Match {
     // Frames shown before this one (mugen.exe counts at the end of a frame).
     this.world.frames = this.frameNo++;
     this.sounds = [];
+    this.clearFrame = false;
     if (this.announce) this.announce.age++;
     if (this.introSkipped && !this.fade && (this.phase === 'wait' || this.phase === 'intro' || this.phase === 'announce')) this.skipIntro();
     else if (this.phase !== 'wait' && this.phase !== 'intro' && this.phase !== 'announce') this.introSkipped = false;
@@ -520,7 +526,11 @@ export class Match {
     w.roundClock = undefined;
     switch (this.phase) {
       case 'wait':
-        if (this.phaseTime === 0) this.fade = { out: false, ticks: 0, time: 16 };
+        // The round's palette fade shows two ticks late (measured on round 1
+        // and after a round reset): until then the screen keeps what it
+        // showed, black after the versus screen or the last step of the
+        // previous round's fade out.
+        if (this.phaseTime === 0) this.fade = { out: false, ticks: -2, time: 16, hold: this.round === 1 && !this.fade ? 1 : this.fadeAlpha };
         if (this.phaseTime >= c.startWaitTime) {
           w.hitsEnabled = true;
           // RoundState 1 is visible from this very tick (KFM's intro waits for it).
@@ -683,7 +693,11 @@ export class Match {
         if (this.players.some((p) => p.special.has('roundnotover')) || w.helpers.some((h) => h.special.has('roundnotover'))) {
           this.overEndTime = this.phaseTime + 19;
         }
-        if (this.overEndTime - this.phaseTime < 16 && !this.fade) this.fade = { out: true, ticks: 0, time: 16 };
+        // Its fade out shows a tick late too (measured before a round reset).
+        if (this.overEndTime - this.phaseTime < 16 && !this.fade) this.fade = { out: true, ticks: -1, time: 16, hold: 0 };
+        // Round_RunState clears the screen and presents it twice before the
+        // next round (measured: one black frame before the reset).
+        this.clearFrame = !this.matchOver && this.phaseTime + 1 === this.overEndTime;
         if (this.phaseTime >= this.overEndTime) {
           // The match ends with the last round's over.time (measured: the
           // victory screen follows 213 frames after RoundState 4).
