@@ -15,6 +15,8 @@ export interface AppContext {
   motif: Motif;
   /** CPU AI level (mugen.cfg [Options] Difficulty, 1..8). */
   aiLevel: number;
+  /** GameVars.frames: ticks run on every screen since startup (GameTime, the hit order). */
+  frames?: number;
 }
 
 export interface Screen {

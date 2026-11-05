@@ -116,7 +116,7 @@ function rampedAiLevel(kind: 'arcade' | 'team' | 'survival', match: number): num
   else if (r.startMatch < r.endMatch) level += Math.trunc(((r.endOffset - r.startOffset) * (match - r.startMatch)) / (r.endMatch - r.startMatch)) + r.startOffset;
   return Math.max(1, Math.min(8, level));
 }
-const ctx: AppContext = { renderer, mixer, keys, motif, aiLevel: await aiLevel() };
+const ctx: AppContext = { renderer, mixer, keys, motif, aiLevel: await aiLevel(), frames: 0 };
 
 setStatus('Cargando personajes…');
 const roster: Roster = await loadRoster(vfs, motif.selectDef);
@@ -614,6 +614,7 @@ function stepOnce(): void {
   if (script) feedScript();
   if (flowHarness) flowHarness.before(screen);
   screen.tick();
+  ctx.frames = (ctx.frames ?? 0) + 1;
   if (flowHarness) flowHarness.after(screen);
   if (screen.result !== undefined && resolver) {
     const r = resolver;

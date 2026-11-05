@@ -249,6 +249,8 @@ export class Match {
   private overEndTime = 0;
 
   private frameNo = 0;
+  /** The game's frame counter (GameVars.frames, every screen counted), when the match runs inside the app. */
+  frameClock: (() => number) | undefined;
 
   private teams: [TeamState, TeamState];
   /** The side that won the round (null: draw), valid from the KO / time over. */
@@ -490,7 +492,7 @@ export class Match {
   /** inputs: the human pads' bits per world player (the intro skip). */
   tick(inputs?: readonly number[]): boolean {
     // Frames shown before this one (mugen.exe counts at the end of a frame).
-    this.world.frames = this.frameNo++;
+    this.world.frames = this.frameClock ? this.frameClock() : this.frameNo++;
     this.sounds = [];
     this.clearFrame = false;
     if (this.announce) this.announce.age++;

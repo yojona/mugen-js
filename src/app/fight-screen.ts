@@ -141,6 +141,10 @@ export class FightScreen implements Screen {
       });
     }
     this.match.autoRematch = false;
+    // GameVars.frames as the tick runs: the frames of every screen so far,
+    // this one included (measured: the target order of a throw that can
+    // catch both co-op players, odd and even frames).
+    if (ctx.frames !== undefined) this.match.frameClock = () => (ctx.frames ?? 0) + 1;
     this.bg = new StageRuntime(s.stage);
     if (s.training) this.showDummy();
   }
