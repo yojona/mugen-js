@@ -61,11 +61,76 @@ export class Fader {
   }
 }
 
+/**
+ * A FADE_PALETTE fade (Fade_Update, gfx.c 0x46B7A0): what the fade leaves is a
+ * multiplier on the global PalFX for the frame, so what bypasses the PalFX
+ * (additive / subtractive rectangles, TrueType text) stays bright. A fade in
+ * runs 0, 25, 51 .. 230 and a fade out 256, 230 .. 25, of 256.
+ */
+export class PaletteFade {
+  private ticks = 0;
+  private out = false;
+  /** ScreenLoop.fade_ticks: the frames left of the fade out. */
+  private screenTicks = 0;
+  /** PalFx_ScaleGlobalMul's multiplier of this frame, 256 for none. */
+  mul = 256;
+  constructor(
+    private time: number,
+    private outTime: number,
+  ) {}
+
+  /** Screen_Tick: the fade out's count, then Fade_Update. */
+  tick(): void {
+    if (this.out && this.screenTicks > 0) this.screenTicks--;
+    if (this.ticks >= this.time || this.time === 0) {
+      this.mul = 256;
+      this.ticks = 0;
+      this.time = 0;
+      return;
+    }
+    // float progress, double arithmetic: mul is truncated from these exact values.
+    let progress = Math.fround(this.ticks / this.time);
+    if (!this.out) progress = Math.fround(1 - progress);
+    this.mul = Math.trunc((1 - progress) * 256);
+    this.ticks++;
+  }
+  /** Title_FadeOut */
+  fadeOut(): void {
+    if (this.out) return;
+    this.out = true;
+    this.ticks = 0;
+    this.time = this.outTime;
+    this.screenTicks = this.outTime;
+  }
+  get fadingOut(): boolean {
+    return this.out;
+  }
+  /** The fade out's frames have run (Screen_Run's loop ends). */
+  get done(): boolean {
+    return this.out && this.screenTicks <= 0;
+  }
+  /** The frame's Renderer.tint. */
+  get tint(): [number, number, number] | undefined {
+    if (this.mul === 256) return undefined;
+    const m = this.mul / 256;
+    return [m, m, m];
+  }
+}
+
+function fadeTimes(ctx: AppContext, section: string): [number, number] {
+  const n = (k: string) => {
+    const v = parseInt(ctx.motif.value(section, k) ?? '', 10);
+    return Number.isFinite(v) ? v : 10;
+  };
+  return [n('fadein.time'), n('fadeout.time')];
+}
+
 export function fader(ctx: AppContext, section: string): Fader {
-  const n = (k: string, d: number) => parseInt(ctx.motif.value(section, k) ?? '', 10);
-  const fi = n('fadein.time', 10);
-  const fo = n('fadeout.time', 10);
-  return new Fader(Number.isFinite(fi) ? fi : 10, Number.isFinite(fo) ? fo : 10);
+  return new Fader(...fadeTimes(ctx, section));
+}
+
+export function paletteFader(ctx: AppContext, section: string): PaletteFade {
+  return new PaletteFade(...fadeTimes(ctx, section));
 }
 
 /** A motif background (title, select, versus...) with its own clock. */
@@ -87,7 +152,9 @@ export class MotifBackground {
   }
   drawBack(): void {
     const [w, h] = this.ctx.motif.localCoord;
-    this.ctx.renderer.clear(this.clear[0] / 255, this.clear[1] / 255, this.clear[2] / 255);
+    // Gfx_SoftClear goes through the global PalFX.
+    const t = this.ctx.renderer.tint ?? [1, 1, 1];
+    this.ctx.renderer.clear((this.clear[0] / 255) * t[0], (this.clear[1] / 255) * t[1], (this.clear[2] / 255) * t[2]);
     if (this.rt) drawStageLayer(this.ctx.renderer, this.rt, { x: 0, y: 0 }, 0, w, h);
   }
   drawFront(): void {

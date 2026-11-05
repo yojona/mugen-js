@@ -46,7 +46,7 @@ import {
   sdlk,
   sdlKeyName,
 } from './sdl-keys';
-import { fader, MotifBackground, motifSound, type AppContext, type Fader, type Screen } from './screen';
+import { MotifBackground, motifSound, paletteFader, type AppContext, type PaletteFade, type Screen } from './screen';
 
 /** OptionsState.menu (OPTIONS_MENU_*). */
 export const OPTIONS_MENU_MAIN = 0;
@@ -249,18 +249,31 @@ export function fontDrawText(r: Renderer, font: Font, text: string, x: number, y
   const mul = rgb.map((c) => Math.min(c, 0xff) / 255) as Rgb;
   const palfx = { add: [0, 0, 0] as Rgb, mul, color: 1, invertAll: false };
   const top = y - font.height + font.offset[1];
+  // Font_DrawLineTTF: outside the OpenGL render modes ([Video] RenderMode =
+  // DirectX is the shipped one) the line is blitted straight onto the target,
+  // past the PalFX: a palette fade leaves it bright, unlike a bitmap font.
+  const tint = r.tint;
+  r.tint = undefined;
   let prefix = '';
   for (const ch of text) {
     const g = font.glyph(ch);
     if (g) r.draw({ sprite: g.sprite, x: x0 + advance(prefix), y: top, scaleX: 1, scaleY: 1, palfx });
     prefix += ch;
   }
+  r.tint = tint;
 }
 
-/** The renderer's rectangles take inclusive corners in any order (Prim_ClipRect). */
-function fillRect(r: Renderer, x1: number, y1: number, x2: number, y2: number, rgb: Rgb, blend?: 'add' | 'sub'): void {
+/**
+ * The renderer's rectangles take inclusive corners in any order (Prim_ClipRect).
+ * Gfx_SoftFillRectAdd / Sub compute the PalFX colour and drop it, so a palette
+ * fade leaves them alone; a plain Gfx_SoftFillRect does go through it.
+ */
+export function fillRect(r: Renderer, x1: number, y1: number, x2: number, y2: number, rgb: Rgb, blend?: 'add' | 'sub'): void {
   const b = blend === 'add' ? ({ kind: 'add', src: 256, dst: 256 } as const) : blend === 'sub' ? ({ kind: 'sub' } as const) : undefined;
+  const tint = r.tint;
+  if (b) r.tint = undefined;
   r.rect(Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2) + 1, Math.max(y1, y2) + 1, [rgb[0], rgb[1], rgb[2], 255], b);
+  r.tint = tint;
 }
 
 /** title.c KEYCONFIG_*: up, down, left, right, a, b, c, x, y, z, start between "Config all" and "Default", then "Exit". */
@@ -502,7 +515,7 @@ export class OptionsScreen implements Screen {
   /** KeyConfig_Run while it runs, inside the frame of Options_Update that started it. */
   private keyConfig: KeyConfig | undefined;
   private bg: MotifBackground;
-  private fade: Fader;
+  private fade: PaletteFade;
   private title: ElementInstance | undefined;
   // OptionsState
   private lineH: number;
@@ -542,7 +555,7 @@ export class OptionsScreen implements Screen {
     private opts: GameOptions,
   ) {
     this.bg = new MotifBackground(ctx, 'option');
-    this.fade = fader(ctx, 'Option Info');
+    this.fade = paletteFader(ctx, 'Option Info');
     const el = parseElement(ctx.motif.section('Option Info'), 'title');
     if (el) this.title = new ElementInstance(el, ctx.motif.assets);
     // Options_Init: line height and character width from the font.
@@ -875,12 +888,14 @@ export class OptionsScreen implements Screen {
     }
     const r = this.ctx.renderer;
     const [mw, mh] = this.ctx.motif.localCoord;
+    // FADE_PALETTE: the frame's global PalFX, not an overlay.
+    r.tint = this.fade.tint;
     r.setProjection(mw, mh);
     this.bg.drawBack();
     if (!this.hidePanel) this.drawPanel(r);
     r.setProjection(mw, mh);
     this.bg.drawFront();
-    this.fade.draw(r, mw, mh);
+    r.tint = undefined;
   }
 
   /** Options_Draw (0x42AB00), in game pixels. */

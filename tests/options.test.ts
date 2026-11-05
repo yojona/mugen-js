@@ -4,7 +4,8 @@ import { Keyboard, Pad, padButtonsHeld, type GamepadLike } from '../src/app/inpu
 import { BROWSER_DEFAULT_KEYS, JOY_NONE, KEY_NONE, KEYBOARD_RELEASE, PAD_RELEASE, SDLK_DOWN, SDLK_ESCAPE, SDLK_F1, SDLK_F2, SDLK_F3, SDLK_F4, SDLK_RETURN, SDLK_RIGHT, SDLK_SPACE, SDLK_UP, sdlk } from '../src/app/sdl-keys';
 import { parseIni } from '../src/formats/text';
 import { GameOptions, OPTIONS_DEFAULTS, OPTIONS_LOAD_SAVE, OPTIONS_STORAGE_KEY, OPTIONS_TIME, pctToVolume, volumeToPct } from '../src/app/game-options';
-import { OPTIONS_MENU_INPUT, OPTIONS_MENU_MAIN, OPTIONS_MENU_TEAM, OptionsScreen, keyConfigKeyName, optionsChangeMain, optionsMainValueText, titlePulse } from '../src/app/options';
+import { PaletteFade } from '../src/app/screen';
+import { OPTIONS_MENU_INPUT, OPTIONS_MENU_MAIN, OPTIONS_MENU_TEAM, OptionsScreen, fillRect, fontDrawText, keyConfigKeyName, optionsChangeMain, optionsMainValueText, titlePulse } from '../src/app/options';
 
 const CFG = parseIni(`[Options]
 Difficulty = 4
@@ -526,5 +527,86 @@ A = 45
     const again = new GameOptions(JOY_CFG, s).init();
     expect(again.joyKeys[0]![0]).toBe(14);
     expect(again.joyKeys[0]![1]).toBe(JOY_NONE);
+  });
+});
+
+describe('options fades (FADE_PALETTE)', () => {
+  const run = (f: PaletteFade, n: number) =>
+    Array.from({ length: n }, () => {
+      f.tick();
+      return f.mul;
+    });
+
+  it('Fade_Update: the multipliers of a 10-frame fade in, then none', () => {
+    expect(run(new PaletteFade(10, 10), 12)).toEqual([0, 25, 51, 76, 102, 128, 153, 179, 204, 230, 256, 256]);
+  });
+
+  it('Fade_Update: a 10-frame fade out starts at 256 and ends after its 10th frame', () => {
+    const f = new PaletteFade(10, 10);
+    run(f, 11);
+    expect(f.tint).toBeUndefined();
+    f.fadeOut();
+    expect(f.fadingOut).toBe(true);
+    expect(run(f, 9)).toEqual([256, 230, 204, 179, 153, 128, 102, 76, 51]);
+    expect(f.done).toBe(false);
+    f.tick();
+    expect(f.mul).toBe(25);
+    expect(f.done).toBe(true);
+    expect(f.tint).toEqual([25 / 256, 25 / 256, 25 / 256]);
+  });
+
+  /** A renderer that records the tint of every draw. */
+  const recorder = () => {
+    const calls: { kind: string; tint: unknown }[] = [];
+    const r = {
+      tint: undefined as unknown,
+      setProjection() {},
+      clear() {},
+      rect(_x1: number, _y1: number, _x2: number, _y2: number, _c: unknown, blend?: { kind: string }) {
+        calls.push({ kind: blend ? blend.kind : 'plain', tint: r.tint });
+      },
+      draw(p: { sprite: unknown }) {
+        calls.push({ kind: 'sprite', tint: r.tint });
+        void p;
+      },
+    };
+    return { r, calls };
+  };
+
+  it('add / sub rectangles and TrueType text skip the tint; bitmap text and plain rectangles take it', () => {
+    const { r, calls } = recorder();
+    const glyph = { sprite: {}, width: 4 };
+    const ttf = { trueType: true, height: 10, offset: [0, 0], spaceWidth: 4, spacing: [0, 0], glyph: () => glyph };
+    const bitmap = { trueType: false, height: 10, offset: [0, 0], spaceWidth: 4, spacing: [0, 0], glyph: () => glyph, palette: () => undefined, banks: 1, bankType: '' };
+    r.tint = [0.5, 0.5, 0.5];
+    fontDrawText(r as never, ttf as never, 'a', 0, 0, 1, [0x100, 0x100, 0x100]);
+    expect(calls.pop()).toEqual({ kind: 'sprite', tint: undefined });
+    fontDrawText(r as never, bitmap as never, 'a', 0, 0, 1, [0x100, 0x100, 0x100]);
+    expect(calls.pop()).toEqual({ kind: 'sprite', tint: [0.5, 0.5, 0.5] });
+    fillRect(r as never, 0, 0, 1, 1, [1, 1, 1], 'sub');
+    expect(calls.pop()).toEqual({ kind: 'sub', tint: undefined });
+    fillRect(r as never, 0, 0, 1, 1, [1, 1, 1], 'add');
+    expect(calls.pop()).toEqual({ kind: 'add', tint: undefined });
+    fillRect(r as never, 0, 0, 1, 1, [1, 1, 1]);
+    expect(calls.pop()).toEqual({ kind: 'plain', tint: [0.5, 0.5, 0.5] });
+    expect(r.tint).toEqual([0.5, 0.5, 0.5]);
+  });
+
+  it('the options screen fades in with a tint and leaves none set after', () => {
+    const { r } = recorder();
+    const seen: unknown[] = [];
+    r.clear = () => void seen.push(r.tint);
+    const m = make();
+    m.ctx.renderer = r;
+    m.tick();
+    m.scr.draw();
+    expect(seen.pop()).toEqual([0, 0, 0]);
+    m.tick();
+    m.scr.draw();
+    expect(seen.pop()).toEqual([25 / 256, 25 / 256, 25 / 256]);
+    for (let i = 0; i < 9; i++) m.tick();
+    m.scr.draw();
+    expect(seen.pop()).toBeUndefined();
+    expect(r.tint).toBeUndefined();
   });
 });
