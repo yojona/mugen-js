@@ -707,6 +707,10 @@ export class Match {
             if (this.autoRematch) {
               this.fade = undefined;
               this.enter('win');
+            } else {
+              // Round_RunState ends the screen before the players update
+              // (measured: their last tick is the one before, team co-op).
+              return false;
             }
           }
           else {
