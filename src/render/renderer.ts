@@ -77,8 +77,10 @@ uniform float uColorBal;
 uniform bool uInvertAll;
 uniform float uSrcAlphaMul;
 uniform bool uPremulOut;
+uniform vec3 uFirst;
 out vec4 outColor;
 void main() {
+  if (gl_FragCoord.x < uFirst.x || uFirst.z - gl_FragCoord.y < uFirst.y) discard;
   vec2 vUv = vec2(vUvq.x / vUvq.z, vUvq.y);
   vec4 color;
   if (uIndexed) {
@@ -124,7 +126,7 @@ export class Renderer {
     this.gl = gl;
     this.prog = link(gl, VS, FS);
     gl.useProgram(this.prog);
-    for (const n of ['uCornerMode', 'uCorners', 'uQ', 'uMatrix', 'uSize', 'uIndex', 'uRgba', 'uPalette', 'uIndexed', 'uMask', 'uAdd', 'uMul', 'uColorBal', 'uInvertAll', 'uSrcAlphaMul', 'uPremulOut']) {
+    for (const n of ['uCornerMode', 'uCorners', 'uQ', 'uMatrix', 'uSize', 'uIndex', 'uRgba', 'uPalette', 'uIndexed', 'uMask', 'uAdd', 'uMul', 'uColorBal', 'uInvertAll', 'uSrcAlphaMul', 'uPremulOut', 'uFirst']) {
       this.u[n] = gl.getUniformLocation(this.prog, n);
     }
     gl.uniform1i(this.u.uIndex!, 0);
@@ -275,6 +277,9 @@ export class Renderer {
     const sin = Math.sin(a);
     const sx = p.scaleX;
     const sy = p.scaleY;
+    let softFirst = 0;
+    let firstX = 0;
+    let firstY = 0;
     if (this.snap && !this.cornerMode && !p.angle) {
       const v = this.view;
       const kx = this.canvas.width / this.width;
@@ -284,9 +289,15 @@ export class Renderer {
       const unscaled = Math.abs(s.width - s.width * scx) < 0.001 && Math.abs(s.height - s.height * scy) < 0.001;
       const place = (pos: number, scale: number, sc: number, size: number, axis: number, o: number, k: number): number => {
         const d = (pos * v.s + o) * k;
-        return (softAnchor(d, scale < 0, sc, size, axis, unscaled) / k - o) / v.s;
+        const a = softAnchor(d, scale < 0, sc, size, axis, unscaled);
+        softFirst = a.first;
+        return (a.anchor / k - o) / v.s;
       };
-      p = { ...p, x: place(p.x, sx, scx, s.width, s.axisX, v.ox, kx), y: place(p.y, sy, scy, s.height, s.axisY, v.oy, ky) };
+      const x = place(p.x, sx, scx, s.width, s.axisX, v.ox, kx);
+      firstX = softFirst;
+      const y = place(p.y, sy, scy, s.height, s.axisY, v.oy, ky);
+      firstY = softFirst;
+      p = { ...p, x, y };
     }
     // Columns of the 2x2 part, then translation.
     const m00 = cos * sx;
@@ -301,6 +312,7 @@ export class Renderer {
     const ky = (-2 / this.height) * v.s;
     gl.uniformMatrix3fv(this.u.uMatrix!, false, [m00 * kx, m10 * ky, 0, m01 * kx, m11 * ky, 0, tx * kx + (v.ox * 2) / this.width - 1, ty * ky - (v.oy * 2) / this.height + 1, 1]);
     gl.uniform2f(this.u.uSize!, s.width, s.height);
+    gl.uniform3f(this.u.uFirst!, firstX, firstY, this.canvas.height);
     gl.uniform1i(this.u.uIndexed!, st.indexed ? 1 : 0);
     gl.uniform1i(this.u.uMask!, p.mask === false ? 0 : 1);
     let fx = p.palfx ?? this.groupFx ?? NO_PALFX;
@@ -434,8 +446,8 @@ function combinePalFx(a: PalFx, b: PalFx): PalFx {
  * nearest pixel (halves down) and the source keeps the offset of that
  * rounding, truncated to 16.16; flipped, the start lies at axis - size + 1.
  */
-function softAnchor(d: number, flip: boolean, sc: number, size: number, axis: number, unscaled: boolean): number {
-  if (unscaled) return Math.trunc(d) + (flip ? 1 : 0);
+function softAnchor(d: number, flip: boolean, sc: number, size: number, axis: number, unscaled: boolean): { anchor: number; first: number } {
+  if (unscaled) return { anchor: Math.trunc(d) + (flip ? 1 : 0), first: 0 };
   const start = flip ? d - ((size - axis) * sc - 1) : d - axis * sc;
   let first = Math.floor(start);
   let frac = 0;
@@ -443,8 +455,14 @@ function softAnchor(d: number, flip: boolean, sc: number, size: number, axis: nu
     if (start - 0.5 > first) first++;
     frac = Math.floor(((first - start) / sc) * 65536);
   }
+  // A source position before the sprite skips that pixel.
+  const du = Math.trunc(65536 / sc);
+  while (frac < 0) {
+    frac += du;
+    first++;
+  }
   // A sixteenth of an output pixel on: clear of texel edges and of the
   // rasterizer's own snapping of the quad's corners.
   const u = frac / 65536 + 0.0625 / sc;
-  return flip ? first + 0.5 + sc * (size - u - axis) : first + 0.5 - sc * u + axis * sc;
+  return { anchor: flip ? first + 0.5 + sc * (size - u - axis) : first + 0.5 - sc * u + axis * sc, first };
 }
