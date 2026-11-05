@@ -1204,6 +1204,7 @@ export class Player {
       scaleX: this.facing * (v.element.flipH ? -1 : 1) * v.scaleX * k * this.const('size.xscale'),
       scaleY: (v.element.flipV ? -1 : 1) * v.scaleY * k * this.const('size.yscale'),
       angle: this.facing * v.angle,
+      layer: this.sprPriority,
     };
   }
 

@@ -52,6 +52,8 @@ export interface AfterImageFrame {
   scaleX: number;
   scaleY: number;
   angle: number;
+  /** The player's sprite priority when recorded (AnimState.layer). */
+  layer: number;
 }
 
 export interface AfterImageState {
@@ -116,7 +118,7 @@ export function recordAfterImage(a: AfterImageState, frame: AfterImageFrame | un
  * palcontrast; the k-th one drawn (from 0) also paladd * k and palmul to
  * the k-th power. Returned oldest first (drawing order).
  */
-export function afterImageDraws(a: AfterImageState): { frame: AfterImageFrame; add: [number, number, number]; mul: [number, number, number]; color: number; invertAll: boolean }[] {
+export function afterImageDraws(a: AfterImageState): { frame: AfterImageFrame; add: [number, number, number]; mul: [number, number, number]; color: number; invertAll: boolean; k: number }[] {
   const out: ReturnType<typeof afterImageDraws> = [];
   if (!a.running || a.next === a.oldest) return out;
   let idx = a.next;
@@ -149,6 +151,7 @@ export function afterImageDraws(a: AfterImageState): { frame: AfterImageFrame; a
       mul: [mul[0]! / 256, mul[1]! / 256, mul[2]! / 256] as [number, number, number],
       color: a.palColor / 256,
       invertAll: a.palInvertAll,
+      k: drawn - 1,
     });
   }
   return out.reverse();
