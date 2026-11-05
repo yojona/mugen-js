@@ -108,12 +108,12 @@ const NULLARY: Record<string, Fn<P>> = {
   bottomedge: flt((p) => (p.world.camera.y + p.world.screenHeight) / us(p)),
   frontedge: flt((p) => (p.facing > 0 ? p.world.camera.x + p.world.screenWidth / 2 : p.world.camera.x - p.world.screenWidth / 2) / us(p)),
   backedge: flt((p) => (p.facing > 0 ? p.world.camera.x - p.world.screenWidth / 2 : p.world.camera.x + p.world.screenWidth / 2) / us(p)),
-  frontedgedist: int((p) => Math.trunc(p.world.edgeDist(p, true))),
-  backedgedist: int((p) => Math.trunc(p.world.edgeDist(p, false))),
+  frontedgedist: int((p) => Math.trunc(local(p, p.world.edgeDist(p, true)))),
+  backedgedist: int((p) => Math.trunc(local(p, p.world.edgeDist(p, false)))),
   // mugen.exe 0x4343d0: measured to the player's screen limit (stage
   // screenleft/right plus Width edge), minus 1 in the air and 2 lying down.
-  frontedgebodydist: int((p) => Math.trunc(p.world.edgeBodyDist(p, true))),
-  backedgebodydist: int((p) => Math.trunc(p.world.edgeBodyDist(p, false))),
+  frontedgebodydist: int((p) => Math.trunc(local(p, p.world.edgeBodyDist(p, true)))),
+  backedgebodydist: int((p) => Math.trunc(local(p, p.world.edgeBodyDist(p, false)))),
   camerazoom: flt(() => 1),
 };
 
@@ -531,4 +531,10 @@ export { CompileError };
 /** Units of the player evaluating the expression (Player_ToLocalCoord(p, ...) in trigger.c), not of a redirect target. */
 function us(p: P): number {
   return ((R.from as P | undefined) ?? p).localScale;
+}
+
+/** A distance in p's own units to the units of the evaluating player's states (Player_ToLocalCoord). */
+function local(p: P, v: number): number {
+  const k = p.scale / us(p);
+  return k === 1 ? v : v * k;
 }
