@@ -176,6 +176,12 @@ export class Renderer {
     return [(x / (this.canvas.width / this.width) - v.ox) / v.s, (y / (this.canvas.height / this.height) - v.oy) / v.s];
   }
 
+  /** Output pixel position of game coordinates (the view included; inverse of fromDevice). */
+  toDevice(x: number, y: number): [number, number] {
+    const v = this.view;
+    return [(x * v.s + v.ox) * (this.canvas.width / this.width), (y * v.s + v.oy) * (this.canvas.height / this.height)];
+  }
+
   /** Restrict drawing to a rectangle of output pixels, top-left origin (x2, y2 exclusive). */
   setClipDevice(x1: number, y1: number, x2: number, y2: number): void {
     const gl = this.gl;

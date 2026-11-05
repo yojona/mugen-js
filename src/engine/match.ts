@@ -309,7 +309,8 @@ export class Match {
       if (k > 0) p.powerLeader = made[0];
       made.push(p);
     }
-    if (power !== undefined) made[0]!.power = power;
+    // A new turns member gets the power, shown at once (Team_LoadMember).
+    if (power !== undefined) made[0]!.power = made[0]!.powerbarPower = made[0]!.powerbarLevel = power;
     w.players.push(...made);
     w.players.sort((a, b) => a.slotNo - b.slotNo);
   }
@@ -354,7 +355,7 @@ export class Match {
         me.recoveryRate = f((1 / (n - 0.5)) * me.recoveryRate);
       }
     }
-    for (const p of this.players) p.power = 0;
+    for (const p of this.players) p.power = p.powerbarPower = 0;
   }
 
   /** The players of a side, in slot order. */
@@ -368,7 +369,7 @@ export class Match {
     for (const p of this.side(t)) {
       const life = Math.trunc(p.const('data.life') * ts.lifeMul * ((this.opts.life ?? 100) / 100) + 0.5);
       p.lifeMax = life;
-      if (p.life > life || force) p.life = life;
+      if (p.life > life || force) p.life = p.lifebarLife = p.lifebarRed = life;
     }
   }
 
@@ -391,6 +392,9 @@ export class Match {
       p.facing = s.facing;
       // Round_Reset: life back to full, unless the team keeps it (turns).
       if (first || this.teams[p.side]!.lifeReset) p.life = p.lifeMax;
+      // Round_Reset: the bars show the life and power at once.
+      p.lifebarLife = p.lifebarRed = p.life;
+      p.powerbarPower = p.power;
       p.alive = true;
       p.ctrl = false;
       p.returnToOwnStates();

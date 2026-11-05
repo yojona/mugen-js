@@ -36,10 +36,11 @@ export class FightHud {
   /** Life bars of [Lifebar], [Simul Lifebar] and [Turns Lifebar], p1..p4 each. */
   private lifeSets: Record<'single' | 'simul' | 'turns', Bar[]>;
   private power: Bar[];
-  /** Lifebar "mid" (recent damage) value per player slot, drains toward life. */
-  private midLife = [1, 1, 1, 1];
-  private midDelay = [0, 0, 0, 0];
-  private lastLife = [1, 1, 1, 1];
+  /**
+   * The bar values per player slot as they were before this frame's
+   * Lifebars_Tick: mugen.exe draws the layer 0 HUD, then ticks the bars.
+   */
+  private shown: { life: number; red: number; max: number; power: number; powerMax: number }[] = [];
   /** ComboState per side (round.c Combo_*): hits, display timer, x slid in from start.x, count shown. */
   private combo = [0, 1].map(() => ({ hits: 0, timer: 0, x: 0, shown: 0, ongoing: false, pending: false }));
   private round: Map<string, ElementInstance> = new Map();
@@ -140,16 +141,15 @@ export class FightHud {
     // the frame gets drawn: several ticks can run per drawn frame).
     const a = m.announce;
     if (a && a.age === 0) this.round.get(this.announceKey(a))?.reset();
-    for (const p of m.players) {
-      const i = p.slotNo - 1;
-      if (i < 0 || i > 3) continue;
-      const frac = Math.max(0, p.life / p.lifeMax);
-      // The red "mid" bar waits while the player is in hitstun, then drains.
-      if (frac < this.lastLife[i]!) this.midDelay[i] = 30;
-      this.lastLife[i] = frac;
-      if (this.midDelay[i]! > 0 && p.moveType !== 'h') this.midDelay[i]!--;
-      if (this.midDelay[i] === 0 && this.midLife[i]! > frac) this.midLife[i] = Math.max(frac, this.midLife[i]! - 0.01);
-      if (this.midLife[i]! < frac) this.midLife[i] = frac;
+    // Lifebars_Tick: life bars of players 1-4, power bars of players 1-2.
+    const w = m.world;
+    for (let i = 0; i < 4; i++) {
+      const p = w.slot(i + 1);
+      if (!p) continue;
+      const leader = w.slot((i % 2) + 1) ?? p;
+      this.shown[i] = { life: p.lifebarLife, red: p.lifebarRed, max: p.lifeMax, power: p.powerbarPower, powerMax: leader.const('data.power') };
+      if (simulated) this.tickLife(p);
+      if (i < 2) this.tickPower(m, p, simulated);
     }
     const comboSec = findSection(this.doc, 'Combo');
     const unit = this.localWidth / 320;
@@ -221,13 +221,17 @@ export class FightHud {
       const kind = this.sideKind(m, side);
       for (const i of this.sideSlots(m, side)) {
         const p = w.slot(i + 1);
-        if (p) this.drawBar(r, this.lifeSets[kind][i]!, Math.max(0, p.life / p.lifeMax), this.midLife[i]!);
+        const v = this.shown[i];
+        if (p && v) this.drawGauge(r, this.lifeSets[kind][i]!, v.life, v.max, v.red);
       }
       const leader = w.slot(side + 1);
       if (leader) {
         const pb = this.power[side]!;
-        this.drawBar(r, pb, Math.max(0, leader.power / leader.const('data.power')), undefined);
-        pb.counter?.draw(r, pb.pos[0], pb.pos[1], String(Math.floor(leader.power / 1000)));
+        const v = this.shown[side];
+        if (v) {
+          this.drawGauge(r, pb, v.power, v.powerMax, undefined);
+          pb.counter?.draw(r, pb.pos[0], pb.pos[1], String(Math.trunc(v.power / 1000)));
+        }
       }
       const faceSec = findSection(this.doc, { single: 'Face', simul: 'Simul Face', turns: 'Turns Face' }[kind]);
       if (kind === 'turns') this.drawTeammates(r, m, side, faceSec);
@@ -274,21 +278,93 @@ export class FightHud {
     for (let k = 0; k < t.cur; k++) ko?.draw(r, x0 + dx * k, y0 + dy * k);
   }
 
-  /** Draw a bar: bg layers, then mid and front clipped to their fractions. */
-  private drawBar(r: Renderer, b: Bar, frac: number, mid: number | undefined): void {
+  /**
+   * Lifebar_TickLife: the life shown goes down towards the life by a tenth
+   * of the difference plus 0.9% of the maximum, or up by at most 4%; once it
+   * has caught up the red part follows it down by a tenth of the
+   * difference, except while hit (lying in 5150 past 60 ticks excepted).
+   */
+  private tickLife(p: Player): void {
+    const down = Math.trunc((p.lifeMax * 9) / 1000) || 1;
+    const up = Math.trunc((p.lifeMax * 40) / 1000) || 1;
+    const life = p.life;
+    if (p.lifebarLife > life) {
+      p.lifebarLife = Math.trunc(p.lifebarLife - ((p.lifebarLife - life) * 0.1 + down));
+      if (p.lifebarLife < life) p.lifebarLife = life;
+    }
+    if (p.lifebarLife < life) p.lifebarLife += Math.min(life - p.lifebarLife, up);
+    if (p.moveType === 'h' && (p.stateNo !== 5150 || p.time <= 60)) return;
+    if (p.lifebarLife !== life) return;
+    if (p.lifebarRed > p.lifebarLife) p.lifebarRed = Math.trunc(p.lifebarRed - (p.lifebarRed - p.lifebarLife) * 0.1);
+    if (p.lifebarRed < p.lifebarLife) p.lifebarRed = p.lifebarLife;
+  }
+
+  /**
+   * Lifebar_TickPower: the power shown rises towards the power by a
+   * twentieth of the difference plus 15 (never above it); a new level plays
+   * its [Powerbar] level sound when it goes up.
+   */
+  private tickPower(m: Match, p: Player, simulated: boolean): void {
+    const power = p.power;
+    if (simulated) {
+      if (p.powerbarPower < power) p.powerbarPower = Math.trunc((power - p.powerbarPower) / 20) + p.powerbarPower + 15;
+      if (p.powerbarPower > power) p.powerbarPower = power;
+    }
+    const level = Math.trunc(power / 1000);
+    if (p.powerbarLevel === level) return;
+    if (p.powerbarLevel < level && level < 10) {
+      const snd = getValue(findSection(this.doc, 'Powerbar'), `level${level}.snd`);
+      const [g, n] = pair(snd);
+      if (snd) m.sounds.push([g, n]);
+    }
+    p.powerbarLevel = level;
+  }
+
+  /**
+   * Lifebar_Draw / Powerbar_Draw: the range in output pixels (Mt_Scale);
+   * front clipped to `shown` of `max`, mid (the red part) from there to
+   * `red`. A range going right to left empties from the left.
+   */
+  private drawGauge(r: Renderer, b: Bar, shown: number, max: number, red: number | undefined): void {
     const [x, y] = b.pos;
     b.bg0?.draw(r, x, y);
     b.bg1?.draw(r, x, y);
-    const clipTo = (f: number, e: ElementInstance | undefined) => {
-      if (!e) return;
-      const x0 = x + b.range[0];
-      const x1 = x + b.range[0] + (b.range[1] - b.range[0]) * f;
-      r.setClip([x0, 0, x1 + (b.range[1] < b.range[0] ? 0 : 1), 480]);
-      e.draw(r, x, y);
+    const sc = (v: number) => Math.floor(r.toDevice(v, 0)[0] + 0.5);
+    let x1 = sc(b.range[0] + x);
+    let x2 = sc(b.range[1] + x);
+    let rtl = false;
+    if (x1 > x2) {
+      [x1, x2] = [x2, x1];
+      rtl = true;
+    }
+    const H = 1 << 16;
+    if (red === undefined) {
+      // Powerbar_Draw: len = (b - a + 1) * shown / max.
+      const len = Math.trunc(((x2 - x1 + 1) * shown) / max);
+      if (len > 0) {
+        if (rtl) r.setClipDevice(x2 - len + 1, 0, x2 + 1, H);
+        else r.setClipDevice(x1, 0, len + x1, H);
+        b.front?.draw(r, x, y);
+      }
       r.setClip(undefined);
-    };
-    if (mid !== undefined) clipTo(mid, b.mid);
-    clipTo(frac, b.front);
+      return;
+    }
+    const wdt = x2 - x1;
+    const redLen = Math.trunc((red * wdt) / max);
+    const showLen = Math.trunc((shown * wdt) / max);
+    let len = shown === 0 ? 0 : showLen + 1;
+    if (len > redLen) len = redLen;
+    if (red > shown) {
+      if (rtl) r.setClipDevice(x2 - redLen, 0, x2 - len + 1, H);
+      else r.setClipDevice(x1 + len, 0, x1 + redLen + 1, H);
+      b.mid?.draw(r, x, y);
+    }
+    if (shown > 0) {
+      if (rtl) r.setClipDevice(x2 - showLen, 0, x2 + 1, H);
+      else r.setClipDevice(x1, 0, x1 + showLen + 1, H);
+      b.front?.draw(r, x, y);
+    }
+    r.setClip(undefined);
   }
 
   /** A face: its backgrounds (bg0..bg2) at pos, then the character's face sprite. */

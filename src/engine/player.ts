@@ -201,6 +201,15 @@ export class Player {
   life: number;
   /** life_max: data.life scaled by the team's life multiplier (Team_ResetLife). */
   lifeMax = 0;
+  /**
+   * What the HUD shows (Lifebar_TickLife / Lifebar_TickPower): the life bar's
+   * front (lifebar_life) and red part (lifebar_red), the power bar's power
+   * (powerbar_power) and level (powerbar_level, for the level sounds).
+   */
+  lifebarLife = 0;
+  lifebarRed = 0;
+  powerbarPower = 0;
+  powerbarLevel = 0;
   private ownPower = 0;
   /**
    * A simul partner shares its team leader's power (power_ref points at the
@@ -417,6 +426,7 @@ export class Player {
   ) {
     this.lifeMax = this.const('data.life');
     this.life = this.lifeMax;
+    this.lifebarLife = this.lifebarRed = this.life;
     this.guardDist = this.const('size.attack.dist');
     const first = prog.data.anims.get(0) ?? prog.data.anims.values().next().value;
     if (!first) throw new Error(`${prog.data.def.name}: sin animaciones`);
@@ -1437,16 +1447,6 @@ export class Player {
     if (this.world.training && !this.isHelper) this.trainingRefill();
   }
   private freshState = false;
-}
-
-export type { ControllerDef };
-
-/**
- * Match end (matchload.c): the winner's victory quote, the one VictoryQuote
- * chose if it exists, else a random one through the match RNG (counting
- * from victory1; victory0 only comes up by wrapping around).
- */
-export function pickVictoryQuote(p: Player): string | undefined {
   /** idle_time: updates spent in movetype I. */
   idleTime = 0;
 
@@ -1470,6 +1470,16 @@ export function pickVictoryQuote(p: Player): string | undefined {
     if (this.idleTime > 30 && this.power < max) this.power = max;
     if (this.idleTime > 60 && this.life < this.lifeMax) this.life = this.lifeMax;
   }
+}
+
+export type { ControllerDef };
+
+/**
+ * Match end (matchload.c): the winner's victory quote, the one VictoryQuote
+ * chose if it exists, else a random one through the match RNG (counting
+ * from victory1; victory0 only comes up by wrapping around).
+ */
+export function pickVictoryQuote(p: Player): string | undefined {
   const quotes = p.prog.quotes;
   const count = quotes.filter((x) => x !== undefined).length;
   if (count === 0) return undefined;

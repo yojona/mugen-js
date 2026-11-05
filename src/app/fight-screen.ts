@@ -173,7 +173,7 @@ export class FightScreen implements Screen {
       // Round_Reset: full power for everyone in a demo fight.
       if (m.round !== this.demoRound) {
         this.demoRound = m.round;
-        for (const p of w.players) if (!p.isHelper) p.power = p.const('data.power');
+        for (const p of w.players) if (!p.isHelper) p.power = p.powerbarPower = p.powerbarLevel = p.const('data.power');
       }
       if (w.roundState === 2) {
         const d = this.s.demo;
