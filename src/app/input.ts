@@ -116,6 +116,8 @@ export class Keyboard {
   private keyQueue: number[] = [];
   /** g_padQueue: joystick codes in order, releases with PAD_RELEASE. */
   private padQueue: number[] = [];
+  /** Keys pressed since the last poll, released or not. */
+  private tapped = new Set<string>();
   /** While set (KeyConfig_Run), every key belongs to the game, not the browser's shortcuts. */
   capture = false;
 
@@ -133,6 +135,7 @@ export class Keyboard {
         this.queueKey(e.code, 0);
       }
       this.held.add(e.code);
+      this.tapped.add(e.code);
       if (this.keyMap.has(e.code) || (this.capture && !e.metaKey && !e.ctrlKey)) e.preventDefault();
     });
     target.addEventListener('keyup', (ev) => {
@@ -228,10 +231,13 @@ export class Keyboard {
   poll(): void {
     this.pollPads();
     const down = [0, 0];
-    for (const code of this.held) {
+    // A key pressed and released between two ticks still counts for one:
+    // the reference gets every change as an event.
+    for (const code of [...this.held, ...this.tapped]) {
       const t = this.keyMap.get(code);
       if (t) down[t.side]! |= t.bit;
     }
+    this.tapped.clear();
     for (const code of this.padHeld) {
       const t = this.padMap.get(code);
       if (t) down[t.side]! |= t.bit;
