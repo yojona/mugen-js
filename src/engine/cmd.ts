@@ -303,6 +303,30 @@ export class CommandInput {
   }
 
   /**
+   * Player_Reset (every round): the key state, the event ring, the command
+   * history and the active commands start empty, on the player's own command
+   * list. Keys held on the device aren't seen as new presses: prevRaw stays.
+   */
+  reset(): void {
+    this.set = this.ownSet;
+    this.held.fill(0);
+    this.facingLeft = false;
+    this.ring.fill(0);
+    this.ringR = this.ringW = 0;
+    this.dirState = this.pending = 0;
+    this.pressTime.fill(0);
+    this.qBits.fill(0);
+    this.qTime.fill(0);
+    this.qHold.fill(0);
+    this.qStart = this.qWrite = this.qRead = 0;
+    this.heldBits = 0;
+    this.upPressed = false;
+    this.lastEvent = 0;
+    this.buffer = new Uint8Array(Math.max(1, this.set.size));
+    this.last = new Float64Array(Math.max(1, this.set.size)).fill(-Infinity);
+  }
+
+  /**
    * A copy with its own buffers (a keyctrl helper starts with its root's
    * input and command state: Helper_Create copies p->input and cmd_state).
    */
@@ -329,6 +353,21 @@ export class CommandInput {
   /** Debug: [read, write, ring x30, held 1..11] in MUGEN's layout. */
   debugState(): number[] {
     return [this.ringR, this.ringW, ...this.ring, ...Array.from(this.held.slice(1, 12))];
+  }
+
+  /** Debug: the queue's write index. */
+  get debugWrite(): number {
+    return this.qWrite;
+  }
+
+  /** Debug: the newest queue entries as [bits, time, hold], oldest first. */
+  debugQueue(n: number): [number, number, number][] {
+    const out: [number, number, number][] = [];
+    for (let i = n; i >= 1; i--) {
+      const j = (this.qWrite - i + QUEUE * 2) % QUEUE;
+      out.push([this.qBits[j]!, this.qTime[j]!, this.qHold[j]!]);
+    }
+    return out;
   }
 
   /** held[k] as MUGEN reads it (k = 13 is the ring's read index). */

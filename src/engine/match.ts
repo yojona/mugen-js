@@ -431,6 +431,7 @@ export class Match {
       p.targets.clear();
       p.targetJuggle.clear();
       p.noInputStates = false;
+      p.cmdInput?.reset();
       p.recorder?.resetRound();
       p.ai?.resetRound();
       p.hitDefActive = false;
