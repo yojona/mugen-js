@@ -28,6 +28,9 @@ interface Bar {
   counter?: ElementInstance;
 }
 
+/** [WinIcon] key of each WIN_ICON_* type. */
+const WIN_ICON_KEYS = ['n', 's', 'h', 'c', 't', 'throw', 'suicide', 'teammate', 'perfect'];
+
 export class FightHud {
   private assets: ElementAssets;
   /** Life bars of [Lifebar], [Simul Lifebar] and [Turns Lifebar], p1..p4 each. */
@@ -320,15 +323,36 @@ export class FightHud {
     new ElementInstance(d, this.assets).draw(r, x, y, secs < 0 ? 'o' : String(secs));
   }
 
+  /**
+   * Fight_DrawHud's win icons: past useiconupto wins, bg0 and the count;
+   * else bg0 for each round needed (up to useiconupto), then each won
+   * round's icon and its perfect overlay.
+   */
   private drawWinIcons(r: Renderer, m: Match, i: number): void {
     const sec = findSection(this.doc, 'WinIcon');
     const pre = `p${i + 1}`;
     const [x, y] = pair(getValue(sec, `${pre}.pos`));
     const [dx, dy] = pair(getValue(sec, `${pre}.iconoffset`));
-    const icon = parseElement(sec, `${pre}.n`);
-    if (!icon) return;
-    const e = new ElementInstance(icon, this.assets);
-    for (let k = 0; k < m.wins[i]!; k++) e.draw(r, x + dx * k, y + dy * k);
+    const upto = Math.min(9, parseInt(getValue(sec, 'useiconupto') ?? '0', 10) || 0);
+    const draw = (key: string, k: number, text?: string) => {
+      const def = parseElement(sec, `${pre}.${key}`);
+      if (def) new ElementInstance(def, this.assets).draw(r, x + dx * k, y + dy * k, text);
+    };
+    const wins = m.wins[i]!;
+    if (wins > upto) {
+      draw('bg0', 0);
+      draw('counter', 0, String(wins));
+      return;
+    }
+    const needed = Math.min(m.teamView(i).winsNeeded, upto);
+    for (let k = 0; k < needed; k++) draw('bg0', k);
+    const w = m.world;
+    for (const types of [w.winIcons[i]!, w.winPerfect[i]!]) {
+      for (let k = 0; k < wins; k++) {
+        const t = types[k]!;
+        if (t >= 0) draw(WIN_ICON_KEYS[t]!, k);
+      }
+    }
   }
 
   /** Combo_Draw: team 1 puts the text after the counter, team 2 the counter before the text; the counter shakes at first. */
