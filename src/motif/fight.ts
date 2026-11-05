@@ -210,50 +210,81 @@ export class FightHud {
     return this.sideKind(m, side) === 'simul' ? [side, side + 2] : [side];
   }
 
-  /** bars false: no Fight_DrawHud (demo fights with [Demo Mode] fight.bars.display = 0), only combos and announcements. */
+  /**
+   * bars false: no Fight_DrawHud (demo fights with [Demo Mode]
+   * fight.bars.display = 0), only combos and announcements. Fight_DrawHud
+   * draws each part for both sides before the next part: bar backgrounds,
+   * life bars, power bars and counters, turns teammate backgrounds, face
+   * backgrounds, faces (the last slot first), teammate faces and KO marks,
+   * names, the timer and the win icons.
+   */
   draw(r: Renderer, m: Match, bars = true): void {
+    if (!bars) {
+      for (let side = 0; side < 2; side++) this.drawCombo(r, side);
+      this.drawAnnounce(r, m);
+      return;
+    }
     const w = m.world;
-    for (let side = 0; side < 2; side++) {
-      if (!bars) {
-        this.drawCombo(r, side);
-        continue;
-      }
+    const sides = [0, 1].map((side) => {
       const kind = this.sideKind(m, side);
-      for (const i of this.sideSlots(m, side)) {
-        const p = w.slot(i + 1);
-        const v = this.shown[i];
-        if (p && v) this.drawGauge(r, this.lifeSets[kind][i]!, v.life, v.max, v.red);
-      }
-      const leader = w.slot(side + 1);
-      if (leader) {
-        const pb = this.power[side]!;
-        const v = this.shown[side];
-        if (v) {
-          this.drawGauge(r, pb, v.power, v.powerMax, undefined);
-          pb.counter?.draw(r, pb.pos[0], pb.pos[1], String(Math.trunc(v.power / 1000)));
+      return {
+        side,
+        kind,
+        slots: this.sideSlots(m, side),
+        faceSec: findSection(this.doc, { single: 'Face', simul: 'Simul Face', turns: 'Turns Face' }[kind]),
+        nameSec: findSection(this.doc, { single: 'Name', simul: 'Simul Name', turns: 'Turns Name' }[kind]),
+      };
+    });
+    for (const k of ['bg0', 'bg1'] as const) {
+      for (const sd of sides) {
+        for (const i of sd.slots) {
+          const b = this.lifeSets[sd.kind][i]!;
+          b[k]?.draw(r, b.pos[0], b.pos[1]);
         }
       }
-      const faceSec = findSection(this.doc, { single: 'Face', simul: 'Simul Face', turns: 'Turns Face' }[kind]);
-      if (kind === 'turns') this.drawTeammates(r, m, side, faceSec);
-      // Faces: the last slot first.
-      for (const i of [...this.sideSlots(m, side)].reverse()) {
-        const p = w.slot(i + 1);
-        if (p) this.drawFace(r, faceSec, `p${i + 1}`, p.prog.data, p.palNo);
-      }
-      const nameSec = findSection(this.doc, { single: 'Name', simul: 'Simul Name', turns: 'Turns Name' }[kind]);
-      for (const i of this.sideSlots(m, side)) {
-        const p = w.slot(i + 1);
-        if (p) this.drawName(r, nameSec, `p${i + 1}`, p.prog.data.def.displayName);
-      }
-      this.drawWinIcons(r, m, side);
-      this.drawCombo(r, side);
     }
-    if (bars) this.drawClock(r, m);
+    for (const sd of sides) {
+      for (const i of sd.slots) {
+        const v = this.shown[i];
+        if (w.slot(i + 1) && v) this.drawGauge(r, this.lifeSets[sd.kind][i]!, v.life, v.max, v.red);
+      }
+    }
+    for (const k of ['bg0', 'bg1'] as const) for (const sd of sides) this.power[sd.side]![k]?.draw(r, this.power[sd.side]!.pos[0], this.power[sd.side]!.pos[1]);
+    for (const sd of sides) {
+      const v = this.shown[sd.side];
+      if (w.slot(sd.side + 1) && v) this.drawGauge(r, this.power[sd.side]!, v.power, v.powerMax, undefined);
+    }
+    for (const sd of sides) {
+      const pb = this.power[sd.side]!;
+      const v = this.shown[sd.side];
+      if (w.slot(sd.side + 1) && v) pb.counter?.draw(r, pb.pos[0], pb.pos[1], String(Math.trunc(v.power / 1000)));
+    }
+    for (const sd of sides) if (sd.kind === 'turns') this.drawTeammates(r, m, sd.side, sd.faceSec, 'bg');
+    for (const sd of sides) {
+      for (const i of sd.slots) if (w.slot(i + 1)) this.drawFace(r, sd.faceSec, `p${i + 1}`, undefined, 0, undefined, undefined, 'bg');
+    }
+    for (const sd of sides) {
+      for (const i of [...sd.slots].reverse()) {
+        const p = w.slot(i + 1);
+        if (p) this.drawFace(r, sd.faceSec, `p${i + 1}`, p.prog.data, p.palNo, undefined, undefined, 'face');
+      }
+    }
+    for (const sd of sides) if (sd.kind === 'turns') this.drawTeammates(r, m, sd.side, sd.faceSec, 'faces');
+    for (const sd of sides) if (sd.kind === 'turns') this.drawTeammates(r, m, sd.side, sd.faceSec, 'ko');
+    for (const sd of sides) {
+      for (const i of sd.slots) {
+        const p = w.slot(i + 1);
+        if (p) this.drawName(r, sd.nameSec, `p${i + 1}`, p.prog.data.def.displayName);
+      }
+    }
+    this.drawClock(r, m);
+    for (const sd of sides) this.drawWinIcons(r, m, sd.side);
+    for (const sd of sides) this.drawCombo(r, sd.side);
     this.drawAnnounce(r, m);
   }
 
   /** Turns: the members still waiting (small faces) and a KO mark on those beaten. */
-  private drawTeammates(r: Renderer, m: Match, side: number, sec: Section | undefined): void {
+  private drawTeammates(r: Renderer, m: Match, side: number, sec: Section | undefined, part: 'bg' | 'faces' | 'ko'): void {
     // Fight_DrawHud: not for survival's computer team.
     const sv = m.opts.survivalSide;
     if (sv !== undefined && sv !== side) return;
@@ -265,17 +296,21 @@ export class FightHud {
       const d = parseElement(sec, `${pre}.${k}`);
       return d ? new ElementInstance(d, this.assets) : undefined;
     };
-    const bgs = [el('bg0'), el('bg1'), el('bg2')];
-    for (let k = 0; k < t.memberCount - 1; k++) for (const b of bgs) b?.draw(r, x0 + dx * k, y0 + dy * k);
-    let n = 0;
-    for (let k = 0; k < t.memberCount; k++) {
-      if (k === t.cur) continue;
-      const f = t.faces?.[k];
-      if (f) this.drawFace(r, sec, pre, f.data, f.pal, x0 + dx * n, y0 + dy * n, true);
-      n++;
+    if (part === 'bg') {
+      const bgs = [el('bg0'), el('bg1'), el('bg2')];
+      for (let k = 0; k < t.memberCount - 1; k++) for (const b of bgs) b?.draw(r, x0 + dx * k, y0 + dy * k);
+    } else if (part === 'faces') {
+      let n = 0;
+      for (let k = 0; k < t.memberCount; k++) {
+        if (k === t.cur) continue;
+        const f = t.faces?.[k];
+        if (f) this.drawFace(r, sec, pre, f.data, f.pal, x0 + dx * n, y0 + dy * n, 'face');
+        n++;
+      }
+    } else {
+      const ko = el('ko');
+      for (let k = 0; k < t.cur; k++) ko?.draw(r, x0 + dx * k, y0 + dy * k);
     }
-    const ko = el('ko');
-    for (let k = 0; k < t.cur; k++) ko?.draw(r, x0 + dx * k, y0 + dy * k);
   }
 
   /**
@@ -321,14 +356,12 @@ export class FightHud {
   }
 
   /**
-   * Lifebar_Draw / Powerbar_Draw: the range in output pixels (Mt_Scale);
+   * Lifebar_Draw / Powerbar_Draw (the backgrounds are drawn before): the range in output pixels (Mt_Scale);
    * front clipped to `shown` of `max`, mid (the red part) from there to
    * `red`. A range going right to left empties from the left.
    */
   private drawGauge(r: Renderer, b: Bar, shown: number, max: number, red: number | undefined): void {
     const [x, y] = b.pos;
-    b.bg0?.draw(r, x, y);
-    b.bg1?.draw(r, x, y);
     const sc = (v: number) => Math.floor(r.toDevice(v, 0)[0] + 0.5);
     let x1 = sc(b.range[0] + x);
     let x2 = sc(b.range[1] + x);
@@ -368,14 +401,16 @@ export class FightHud {
   }
 
   /** A face: its backgrounds (bg0..bg2) at pos, then the character's face sprite. */
-  private drawFace(r: Renderer, sec: Section | undefined, pre: string, data: import('../engine/character').CharacterData, pal: number, px?: number, py?: number, noBg = false): void {
+  private drawFace(r: Renderer, sec: Section | undefined, pre: string, data: import('../engine/character').CharacterData | undefined, pal: number, px: number | undefined, py: number | undefined, part: 'bg' | 'face'): void {
     const [x, y] = px === undefined ? pair(getValue(sec, `${pre}.pos`)) : [px, py!];
-    if (!noBg) {
+    if (part === 'bg') {
       for (const k of ['bg', 'bg0', 'bg1', 'bg2']) {
         const bg = parseElement(sec, `${pre}.${k}`);
         if (bg) new ElementInstance(bg, this.assets).draw(r, x, y);
       }
+      return;
     }
+    if (!data) return;
     const face = parseElement(sec, `${pre}.face`);
     if (face?.spr) {
       const s = data.sff.get(face.spr[0], face.spr[1]);
