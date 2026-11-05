@@ -294,11 +294,17 @@ export class FightScreen implements Screen {
           r.tint = undefined;
         });
       },
-      systemElements: () => inMotif(() => this.s.hud.drawAnnouncements(r, this.match)),
+      systemElements: () => inMotif(() => {
+        r.tint = w.darkened ? DARKEN_BG : undefined;
+        this.s.hud.drawAnnouncements(r, this.match);
+        r.tint = undefined;
+      }),
     });
     r.view = { s: 1, ox: 0, oy: 0 };
     r.setProjection(mw, mh);
+    r.tint = w.darkened ? DARKEN_BG : undefined;
     this.s.hud.drawCombos(r);
+    r.tint = undefined;
     r.allFx = undefined;
     const a = this.match.fadeAlpha;
     if (a > 0) r.rect(0, 0, mw, mh, [0, 0, 0, Math.round(a * 255)]);
