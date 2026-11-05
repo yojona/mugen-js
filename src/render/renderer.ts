@@ -174,6 +174,11 @@ export class Renderer {
   snap = true;
 
   /** Change the logical coordinate space without resizing the canvas. */
+  /** Frees the WebGL context. */
+  dispose(): void {
+    this.gl.getExtension('WEBGL_lose_context')?.loseContext();
+  }
+
   setProjection(width: number, height: number): void {
     this.width = width;
     this.height = height;

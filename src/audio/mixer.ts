@@ -13,6 +13,13 @@ export class Mixer {
     if (this.ctx.state === 'suspended') void this.ctx.resume();
   }
 
+  /** Stops every sound and frees the audio context. */
+  close(): void {
+    this.stop();
+    void this.ctx?.close();
+    this.ctx = undefined;
+  }
+
   /** Sounds playing on a named channel (PlaySnd channel per player). */
   private channels = new Map<string, { src: AudioBufferSourceNode; pan: StereoPannerNode; ended: boolean }>();
   /** Every source still playing (StopSnd -1 stops them all). */

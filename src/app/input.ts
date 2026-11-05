@@ -118,6 +118,7 @@ export class Keyboard {
   private padQueue: number[] = [];
   /** Keys pressed since the last poll, released or not. */
   private tapped = new Set<string>();
+  private listeners = new AbortController();
   /** While set (KeyConfig_Run), every key belongs to the game, not the browser's shortcuts. */
   capture = false;
 
@@ -126,6 +127,7 @@ export class Keyboard {
     private gamepads: GamepadSource = browserGamepads,
   ) {
     this.setMaps(BROWSER_DEFAULT_KEYS);
+    const { signal } = this.listeners;
     target.addEventListener('keydown', (ev) => {
       const e = ev as KeyboardEvent;
       this.onFirstInput?.();
@@ -137,17 +139,22 @@ export class Keyboard {
       this.held.add(e.code);
       this.tapped.add(e.code);
       if (this.keyMap.has(e.code) || (this.capture && !e.metaKey && !e.ctrlKey)) e.preventDefault();
-    });
+    }, { signal });
     target.addEventListener('keyup', (ev) => {
       const e = ev as KeyboardEvent;
       if (e.code === 'Escape') this.escapeDown = false;
       this.queueKey(e.code, KEYBOARD_RELEASE);
       this.held.delete(e.code);
-    });
+    }, { signal });
     target.addEventListener('blur', () => {
       this.held.clear();
       this.escapeDown = false;
-    });
+    }, { signal });
+  }
+
+  /** Removes the event listeners. */
+  dispose(): void {
+    this.listeners.abort();
   }
 
   private queueKey(code: string, flag: number): void {
