@@ -89,7 +89,8 @@ export class VictoryScreen implements Screen {
 
   constructor(
     private ctx: AppContext,
-    private winner: Pick,
+    /** The winner; none after a draw (match_winner 0: only the background). */
+    private winner: Pick | undefined,
     private quote: string,
   ) {
     this.bg = new MotifBackground(ctx, 'victory');
@@ -110,6 +111,11 @@ export class VictoryScreen implements Screen {
     const [w, h] = this.ctx.motif.localCoord;
     r.setProjection(w, h);
     this.bg.drawBack();
+    if (!this.winner) {
+      this.bg.drawFront();
+      this.fade.draw(r, w, h);
+      return;
+    }
     drawPortrait(this.ctx, 'Victory Screen', 'p1', this.winner, [9000, 2]);
     drawLabel(this.ctx, 'Victory Screen', 'p1.name', this.winner.char.data?.def.displayName ?? '');
     const sec = 'Victory Screen';

@@ -315,7 +315,8 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
     ];
     // Gameflow state 10: every mode but quick VS and the demo has a versus screen.
     await until(new VersusScreen(ctx, sides[0].picks[0]!, sides[1].picks[0]!, 1));
-    await until(await loading(() => teamFight(sides, pickStage(sel.stage))));
+    const res = await until<FightResult>(await loading(() => teamFight(sides, pickStage(sel.stage))));
+    await victory(res, [sides[0].picks[0], sides[1].picks[0]]);
     return;
   }
   if (mode === 'survival' || mode === 'survivalcoop') {
@@ -463,6 +464,13 @@ async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | und
   });
 }
 
+/** Match_Run's default next step: gameflow 12, the victory screen (not when quit). */
+async function victory(res: FightResult, picks: [Pick | undefined, Pick | undefined]): Promise<void> {
+  if (res.winner === undefined || (motif.value('Victory Screen', 'enabled') ?? '1') === '0') return;
+  const quote = res.quote ?? (motif.value('Victory Screen', 'winquote.text') ?? 'Winner!').replace(/^"|"$/g, '');
+  await until(new VictoryScreen(ctx, res.winner >= 0 ? picks[res.winner] : undefined, quote));
+}
+
 /** Play a storyboard file if it exists (errors are skipped). */
 async function storyboard(path: string | undefined, ...bases: string[]): Promise<void> {
   if (!path) return;
@@ -535,7 +543,8 @@ async function runMode(mode: GameMode): Promise<void> {
     const p2 = sel.p2 ?? randomOpponent();
     // Gameflow state 10: versus, training and watch alike.
     await until(new VersusScreen(ctx, sel.p1, p2, 1));
-    await until(await loading(() => fight(mode, sel.p1, p2, pickStage(sel.stage))));
+    const res = await until<FightResult>(await loading(() => fight(mode, sel.p1, p2, pickStage(sel.stage))));
+    await victory(res, [sel.p1, p2]);
   }
 }
 
