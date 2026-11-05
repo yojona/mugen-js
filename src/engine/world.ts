@@ -439,8 +439,6 @@ export class World {
     this.comboTouched = [false, false];
     this.comboOngoing = [false, false];
     this.assertFlags.clear();
-    // gameloop.c: envcolor_time counts down before the tick.
-    if (this.envColor && this.envColor.time > 0 && --this.envColor.time === 0) this.envColor = undefined;
     // Before the round starts (and after it ends) input is ignored and nobody has control.
     if (this.roundState === 2) this.fightTime++;
     const active = this.allPlayers().filter((p) => !this.frozen(p));
@@ -682,6 +680,8 @@ export class World {
     this.updateExplods();
     this.tickPauses();
     this.tickEnvShake();
+    // Game_Tick ends with the envcolor_time countdown: time = n shows n frames.
+    if (this.envColor && this.envColor.time > 0 && --this.envColor.time === 0) this.envColor = undefined;
     this.gameTime++;
     if (!this.framesDriven) this.frames++;
   }
