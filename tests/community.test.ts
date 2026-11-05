@@ -343,4 +343,18 @@ describe('community characters vs mugen.exe', () => {
     },
     120_000,
   );
+  it.skipIf(!have('ken-kofa', 'haohmaru-kofa', 'chunli-kofa', 'elisabeth-kofa'))(
+    'Ken+Chun-Li vs Haohmaru+Elisabeth (simul 2v2) on stage0-720, CPU level 4: 14000 frames (empty actions, [Remap], statedef anim, failed ChangeAnim slot)',
+    async () => {
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'ken-chunli-vs-haohmaru-elisabeth-720-simul.mugen.log.gz'))).toString('latin1');
+      const ours = await peekMatch({ chars: ['ken-kofa', 'haohmaru-kofa'], partners: ['chunli-kofa', 'elisabeth-kofa'], frames: 14000, seed: 16808, stage: 'stage0-720' });
+      expect(ours.length).toBe(14000);
+      // Open: frame 4175, Haohmaru entering his win pose at the screen edge
+      // is clamped with the standing width a tick before mugen.exe (x 536
+      // against 540); the frames after it match again.
+      expect(peekDiff(ref, ours, 14, 4174)).toEqual([]);
+      expect(peekDiff(ref, ours, 4176, 14000)).toEqual([]);
+    },
+    120_000,
+  );
 });
