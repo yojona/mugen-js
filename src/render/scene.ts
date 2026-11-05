@@ -25,8 +25,9 @@ export interface SceneOptions {
 
 export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void {
   const camLeft = w.camera.x - w.screenWidth / 2;
-  // EnvShake: the camera moves by whole stage units (camera_y_base).
-  const shakeY = -w.shakeBase;
+  // EnvShake: the camera moves by whole stage units (camera_y_base); a
+  // screen of another height shows the stage from crop_top down.
+  const shakeY = -(w.shakeBase + w.cropTop);
   const sx = (x: number) => x - camLeft;
   // Stage-space y to screen: ground line, minus the camera's vertical follow.
   const sy = (y: number) => w.groundY + y - w.camera.y + shakeY;

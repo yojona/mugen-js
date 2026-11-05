@@ -32,6 +32,9 @@ export interface StageInfo {
     tensionLow?: number;
     overdrawHigh: number;
     overdrawLow: number;
+    /** cuthigh / cutlow: how the stage rows that do not fit a wide screen are cut (defaults 0, -1). */
+    cutHigh: number;
+    cutLow: number;
   };
   p1: { x: number; y: number; facing: number };
   p2: { x: number; y: number; facing: number };
@@ -139,6 +142,8 @@ export async function loadStage(vfs: Vfs, defPath: string): Promise<Stage> {
       tensionLow: g(cam, 'tensionlow') !== undefined ? num(g(cam, 'tensionlow'), 0) : undefined,
       overdrawHigh: num(g(cam, 'overdrawhigh'), 0),
       overdrawLow: num(g(cam, 'overdrawlow'), 0),
+      cutHigh: Math.trunc(num(g(cam, 'cuthigh'), 0)),
+      cutLow: Math.trunc(num(g(cam, 'cutlow'), -1)),
     },
     p1: { x: num(g(pi, 'p1startx'), -70), y: num(g(pi, 'p1starty'), 0), facing: num(g(pi, 'p1facing'), 1) },
     p2: { x: num(g(pi, 'p2startx'), 70), y: num(g(pi, 'p2starty'), 0), facing: num(g(pi, 'p2facing'), -1) },

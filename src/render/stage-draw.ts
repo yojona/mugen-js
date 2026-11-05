@@ -80,6 +80,30 @@ export function drawStageLayer(r: Renderer, rt: StageRuntime, cam: { x: number; 
  * ("width"), and with tiling repeats every trunc(row width) pixels. Here each
  * row is a one-pixel strip clipped to its pixels.
  */
+/**
+ * Match_DrawStageBack's black bars, after stage layer 0: over the screen
+ * rows the stage leaves uncovered when the EnvShake (camera_y_base) or the
+ * crop shifts it, past overdrawlow (bottom) or overdrawhigh (top). The
+ * height mixes game pixels (k * shift) and stage units (crop) as
+ * mugen.exe does.
+ */
+export function drawOverdrawBars(
+  r: Renderer,
+  w: { shakeBase: number; cropTop: number; cropBottom: number; gameWidth: number; screenWidth: number; screenHeight: number },
+  overdrawLow: number,
+  overdrawHigh: number,
+): void {
+  const k = w.gameWidth / w.screenWidth;
+  const shift = w.shakeBase;
+  if (shift > 0 || w.cropBottom < 0) {
+    const h = Math.trunc(k * shift - w.cropBottom - overdrawLow);
+    if (h > 0) r.rect(0, w.screenHeight - h / k, w.screenWidth, w.screenHeight, [0, 0, 0, 255]);
+  } else if (shift < 0 || w.cropTop < 0) {
+    const h = Math.trunc(-(k * shift) - w.cropTop - overdrawHigh);
+    if (h > 0) r.rect(0, 0, w.screenWidth, h / k, [0, 0, 0, 255]);
+  }
+}
+
 function drawParallaxRows(
   r: Renderer,
   sprite: Sprite,

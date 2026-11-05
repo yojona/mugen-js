@@ -10,7 +10,7 @@ import { pickVictoryQuote, Player, type CharacterProgram } from '../engine/playe
 import { World, type FightFx } from '../engine/world';
 import type { FightHud } from '../motif/fight';
 import { drawScene } from '../render/scene';
-import { drawStageLayer } from '../render/stage-draw';
+import { drawOverdrawBars, drawStageLayer } from '../render/stage-draw';
 import { StageRuntime, type Stage } from '../stage/stage';
 import type { Snd } from '../formats/snd';
 import type { AppContext, Screen } from './screen';
@@ -74,8 +74,11 @@ export class FightScreen implements Screen {
     const w = this.world;
     const [mw, mh] = ctx.motif.localCoord;
     w.applyStage(s.stage.info);
-    w.screenHeight = s.stage.info.localCoord[1];
-    w.screenWidth = Math.round(w.screenHeight * (mw / mh));
+    // The screen is the stage's localcoord wide (stage.unit); its height
+    // follows the screen's shape, the rest of the stage cut (Camera_UpdateCrop).
+    w.screenWidth = s.stage.info.localCoord[0];
+    w.screenHeight = Math.floor((mh * w.screenWidth) / mw + 0.5);
+    w.updateCrop(s.stage.info.localCoord[1], s.stage.info.camera.cutHigh, s.stage.info.camera.cutLow, s.stage.info.camera.overdrawLow);
     w.fightFx = s.fightFx;
     if (s.seed !== undefined) w.seed = s.seed;
     const info = s.stage.info;
@@ -223,8 +226,11 @@ export class FightScreen implements Screen {
       r.view = { s: zv.scale, ox: (W / 2) * (1 - zv.scale) - (zv.shakeX / k) * zv.scale, oy: top * (1 - zv.scale) - (zv.shakeY / k) * zv.scale };
     }
     drawScene(r, w, {
-      background: () => drawStageLayer(r, this.bg, w.camera, 0, W, H, -w.shakeBase),
-      foreground: () => drawStageLayer(r, this.bg, w.camera, 1, W, H, -w.shakeBase),
+      background: () => {
+        drawStageLayer(r, this.bg, w.camera, 0, W, H, -(w.shakeBase + w.cropTop));
+        drawOverdrawBars(r, w, this.s.stage.info.camera.overdrawLow, this.s.stage.info.camera.overdrawHigh);
+      },
+      foreground: () => drawStageLayer(r, this.bg, w.camera, 1, W, H, -(w.shakeBase + w.cropTop)),
     });
     r.view = { s: 1, ox: 0, oy: 0 };
     const [mw, mh] = this.ctx.motif.localCoord;

@@ -652,6 +652,39 @@ export class World {
 
   /** Vertical camera shift of the EnvShake, in whole stage units (GameVars.camera_y_base). */
   shakeBase = 0;
+  /** Camera_UpdateCrop: stage rows cut at the top / bottom of a screen of another height (crop_top / crop_bottom). */
+  cropTop = 0;
+  cropBottom = 0;
+
+  /**
+   * Camera_UpdateCrop for a screen screenHeight stage units high: the stage
+   * height (localcoord) that does not fit is cut at the top and the bottom
+   * (cuthigh / cutlow), or the stage is centred with overdrawlow when it is
+   * smaller. cutlow defaults to -1, which cuts one row more at the top.
+   */
+  updateCrop(stageHeight: number, cutHigh: number, cutLow: number, overdrawLow: number): void {
+    const d = stageHeight - this.screenHeight;
+    let top: number;
+    let bottom: number;
+    if (d < 0) {
+      top = Math.trunc(d / 2);
+      bottom = d - top;
+      if (-bottom > overdrawLow) {
+        bottom = -overdrawLow;
+        top = d - bottom;
+      }
+    } else {
+      const sum = cutHigh + cutLow;
+      top = sum > 0 ? Math.trunc((cutHigh * d) / sum) : d;
+      bottom = d - top;
+      if (bottom > cutLow) {
+        bottom = cutLow;
+        top = d - bottom;
+      }
+    }
+    this.cropTop = top;
+    this.cropBottom = bottom;
+  }
 
   /**
    * Round_Tick's EnvShake: sin((freq * elapsed + phase) degrees) * ampl,
