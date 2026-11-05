@@ -6,7 +6,7 @@
 // e.g.   ... out 6000 'fkeys=100:a;250:a&mash=FightScreen:a:6:2&clamp=1:1&shotevery=120'
 // Writes <outDir>/flow.log and <outDir>/f<frame>.png.
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -53,7 +53,9 @@ try {
   });
   send('Runtime.enable');
   send('Page.enable');
-  send('Page.navigate', { url: `http://localhost:8120/?flowlog=1&ticks=${ticks}&${query ?? ''}` });
+  // SELECT=path: that select.def instead of ref's (the flow harness's roster).
+  const sel = process.env.SELECT ? `&selectb64=${encodeURIComponent(readFileSync(process.env.SELECT).toString('base64'))}` : '';
+  send('Page.navigate', { url: `http://localhost:8120/?flowlog=1&ticks=${ticks}${sel}&${query ?? ''}` });
   const deadline = Date.now() + 30 * 60_000;
   while (!done && Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 500));

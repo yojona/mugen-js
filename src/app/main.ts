@@ -35,7 +35,18 @@ const setStatus = (t: string) => (status.textContent = t);
 setStatus('Cargando archivos…');
 // ?pristine=1 skips the content fixes (harness comparisons with mugen.exe).
 const rawSource = await httpSource('/ref/mugen-1.1b1', '/__ref.json');
-const vfs = new Vfs(params.get('pristine') ? rawSource : withContentFixes(rawSource));
+// ?selectb64=: a select.def (base64) in place of data/select.def, e.g. the
+// flow harness's roster (tools/harness/overlay/data/select.def).
+const selectB64 = params.get('selectb64');
+const source: typeof rawSource = selectB64
+  ? {
+      ...rawSource,
+      list: () => rawSource.list(),
+      readRange: rawSource.readRange?.bind(rawSource),
+      read: async (path) => (path.toLowerCase() === 'data/select.def' ? Uint8Array.from(atob(selectB64), (c) => c.charCodeAt(0)) : rawSource.read(path)),
+    }
+  : rawSource;
+const vfs = new Vfs(params.get('pristine') ? source : withContentFixes(source));
 
 // Motif: ?motif=, else mugen.cfg's "motif =", else data/system.def.
 async function motifPath(): Promise<string> {
