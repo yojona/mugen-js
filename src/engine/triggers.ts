@@ -122,10 +122,14 @@ const AXIS: Record<string, (p: P, axis: 'x' | 'y' | 'z') => number | undefined> 
   // Pos X is relative to the camera centre (trigger.html), in the player's units.
   // TRIGGER_POS: a float, in the units of the player evaluating it.
   pos: (p, a) => {
-    const u = ((R.from as P | undefined) ?? p).scale;
+    const u = ((R.from as P | undefined) ?? p).localScale;
     return a === 'x' ? Math.fround((p.wx - p.world.camera.x) / u) : a === 'y' ? Math.fround(p.wy / u) : 0;
   },
-  vel: (p, a) => (a === 'x' ? p.vel.x : a === 'y' ? p.vel.y : 0),
+  // TRIGGER_VEL: in the units of the states the evaluating player runs.
+  vel: (p, a) => {
+    const k = p.scale / us(p);
+    return a === 'x' ? (k === 1 ? p.vel.x : p.vel.x * k) : a === 'y' ? (k === 1 ? p.vel.y : p.vel.y * k) : 0;
+  },
   hitvel: (p, a) => (a === 'x' ? p.ghv.xvel * p.facing : a === 'y' ? p.ghv.yvel : 0),
   screenpos: (p, a) => (a === 'x' ? (p.wx - (p.world.camera.x - p.world.screenWidth / 2)) / us(p) : a === 'y' ? (p.wy - p.world.camera.y + p.world.groundY) / us(p) : 0),
   camerapos: (p, a) => (a === 'x' ? p.world.camera.x / us(p) : a === 'y' ? p.world.camera.y / us(p) : 0),
@@ -526,5 +530,5 @@ export { CompileError };
 
 /** Units of the player evaluating the expression (Player_ToLocalCoord(p, ...) in trigger.c), not of a redirect target. */
 function us(p: P): number {
-  return ((R.from as P | undefined) ?? p).scale;
+  return ((R.from as P | undefined) ?? p).localScale;
 }

@@ -161,6 +161,19 @@ export class Player {
   get scale(): number {
     return this.world.localWidth / (this.prog.data.def.localCoord[0] || 320);
   }
+  /**
+   * Player_LocalScale: world units per unit of the states running, the
+   * custom state owner's while in another player's states. Controller values
+   * and triggers read in these units (Player_FromLocalCoord / ToLocalCoord).
+   */
+  get localScale(): number {
+    const o = this.stateOwner;
+    return o && o !== this ? o.scale : this.scale;
+  }
+  /** Units of the states running to this player's own units (1 in its own states). */
+  get localConv(): number {
+    return this.localScale / this.scale;
+  }
   /** Position in world (stage) units. */
   get wx(): number {
     return this.pos.x * this.scale;
@@ -618,10 +631,12 @@ export class Player {
     const v0 = num('velset', 0);
     this.entryVelSet = v0 !== undefined;
     if (v0 !== undefined) {
-      this.vel.x = v0;
+      // In the units of the states (Player_FromLocalCoord).
+      const c = this.localConv;
+      this.vel.x = v0 * c;
       // y only when given (the statedef keeps the other component).
       const v1 = num('velset', 1);
-      if (v1 !== undefined) this.vel.y = v1;
+      if (v1 !== undefined) this.vel.y = v1 * c;
     }
     const ctrl = num('ctrl');
     if (ctrl !== undefined) this.ctrl = ctrl !== 0;

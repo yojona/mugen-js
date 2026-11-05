@@ -113,17 +113,21 @@ const IMPLS: Record<string, Impl> = {
     p.changeAnim(Math.max(0, v), elem > 0 ? elem - 1 : 0, true);
   },
 
+  // Values in the units of the states running (Player_FromLocalCoord: a
+  // custom state owner's localcoord converts).
   velset: (_c, prm) => (p) => {
     const x = prm.num(p, 'x');
     const y = prm.num(p, 'y');
-    if (x !== undefined) p.vel.x = Math.fround(x);
-    if (y !== undefined) p.vel.y = Math.fround(y);
+    const c = p.localConv;
+    if (x !== undefined) p.vel.x = Math.fround(x) * c;
+    if (y !== undefined) p.vel.y = Math.fround(y) * c;
   },
   veladd: (_c, prm) => (p) => {
     const x = prm.num(p, 'x');
     const y = prm.num(p, 'y');
-    if (x !== undefined) p.vel.x = p.vel.x + Math.fround(x);
-    if (y !== undefined) p.vel.y = p.vel.y + Math.fround(y);
+    const c = p.localConv;
+    if (x !== undefined) p.vel.x = p.vel.x + Math.fround(x) * c;
+    if (y !== undefined) p.vel.y = p.vel.y + Math.fround(y) * c;
   },
   velmul: (_c, prm) => (p) => {
     const x = prm.num(p, 'x');
@@ -134,14 +138,16 @@ const IMPLS: Record<string, Impl> = {
   posset: (_c, prm) => (p) => {
     const x = prm.num(p, 'x');
     const y = prm.num(p, 'y');
-    if (x !== undefined) p.pos.x = p.world.camera.x / p.scale + Math.fround(x);
-    if (y !== undefined) p.pos.y = Math.fround(y);
+    const c = p.localConv;
+    if (x !== undefined) p.pos.x = p.world.camera.x / p.scale + Math.fround(x) * c;
+    if (y !== undefined) p.pos.y = Math.fround(y) * c;
   },
   posadd: (_c, prm) => (p) => {
     const x = prm.num(p, 'x');
     const y = prm.num(p, 'y');
-    if (x !== undefined) p.pos.x = p.pos.x + Math.fround(x) * p.facing;
-    if (y !== undefined) p.pos.y = p.pos.y + Math.fround(y);
+    const c = p.localConv;
+    if (x !== undefined) p.pos.x = p.pos.x + Math.fround(x) * c * p.facing;
+    if (y !== undefined) p.pos.y = p.pos.y + Math.fround(y) * c;
   },
   posfreeze: (_c, prm) => (p) => {
     p.posFreeze = (prm.int(p, 'value') ?? 1) !== 0;
@@ -529,7 +535,10 @@ const EXTRA: Record<string, Impl> = {
   },
   offset: (_c, prm) => (p) => {
     // sctrl.c Offset: only the given axes are written.
-    p.drawOffset = [prm.num(p, 'x') ?? p.drawOffset[0], prm.num(p, 'y') ?? p.drawOffset[1]];
+    const c = p.localConv;
+    const x = prm.num(p, 'x');
+    const y = prm.num(p, 'y');
+    p.drawOffset = [x !== undefined ? x * c : p.drawOffset[0], y !== undefined ? y * c : p.drawOffset[1]];
   },
   assertspecial: (c) => (p) => {
     for (const k of ['flag', 'flag2', 'flag3']) {
