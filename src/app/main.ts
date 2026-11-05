@@ -752,7 +752,7 @@ function makeFlowHarness() {
       if (s instanceof FightScreen && params.get('dumpsuper') && s.world.darkened) console.log(`DBG|${frame}|superpause owner=${s.world.superPause!.owner.slotNo}`);
       // ?dumpcmds=from:to logs each player's active commands and the AI's injected indices.
       if (s instanceof FightScreen && frame >= cmFrom && frame <= cmTo) {
-        console.log(`DBG|${frame}|flags ${[...s.world.assertFlags].join(',')} helpers ${s.world.helpers.map((h) => `${h.root.slotNo}:${h.helperId}:${h.stateNo}/${h.time}`).join(' ')}`);
+        console.log(`DBG|${frame}|env ${JSON.stringify(s.world.envColor ?? null)} flags ${[...s.world.assertFlags].join(',')} helpers ${s.world.helpers.map((h) => `${h.root.slotNo}:${h.helperId}:${h.stateNo}/${h.time}`).join(' ')}`);
         for (const p of s.world.players) console.log(`DBG|${frame}|cmds P${p.slotNo} state=${p.stateNo} ai=${p.ai?.cmds.join(',') ?? ''} active=${[...(p.cmdInput?.active() ?? [])].map((n) => commandLabel(n)).join(' ')} write=${p.cmdInput?.debugWrite} queue=${(p.cmdInput?.debugQueue(14) ?? []).map(([k, t, h]) => `${k.toString(16)}@${t}/${h}`).join(' ')}`);
       }
       if (s instanceof FightScreen && frame >= exFrom && frame <= exTo) {
