@@ -139,7 +139,11 @@ def main():
         print('MUGEN window not found'); sys.exit(1)
     subprocess.run(['xdotool', 'windowfocus', win])
     print('pid', pid)
-    items = [i for i in os.environ.get('PEEKALL', '').split(';') if i]
+    all_items = [i for i in os.environ.get('PEEKALL', '').split(';') if i]
+    # PEEK_FROM=frame:n: only the first n values before that frame (a long
+    # list read every step shifts the keys sent before the fight).
+    peek_from, peek_light = (int(x) for x in (os.environ.get('PEEK_FROM') or '0:0').split(':'))
+    items = all_items[:peek_light] if peek_from else all_items
     keys = []
     for part in os.environ.get('FLOWKEYS', '').split(';'):
         if part.strip():
@@ -224,6 +228,8 @@ def main():
                 gt = None
             if gt is not None and gt != last_gt:
                 last_gt = gt
+                if peek_from and gt >= peek_from:
+                    items = all_items
                 if lock:
                     # The clock stopped: let the frame finish, then read it.
                     wait_idle(mem)
