@@ -28,6 +28,9 @@ interface PauseState {
   endCmdBufTime: number;
 }
 
+/** fight.h WIN_ICON_*: the [WinIcon] icon of each way to win a round. */
+export const WIN_ICON = { n: 0, s: 1, h: 2, c: 3, t: 4, throw: 5, suicide: 6, teammate: 7, perfect: 8 } as const;
+
 export class World {
   players: Player[] = [];
   /** Stage localcoord width: the world's coordinate unit. */
@@ -46,6 +49,55 @@ export class World {
   winType: 0 | 1 | 2 = 0;
   /** Side (1 / 2) that won the round, 0 = none or draw. */
   roundWinnerSide = 0;
+  /**
+   * win_icons / win_perfect: per side and won round, how it was won
+   * (WIN_ICON_*) and the perfect overlay, -1 = none. The match clears them
+   * at its start and keeps rounds_won (roundsWon).
+   */
+  winIcons: number[][] = [new Array(10).fill(-1), new Array(10).fill(-1)];
+  winPerfect: number[][] = [new Array(10).fill(-1), new Array(10).fill(-1)];
+  roundsWon: () => readonly number[] = () => [0, 0];
+
+  resetWinIcons(): void {
+    for (const a of [...this.winIcons, ...this.winPerfect]) a.fill(-1);
+  }
+
+  /** Team_HasFullLife: every character (not helper) of the side has full life. */
+  teamHasFullLife(side: number): boolean {
+    return this.players.every((p) => p.isHelper || p.destroyed || p.side !== side || p.life === p.lifeMax);
+  }
+
+  /**
+   * Round_SetWinType: how side `side` (0 / 1) wins the current round: `type`,
+   * or with -1 from the finishing hit's attr (normal, throw, special, hyper),
+   * plus the perfect icon with full life. Not past 10 rounds, nor once the
+   * round is over.
+   */
+  setWinType(side: number, type: number, attr = 0): void {
+    const n = this.roundsWon()[side] ?? 0;
+    if (n >= 10 || this.roundState === 3) return;
+    if (type === -1) {
+      type = WIN_ICON.n;
+      if (attr & 0x1c0) type = WIN_ICON.throw;
+      if (attr & 0x490) type = WIN_ICON.s;
+      else if (attr & 0x920) type = WIN_ICON.h;
+    }
+    this.winIcons[side]![n] = type;
+    this.winPerfect[side]![n] = this.teamHasFullLife(side) ? WIN_ICON.perfect : -1;
+  }
+
+  /** Round_SetKoWinType: a KO by a hit of `attackerSide` on a player of `side`; a teammate's KO gives the round to the other side. */
+  setKoWinType(attackerSide: number, side: number, attr: number): void {
+    if (attackerSide !== side) {
+      this.setWinType(attackerSide, -1, attr);
+      return;
+    }
+    const winner = 1 - attackerSide;
+    const n = this.roundsWon()[winner] ?? 0;
+    if (n >= 10 || this.roundState === 3) return;
+    this.winIcons[winner]![n] = WIN_ICON.teammate;
+    this.winPerfect[winner]![n] = this.teamHasFullLife(winner) ? WIN_ICON.perfect : -1;
+  }
   camera = { x: 0, y: 0 };
   screenWidth = 320;
   /** mugen.cfg GameWidth: MUGEN's internal x units are this / screenWidth per stage unit. */

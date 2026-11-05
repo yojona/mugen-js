@@ -19,7 +19,7 @@ import { newAfterImage, newPalFx, type AfterImageState, type PalFxState } from '
 import type { Blend } from '../formats/air';
 import { playerEnv } from './triggers';
 import type { Vfs } from './vfs';
-import type { World } from './world';
+import { WIN_ICON, type World } from './world';
 
 export type StateType = 's' | 'c' | 'a' | 'l' | 'u';
 export type MoveType = 'i' | 'a' | 'h' | 'u';
@@ -248,6 +248,8 @@ export class Player {
   nohitTime = 0;
   /** gethit_attacker: who hit (or was guarded by) this player last. */
   ghvAttacker: Player | undefined;
+  /** gethit_attr: the attr bits (hitDefAttrBits) of that hit or guard. */
+  ghvAttr = 0;
   /** Tick of the last hit: the shake starts counting at the next update. */
   shakeTick = -1;
   private pauseAtLastTickStart = 0;
@@ -293,7 +295,22 @@ export class Player {
     }
     d += this.life;
     if (d < 1 && !kill) d = 1;
-    this.life = Math.min(this.lifeMax, Math.max(0, d));
+    this.setLife(d);
+  }
+
+  /**
+   * Player_SetLife: clamped to 0..lifemax, not after the KO's over.hittime
+   * for the living. A character out of life during the round makes the
+   * other side win: by its attacker's last hit, else by suicide.
+   */
+  setLife(v: number): void {
+    const w = this.world;
+    if (w.roundState === 3 && this.alive && (w.roundClock ?? 0) >= w.overHitTime) return;
+    this.life = Math.min(this.lifeMax, Math.max(0, v));
+    if (this.life <= 0 && !this.isHelper && w.roundState === 2) {
+      if (this.ghvAttacker) w.setKoWinType(this.ghvAttacker.side, this.side, this.ghvAttr);
+      else w.setWinType(1 - this.side, WIN_ICON.suicide);
+    }
   }
   get attackFactor(): number {
     return this.attackMul ?? this.const('data.attack') / 100;
@@ -685,12 +702,10 @@ export class Player {
     const d = this.pendingDamage;
     if (!d) return;
     this.pendingDamage = undefined;
-    // Player_Update: once RoundState 3 has run over.hittime ticks, the
+    // Player_SetLife: once RoundState 3 has run over.hittime ticks, the
     // living take no more damage (the result cannot change).
-    const w = this.world;
-    if (w.roundState === 3 && this.alive && (w.roundClock ?? 0) >= w.overHitTime) return;
     // The kill = 0 limit was applied when the hit landed (Player_HitDamage).
-    this.life = Math.max(0, Math.min(this.lifeMax, this.life - d.amount));
+    this.setLife(this.life - d.amount);
   }
 
   addPower(v: number): void {
@@ -1228,6 +1243,7 @@ export class Player {
       g.hitshaketime = 0;
       g.chainid = 0;
       this.ghvAttacker = undefined;
+      this.ghvAttr = 0;
       g['fall.envshake.time'] = 0;
     }
     if (this.moveType !== 'h' || (st >= 130 && st <= 132) || st === 140) this.defMul = undefined;

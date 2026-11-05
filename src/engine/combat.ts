@@ -10,6 +10,7 @@ import { clsnTouchInternal, guardFlagBits } from './ai-learn';
 import { attrMatches, hitDefAttrBits, type HitDefData } from './hitdef';
 import { endProjectile, noteProjContact, type Projectile } from './projectile';
 import { makeEnvShake } from './fx';
+import { WIN_ICON } from './world';
 import type { Player } from './player';
 
 interface Box {
@@ -512,6 +513,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
   if (guarded && d.life - previewDamage(d, hd.guardDamage, hd.guardKill) <= 0) {
     guarded = false;
     guardKo = true;
+    // A KO through the guard wins the round by "cheese".
+    world.setWinType(a.side, WIN_ICON.c);
   }
   // Player_Hit: a HitOverride matching a HitDef with p1stateno or
   // p2getp1state (a throw) makes the hit do nothing at all.
@@ -531,6 +534,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     a.hitTargets.add(d);
     d.ghv.chainid = hd.id;
     d.ghvAttacker = a;
+    d.ghvAttr = hitDefAttrBits(hd.attrState, hd.attrType);
     world.playHitSound(a, hd.hitSound);
     world.spawnSpark(a, d, hd.spark, [hd.sparkXY[0] * a.scale, hd.sparkXY[1] * a.scale], { x: a.wx, y: a.wy });
     return;
@@ -598,6 +602,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     g.guarded = 1;
     g.chainid = hd.id;
     d.ghvAttacker = a;
+    d.ghvAttr = hitDefAttrBits(hd.attrState, hd.attrType);
     g.damage = dmg;
     // A guarded hit never falls (measured: the CPU skips its air-recovery
     // roll in 151 after an earlier knock-down).
@@ -744,6 +749,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     if (hd.palFx) d.palFx = { time: hd.palFx.time, elapsed: 0, add: hd.palFx.add, mul: hd.palFx.mul, sinAdd: [0, 0, 0], sinPeriod: 0, invertAll: hd.palFx.invertAll, color: hd.palFx.color };
     g.chainid = hd.id;
     d.ghvAttacker = a;
+    d.ghvAttr = hitDefAttrBits(hd.attrState, hd.attrType);
     // Player_Hit: the count restarts only once the target has been out of
     // movetype H for more than one update.
     g.hitcount = d.moveType !== 'h' && d.hitFreeTime > 1 ? 1 : g.hitcount + 1;

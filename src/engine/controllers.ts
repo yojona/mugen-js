@@ -175,7 +175,7 @@ const IMPLS: Record<string, Impl> = {
   },
   lifeset: (_c, prm) => (p) => {
     const v = prm.int(p, 'value');
-    if (v !== undefined) p.life = Math.min(p.lifeMax, Math.max(0, v));
+    if (v !== undefined) p.setLife(v);
   },
   poweradd: (_c, prm) => (p) => {
     const v = prm.int(p, 'value');
@@ -267,7 +267,7 @@ const IMPLS: Record<string, Impl> = {
     const dmg = p.ghv['fall.damage'];
     if (!dmg) return;
     // SetLife only clamps to 0..max (fall.kill is not read here).
-    p.life = Math.max(0, Math.min(p.lifeMax, p.life - dmg));
+    p.setLife(p.life - dmg);
     p.ghv['fall.damage'] = 0;
   },
   // mugen.exe: attack_mul = value * data.attack / 100.

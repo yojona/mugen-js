@@ -7,7 +7,7 @@
 import { newAfterImage, newPalFx } from './fx';
 import { emptyGetHitVars } from './hitdef';
 import type { Player } from './player';
-import type { World } from './world';
+import { WIN_ICON, type World } from './world';
 
 export interface RoundConfig {
   matchWins: number;
@@ -198,6 +198,8 @@ export class Match {
   ) {
     world.framesDriven = true;
     world.overHitTime = cfg.overHitTime;
+    world.roundsWon = () => this.wins;
+    world.resetWinIcons();
     this.clock = cfg.roundSeconds < 0 ? -1 : (cfg.roundSeconds + 1) * cfg.framesPerCount - 1;
     const mk = (t: number): TeamState => {
       const plan = opts.teams?.[t];
@@ -346,6 +348,7 @@ export class Match {
       p.posFreeze = false;
       p.nextFacing = 0;
       p.ghvAttacker = undefined;
+      p.ghvAttr = 0;
       p.nohitTime = 0;
       p.defMul = undefined;
       p.cornerPushVel = 0;
@@ -512,6 +515,8 @@ export class Match {
           this.sounds.push([2, koSides === 2 ? 1 : koSides ? 0 : 2]);
           this.roundWinnerSide = koSides === 2 ? null : ko[1] === 1 ? 0 : ko[0] === 1 ? 1 : this.decideWinner();
           this.roundWinner = this.roundWinnerSide === null ? null : (this.leader(this.roundWinnerSide) ?? null);
+          // Round_CheckResult: time over gives the winner (both on a tie) the time-over icon.
+          if (!koSides) for (const t of [0, 1]) if (this.roundWinnerSide === t || this.roundWinnerSide === null) w.setWinType(t, WIN_ICON.t);
           w.winType = koSides ? 1 : 2;
           w.roundWinnerSide = this.roundWinnerSide === null ? 0 : this.roundWinnerSide + 1;
           for (const p of this.players) if (p.life <= 0) p.alive = false;
@@ -632,6 +637,7 @@ export class Match {
           // Rematch from round 1 (no select screen yet).
           this.round = 1;
           this.wins = [0, 0];
+          this.world.resetWinIcons();
           this.draws = 0;
           this.matchOver = false;
           this.roundWinnerSide = null;
