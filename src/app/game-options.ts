@@ -44,8 +44,10 @@ export interface GameOptionsConfig {
    * for the file then. Saved keys win either way. (?cfgkeys=1 turns it on.)
    */
   keysFromCfg?: boolean;
-  /** Input_Remap: the configured keys changed. */
-  onRemap?: (keys: number[][]) => void;
+  /** Input_Remap: the configured keys changed. joyKeys is joy_keys_active: JOY_NONE for a side without a joystick. */
+  onRemap?: (keys: number[][], joyKeys: number[][], padsActive: boolean) => void;
+  /** Pads_Init: how many pads there are (none by default). */
+  padCount?: () => number;
 }
 
 export class GameOptions {
@@ -62,7 +64,9 @@ export class GameOptions {
     [0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0],
   ];
-  /** GameVars.use_joystick: joystick_type != 0. */
+  /** g_padsActive. */
+  padsActive = false;
+  /** GameVars.use_joystick: joystick_type != 0, with pads to use. */
   readonly useJoystick: [boolean, boolean] = [false, false];
   /** team_1vs2_life, team_lose_on_ko, then option_team_unused (Options_TeamValue). */
   readonly team: number[] = [150, 0, 0, 0];
@@ -176,7 +180,8 @@ export class GameOptions {
    * Options_Load (0x45F170): [Options] Difficulty, Life, Time, GameSpeed,
    * Team.1VS2Life, Team.LoseOnKO when present; the volume percentages from
    * the volumes in use (not the file's); the keys; the joystick types of
-   * [Input]. (The pads are not ported.) The motif is not reloaded here.
+   * [Input]; the joystick buttons; then the pads are reopened and the keys
+   * remapped. The motif is not reloaded here.
    */
   load(): void {
     if (this.hasSection('Options')) {
@@ -211,18 +216,53 @@ export class GameOptions {
       if (p1 !== undefined) this.input[0]![1] = p1;
       if (p2 !== undefined) this.input[1]![1] = p2;
     }
+    this.initPads();
+  }
+
+  private padCount(): number {
+    return this.config.padCount?.() ?? 0;
+  }
+
+  /**
+   * Input_InitPads + Input_Remap: every side with a joystick type uses the
+   * pads, unless there are none (Pads_Init): then both sides lose them. Also
+   * runs when a pad appears or goes away (Keyboard.onPadsChanged).
+   */
+  initPads(): void {
     this.useJoystick[0] = this.input[0]![1] !== 0;
     this.useJoystick[1] = this.input[1]![1] !== 0;
-    // Input_InitPads: with a joystick type the pads are opened; this port
-    // has none (Pads_Init finds no joystick), so both sides lose them.
-    // TODO: Gamepad API pads.
-    if (this.useJoystick[0] || this.useJoystick[1]) this.useJoystick[0] = this.useJoystick[1] = false;
+    this.padsActive = false;
+    if (this.useJoystick[0] || this.useJoystick[1]) {
+      if (this.padCount() > 0) this.padsActive = true;
+      else this.useJoystick[0] = this.useJoystick[1] = false;
+    }
     this.remap();
+  }
+
+  /**
+   * Options_SetJoystick: the joystick type of a side changed. Pads close when
+   * no side wants them and open (or leave both sides without, as Pads_Init
+   * fails) when one does. Quirk kept: with the pads already open there is no
+   * Input_Remap, so a side's old buttons keep working until the next one.
+   */
+  setJoystick(): void {
+    this.useJoystick[0] = this.input[0]![1] !== 0;
+    this.useJoystick[1] = this.input[1]![1] !== 0;
+    if (!this.useJoystick[0] && !this.useJoystick[1] && this.padsActive) {
+      this.padsActive = false;
+      this.remap();
+    } else if (!this.padsActive) {
+      if (this.padCount() > 0) {
+        this.padsActive = true;
+        this.remap();
+      } else this.useJoystick[0] = this.useJoystick[1] = false;
+    }
   }
 
   /** Input_Remap: the keys take effect. */
   remap(): void {
-    this.config.onRemap?.(this.keys);
+    const active = this.joyKeys.map((k, p) => (this.useJoystick[p] ? k : k.map(() => JOY_NONE)));
+    this.config.onRemap?.(this.keys, active, this.padsActive);
   }
 
   /**

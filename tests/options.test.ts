@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../src/engine/cmd';
-import { Keyboard, Pad } from '../src/app/input';
-import { BROWSER_DEFAULT_KEYS, JOY_NONE, KEY_NONE, KEYBOARD_RELEASE, SDLK_DOWN, SDLK_ESCAPE, SDLK_F1, SDLK_F2, SDLK_F3, SDLK_F4, SDLK_RETURN, SDLK_RIGHT, SDLK_SPACE, SDLK_UP, sdlk } from '../src/app/sdl-keys';
+import { Keyboard, Pad, padButtonsHeld, type GamepadLike } from '../src/app/input';
+import { BROWSER_DEFAULT_KEYS, JOY_NONE, KEY_NONE, KEYBOARD_RELEASE, PAD_RELEASE, SDLK_DOWN, SDLK_ESCAPE, SDLK_F1, SDLK_F2, SDLK_F3, SDLK_F4, SDLK_RETURN, SDLK_RIGHT, SDLK_SPACE, SDLK_UP, sdlk } from '../src/app/sdl-keys';
 import { parseIni } from '../src/formats/text';
 import { GameOptions, OPTIONS_DEFAULTS, OPTIONS_LOAD_SAVE, OPTIONS_STORAGE_KEY, OPTIONS_TIME, pctToVolume, volumeToPct } from '../src/app/game-options';
 import { OPTIONS_MENU_INPUT, OPTIONS_MENU_MAIN, OPTIONS_MENU_TEAM, OptionsScreen, keyConfigKeyName, optionsChangeMain, optionsMainValueText, titlePulse } from '../src/app/options';
@@ -223,7 +223,7 @@ describe('key maps', () => {
 
   it('keysFromCfg reads [P1 Keys] / [P2 Keys] (Options_Load)', () => {
     let maps: number[][] = [];
-    const o = new GameOptions(KEYS_CFG, undefined, { keysFromCfg: true, onRemap: (k) => (maps = k) }).init();
+    const o = new GameOptions(KEYS_CFG, undefined, { keysFromCfg: true, onRemap: (k) => void (maps = k) }).init();
     expect(o.keys[0]!.slice(0, 2)).toEqual([119, 115]);
     expect(o.keys[1]![4]).toBe(260);
     expect(o.keys[0]![10]).toBe(KEY_NONE); // missing from the file: unused
@@ -251,14 +251,14 @@ describe('key maps', () => {
   it('saved keys persist through Save / Load, unused entries as 0', () => {
     const s = memoryStorage();
     let maps: number[][] = [];
-    const o = new GameOptions(KEYS_CFG, s, { onRemap: (k) => (maps = k) }).init();
+    const o = new GameOptions(KEYS_CFG, s, { onRemap: (k) => void (maps = k) }).init();
     o.keys[0]![0] = 119;
     o.keys[1]![10] = KEY_NONE;
     o.save();
     const raw = JSON.parse(s.m.get(OPTIONS_STORAGE_KEY)!);
     expect(raw['p1 keys'].jump).toBe('119');
     expect(raw['p2 keys'].start).toBe('0');
-    const again = new GameOptions(KEYS_CFG, s, { onRemap: (k) => (maps = k) }).init();
+    const again = new GameOptions(KEYS_CFG, s, { onRemap: (k) => void (maps = k) }).init();
     expect(again.keys[0]![0]).toBe(119);
     expect(again.keys[1]![10]).toBe(KEY_NONE);
     expect(maps).toBe(again.keys);
@@ -321,7 +321,7 @@ describe('key config (KeyConfig_Run)', () => {
 
   it('Escape cancels Config all, restoring the keys; then exits with the sounds and the remap', () => {
     const remaps: number[][][] = [];
-    const m = open(new GameOptions(CFG, undefined, { onRemap: (k) => remaps.push(k) }).init());
+    const m = open(new GameOptions(CFG, undefined, { onRemap: (k) => void remaps.push(k) }).init());
     const { kc, opts, ctx } = m;
     const before = opts.keys[1]!.slice();
     key(m, SDLK_RIGHT);
@@ -384,5 +384,147 @@ describe('key config (KeyConfig_Run)', () => {
     expect(kc.cur[1]).toEqual([...'wsadfghrtyu'].map(sdlk));
     key(m, SDLK_F3);
     expect(kc.cur[0]![4]).toBe(sdlk(','));
+  });
+});
+
+describe('gamepads (pads.c)', () => {
+  const STANDARD = (pressed: number[], axes = [0, 0, 0, 0]): GamepadLike => ({
+    mapping: 'standard',
+    axes,
+    buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: pressed.includes(i) })),
+  });
+  const JOY_CFG = parseIni(`[Input]
+P1.Joystick.type = 1
+P2.Joystick.type = 1
+[P1 Joystick]
+Jump = 9
+Crouch = 10
+Left = 11
+Right = 12
+A = 13
+Start = 24
+[P2 Joystick]
+Jump = 41
+A = 45
+`);
+  const setup = (cfg = JOY_CFG) => {
+    const list: (GamepadLike | null)[] = [];
+    const kb = new Keyboard(new EventTarget(), () => list);
+    const o = new GameOptions(cfg, undefined, { padCount: () => kb.padCount(), onRemap: (k, j, a) => kb.setMaps(k, j, a) }).init();
+    kb.onPadsChanged = () => o.initPads();
+    return { list, kb, o };
+  };
+
+  it("numbers axes, the D-pad's hat and buttons as Pads_HandleEvent does", () => {
+    expect(padButtonsHeld(STANDARD([], [0, -1, 0, 0]))).toEqual([1]); // axis 1: up
+    expect(padButtonsHeld(STANDARD([], [0, 1, 0, 0]))).toEqual([2]);
+    expect(padButtonsHeld(STANDARD([], [-1, 0, 0, 0]))).toEqual([3]); // axis 0: left
+    expect(padButtonsHeld(STANDARD([], [1, 0, 0, 0]))).toEqual([4]);
+    expect(padButtonsHeld(STANDARD([], [0.3, -0.3, 0, 0]))).toEqual([]); // under the threshold
+    expect(padButtonsHeld(STANDARD([12]))).toEqual([9]); // D-pad up: the hat after 4 axes
+    expect(padButtonsHeld(STANDARD([15]))).toEqual([12]);
+    expect(padButtonsHeld(STANDARD([0]))).toEqual([13]); // the first button
+    expect(padButtonsHeld(STANDARD([16]))).toEqual([25]); // the D-pad does not take button numbers
+    // no standard mapping: no hat
+    expect(padButtonsHeld({ axes: [0, 0], buttons: [{ pressed: true }] })).toEqual([5]);
+  });
+
+  it('no pad: joystick unused, nothing queued, the type stays set greyed out', () => {
+    const { kb, o } = setup();
+    kb.poll();
+    expect(o.useJoystick).toEqual([false, false]);
+    expect(o.padsActive).toBe(false);
+    expect(o.input[0]![1]).toBe(1);
+    expect(kb.popPad()).toBe(0);
+    expect(kb.pads[0]!.bits).toBe(0);
+  });
+
+  it('a pad that appears goes live through the joystick config; it going away undoes that', () => {
+    const { list, kb, o } = setup();
+    list[0] = STANDARD([12, 0]);
+    kb.poll(); // the browser lists it: Input_InitPads, and it reads this same poll
+    expect(o.useJoystick).toEqual([true, true]);
+    expect(kb.pads[0]!.bits).toBe(IN_U | IN_A);
+    expect([kb.popPad(), kb.popPad()].sort((a, b) => a - b)).toEqual([9, 13]);
+    list[0] = STANDARD([]);
+    kb.poll();
+    expect(kb.pads[0]!.bits).toBe(0);
+    expect([kb.popPad(), kb.popPad()].sort((a, b) => a - b)).toEqual([9 | PAD_RELEASE, 13 | PAD_RELEASE]);
+    list[0] = null;
+    kb.poll();
+    expect(o.useJoystick).toEqual([false, false]);
+  });
+
+  it("the second pad's codes drive P2", () => {
+    const { list, kb } = setup();
+    list[0] = STANDARD([]);
+    list[1] = STANDARD([12]);
+    kb.poll();
+    expect(kb.pads[0]!.bits).toBe(0);
+    expect(kb.pads[1]!.bits).toBe(IN_U);
+  });
+
+  it('Options_SetJoystick: disabling every side closes the pads; without pads it greys out', () => {
+    const { list, kb, o } = setup();
+    list[0] = STANDARD([12]);
+    kb.poll();
+    o.input[0]![1] = 0;
+    o.input[1]![1] = 0;
+    o.setJoystick();
+    expect(o.padsActive).toBe(false);
+    kb.poll();
+    expect(kb.pads[0]!.bits).toBe(0);
+    o.input[0]![1] = 1;
+    o.setJoystick();
+    expect(o.useJoystick).toEqual([true, false]);
+    kb.poll();
+    expect(kb.pads[0]!.bits).toBe(IN_U);
+    list[0] = null;
+    kb.poll();
+    o.setJoystick();
+    expect(o.useJoystick).toEqual([false, false]);
+  });
+
+  it('Joystick Config assigns pad codes (KeyConfig_Run), Save keeps them', () => {
+    const s = memoryStorage();
+    const list: (GamepadLike | null)[] = [STANDARD([])];
+    const kb = new Keyboard(new EventTarget(), () => list);
+    const o = new GameOptions(JOY_CFG, s, { padCount: () => kb.padCount(), onRemap: (k, j, a) => kb.setMaps(k, j, a) }).init();
+    const m = make(o);
+    m.tick(0, 0, 'F2'); // team menu
+    m.tick(0, 0, 'Escape');
+    m.tick(0, 0, 'F1');
+    m.tick(0, 0, 'F2'); // "Joystick Config" (F2 of the input menu)
+    const kc = m.scr.activeKeyConfig!;
+    expect(kc).toBeDefined();
+    m.queue.push(SDLK_RETURN);
+    m.tick();
+    expect(kc.state).toBe(1);
+    m.padQueue.push(14);
+    m.tick();
+    m.padQueue.push(14 | PAD_RELEASE);
+    m.tick();
+    expect(kc.cur[0]![0]).toBe(14);
+    m.queue.push(SDLK_ESCAPE); // cancel: restored
+    m.tick();
+    expect(kc.cur[0]![0]).toBe(9);
+    m.queue.push(SDLK_F1);
+    m.tick();
+    m.padQueue.push(14);
+    m.tick();
+    for (let i = 0; i < 10; i++) {
+      m.queue.push(SDLK_SPACE);
+      m.tick();
+    }
+    expect(kc.state).toBe(0);
+    m.queue.push(SDLK_ESCAPE);
+    m.tick();
+    expect(o.joyKeys[0]![0]).toBe(14);
+    expect(o.joyKeys[0]![1]).toBe(JOY_NONE);
+    o.save();
+    expect(JSON.parse(s.m.get(OPTIONS_STORAGE_KEY)!)['p1 joystick'].crouch).toBe('0');
+    const again = new GameOptions(JOY_CFG, s).init();
+    expect(again.joyKeys[0]![0]).toBe(14);
+    expect(again.joyKeys[0]![1]).toBe(JOY_NONE);
   });
 });

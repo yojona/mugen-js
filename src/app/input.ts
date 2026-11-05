@@ -1,9 +1,10 @@
-// Keyboard input for two players, with edge detection for menus. The key maps
-// are mugen.exe's configured keys in SDL codes (GameVars.keys), turned into
-// KeyboardEvent codes by setMaps (Input_Remap).
+// Keyboard and gamepad input for two players, with edge detection for menus.
+// The maps are mugen.exe's configured keys in SDL codes (GameVars.keys) and
+// joystick codes (joy_keys_active), turned into targets by setMaps
+// (Input_Remap). Pads are the Gamepad API's, read as pads.c reads SDL's.
 
 import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../engine/cmd';
-import { BROWSER_DEFAULT_KEYS, KEYBOARD_RELEASE, browserToSdl, sdlToBrowser } from './sdl-keys';
+import { BROWSER_DEFAULT_KEYS, JOY_NONE, KEYBOARD_RELEASE, PAD_RELEASE, browserToSdl, sdlToBrowser } from './sdl-keys';
 
 export const BUTTONS = IN_A | IN_B | IN_C | IN_X | IN_Y | IN_Z;
 
@@ -14,6 +15,62 @@ export const ENTRY_BITS = [IN_U, IN_D, IN_L, IN_R, IN_A, IN_B, IN_C, IN_X, IN_Y,
 const INPUT_RING_SIZE = 0x100;
 
 type Target = { side: number; bit: number };
+
+/** pads.c: PAD_MAX joysticks of PAD_BUTTONS buttons each (code = pad * PAD_BUTTONS + button). */
+const PAD_MAX = 4;
+const PAD_BUTTONS = 32;
+/** PAD_AXIS_THRESHOLD: 16000 of SDL's +-32768. */
+const PAD_AXIS_THRESHOLD = 16000 / 32768;
+/** Gamepad.buttons of the "standard" mapping's D-pad (up, down, left, right), SDL's hat. */
+const STANDARD_DPAD = [12, 13, 14, 15];
+
+/** The part of the browser's Gamepad read here. */
+export interface GamepadLike {
+  mapping?: string;
+  axes: readonly number[];
+  buttons: readonly { pressed: boolean }[];
+}
+export type GamepadSource = () => readonly (GamepadLike | null)[];
+
+/** navigator.getGamepads(), which a page's policy may refuse and Node lacks. */
+function browserGamepads(): readonly (GamepadLike | null)[] {
+  try {
+    return typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The buttons held on a pad, in pads.c's numbering (Pads_Init,
+ * Pads_HandleEvent): each axis is two buttons from 1 (the first two axes
+ * swapped, so axis 1 gives 1 up / 2 down and axis 0 gives 3 left / 4 right),
+ * then the hat's four, then the buttons. The Gamepad API has no hats: a
+ * standard pad's D-pad buttons stand in for one, which is what mugen.cfg's
+ * [P1 Joystick] (Jump = 9) expects of a pad with four axes.
+ */
+export function padButtonsHeld(pad: GamepadLike): number[] {
+  const held: number[] = [];
+  pad.axes.forEach((value, a) => {
+    const axis = a === 0 ? 1 : a === 1 ? 0 : a;
+    if (value < -PAD_AXIS_THRESHOLD) held.push(axis * 2 + 1);
+    else if (value > PAD_AXIS_THRESHOLD) held.push(axis * 2 + 2);
+  });
+  const hatBase = pad.axes.length * 2;
+  const hat = pad.mapping === 'standard';
+  const buttonBase = hatBase + (hat ? 4 : 0);
+  let b = 0;
+  pad.buttons.forEach((button, i) => {
+    const dpad = hat ? STANDARD_DPAD.indexOf(i) : -1;
+    if (dpad >= 0) {
+      if (button.pressed) held.push(hatBase + 1 + dpad);
+      return;
+    }
+    const code = buttonBase + 1 + b++;
+    if (button.pressed && code < PAD_BUTTONS) held.push(code);
+  });
+  return held.filter((code) => code < PAD_BUTTONS);
+}
 
 export class Pad {
   bits = 0;
@@ -32,6 +89,17 @@ export class Keyboard {
   /** KeyboardEvent.code of the keys down. */
   private held = new Set<string>();
   private keyMap = new Map<string, Target>();
+  private padMap = new Map<number, Target>();
+  /** g_padsActive: Pads_Init found a pad and the options want one. */
+  private padsActive = false;
+  /** Pad codes (pad * PAD_BUTTONS + button) held at the last poll. */
+  private padHeld = new Set<number>();
+  private hadPads = false;
+  /**
+   * A pad appeared or went away. mugen.exe only looks in Pads_Init, but a
+   * browser lists a pad after its first press, so the options re-open them.
+   */
+  onPadsChanged?: () => void;
   escape = false;
   /** Keys first pressed this tick (KeyboardEvent.code), for menus. */
   pressed: string[] = [];
@@ -51,7 +119,10 @@ export class Keyboard {
   /** While set (KeyConfig_Run), every key belongs to the game, not the browser's shortcuts. */
   capture = false;
 
-  constructor(target: EventTarget = window) {
+  constructor(
+    target: EventTarget = window,
+    private gamepads: GamepadSource = browserGamepads,
+  ) {
     this.setMaps(BROWSER_DEFAULT_KEYS);
     target.addEventListener('keydown', (ev) => {
       const e = ev as KeyboardEvent;
@@ -89,7 +160,7 @@ export class Keyboard {
    * after P1's, so a key both players have (or an entry's duplicate) drives
    * only the last one. Held keys carry over (Input_ResetState).
    */
-  setMaps(keys: readonly (readonly number[])[]): void {
+  setMaps(keys: readonly (readonly number[])[], joyKeys?: readonly (readonly number[])[], padsActive = false): void {
     const map = new Map<string, Target>();
     keys.forEach((entries, side) =>
       entries.forEach((sdl, i) => {
@@ -98,6 +169,43 @@ export class Keyboard {
       }),
     );
     this.keyMap = map;
+    const pads = new Map<number, Target>();
+    joyKeys?.forEach((entries, side) =>
+      entries.forEach((code, i) => {
+        if (code !== JOY_NONE && code !== 0) pads.set(code, { side, bit: ENTRY_BITS[i]! });
+      }),
+    );
+    this.padMap = pads;
+    this.padsActive = padsActive;
+  }
+
+  /** Pads_Init: how many pads the browser lists. */
+  padCount(): number {
+    return this.gamepads().filter((p) => p).length;
+  }
+
+  /** Pads_HandleEvent, from the Gamepad API's state: queues the changes (Pads_SetButton). */
+  private pollPads(): void {
+    const list = this.gamepads();
+    const has = list.some((p) => p);
+    if (has !== this.hadPads) {
+      this.hadPads = has;
+      this.onPadsChanged?.();
+    }
+    const held = new Set<number>();
+    if (this.padsActive) {
+      list.slice(0, PAD_MAX).forEach((pad, i) => {
+        if (pad) for (const button of padButtonsHeld(pad)) held.add(i * PAD_BUTTONS + button);
+      });
+    }
+    for (const code of held) if (!this.padHeld.has(code)) this.queuePad(code);
+    for (const code of this.padHeld) if (!held.has(code)) this.queuePad(code | PAD_RELEASE);
+    this.padHeld = held;
+  }
+
+  private queuePad(code: number): void {
+    this.padQueue.push(code);
+    if (this.padQueue.length >= INPUT_RING_SIZE) this.padQueue.shift();
   }
 
   /** The oldest code of g_keyboardQueue, 0 when empty. */
@@ -116,11 +224,16 @@ export class Keyboard {
     this.padQueue = [];
   }
 
-  /** Sample the keyboard for this tick. */
+  /** Sample the keyboard and the pads for this tick. */
   poll(): void {
+    this.pollPads();
     const down = [0, 0];
     for (const code of this.held) {
       const t = this.keyMap.get(code);
+      if (t) down[t.side]! |= t.bit;
+    }
+    for (const code of this.padHeld) {
+      const t = this.padMap.get(code);
       if (t) down[t.side]! |= t.bit;
     }
     this.pads.forEach((p, i) => {

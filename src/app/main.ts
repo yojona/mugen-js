@@ -88,8 +88,9 @@ const gameOptions = await (async () => {
   } catch {
     storage = undefined;
   }
-  return new GameOptions(cfg, storage, { keysFromCfg: params.has('cfgkeys'), onRemap: (k) => keys.setMaps(k) }).init();
+  return new GameOptions(cfg, storage, { keysFromCfg: params.has('cfgkeys'), onRemap: (k, j, active) => keys.setMaps(k, j, active), padCount: () => keys.padCount() }).init();
 })();
+keys.onPadsChanged = () => gameOptions.initPads();
 // The sounds play at MasterVolume * WavVolume (Sound_SetVolume).
 mixer.volume = gameOptions.wavGain;
 
@@ -744,7 +745,7 @@ function makeFlowHarness() {
           if (p && p.life > max) p.life = max;
         }
       }
-      if (s instanceof FightScreen && seedFrom >= 0 && frame >= seedFrom && frame <= seedTo) console.log(`SEED|${frame}|${s.world.seed}|${s.world.players.map((p) => `${p.stateNo}/${p.time} y${p.pos.y.toFixed(2)} vy${p.vel.y.toFixed(3)}${p.ctrl ? ' c' : ''}`).join(' ')}`);
+      if (s instanceof FightScreen && seedFrom >= 0 && frame >= seedFrom && frame <= seedTo) console.log(`SEED|${frame}|${s.world.seed}|${s.world.players.map((p) => `${p.stateNo}/${p.time} y${p.pos.y.toFixed(2)} vy${p.vel.y.toFixed(3)} pal${p.palNo}${p.ctrl ? ' c' : ''}`).join(' ')}`);
       // ?dumpsuper logs the frames a darkening SuperPause runs.
       if (s instanceof FightScreen && params.get('dumpsuper') && s.world.darkened) console.log(`DBG|${frame}|superpause owner=${s.world.superPause!.owner.slotNo}`);
       if (s instanceof FightScreen && frame >= exFrom && frame <= exTo) {

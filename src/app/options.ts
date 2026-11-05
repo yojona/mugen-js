@@ -637,22 +637,6 @@ export class OptionsScreen implements Screen {
   }
 
   /**
-   * Options_SetJoystick: the joystick type of a side changed. Every side
-   * with a type uses its pad, then the pads are opened; this port has no
-   * pads (Pads_Init finds none), so both sides lose them again and the
-   * type shows greyed out, as mugen.exe does without a joystick.
-   */
-  private setJoystick(): void {
-    const o = this.opts;
-    o.useJoystick[0] = o.input[0]![1] !== 0;
-    o.useJoystick[1] = o.input[1]![1] !== 0;
-    if (o.useJoystick[0] || o.useJoystick[1]) {
-      // TODO: Gamepad API pads (Pads_Init / Input_Remap).
-      o.useJoystick[0] = o.useJoystick[1] = false;
-    }
-  }
-
-  /**
    * Options_RunKeyConfig: the key or joystick configuration between the done
    * and cancel sounds (played when it returns, see tick).
    */
@@ -807,7 +791,7 @@ export class OptionsScreen implements Screen {
           if (right && v === 0) v = 1;
           if (v !== old) {
             o.input[side]![item] = v;
-            this.setJoystick();
+            o.setJoystick();
           }
         }
         o.input[side]![cursor[side]!] = v;
