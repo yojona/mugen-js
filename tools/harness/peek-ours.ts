@@ -33,7 +33,7 @@ const vfs = new Vfs(nodeSource(join(ROOT, 'ref', 'mugen-1.1b1')));
 const prog1 = await loadProgram(vfs, await loadCharacter(vfs, `chars/${c1}/${c1}.def`));
 const prog2 = c2 === c1 ? prog1 : await loadProgram(vfs, await loadCharacter(vfs, `chars/${c2}/${c2}.def`));
 const stage = await loadStage(vfs, `stages/${stageArg ?? 'kfm'}.def`);
-const hud = await FightHud.load(vfs, 'data/fight.def');
+const hud = await FightHud.load(vfs, process.env.FIGHTDEF ?? 'data/fight.def');
 const w = new World();
 w.applyStage(stage.info);
 w.fightFx = { anims: parseAir(await vfs.text('data/fightfx.air')), sff: await parseSff(await vfs.read('data/fightfx.sff')) };
