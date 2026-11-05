@@ -303,7 +303,8 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
       { mode: mine.mode, picks: mine.picks, pads: padsOf(mine, 0) },
       { mode: theirs.mode, picks: theirs.picks, pads: padsOf(theirs, 1) },
     ];
-    if (mode === 'teamversus') await until(new VersusScreen(ctx, sides[0].picks[0]!, sides[1].picks[0]!, 1));
+    // Gameflow state 10: every mode but quick VS and the demo has a versus screen.
+    await until(new VersusScreen(ctx, sides[0].picks[0]!, sides[1].picks[0]!, 1));
     await until(await loading(() => teamFight(sides, pickStage(sel.stage))));
     return;
   }
@@ -521,7 +522,8 @@ async function runMode(mode: GameMode): Promise<void> {
       return;
     }
     const p2 = sel.p2 ?? randomOpponent();
-    if (mode === 'versus') await until(new VersusScreen(ctx, sel.p1, p2, 1));
+    // Gameflow state 10: versus, training and watch alike.
+    await until(new VersusScreen(ctx, sel.p1, p2, 1));
     await until(await loading(() => fight(mode, sel.p1, p2, pickStage(sel.stage))));
   }
 }
