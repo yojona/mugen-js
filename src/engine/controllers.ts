@@ -293,6 +293,9 @@ const IMPLS: Record<string, Impl> = {
     if (v !== undefined) {
       p.hitCount += v;
       p.uniqHitCount += v;
+      // SCTRL_HITADD: the HUD's combo counter too.
+      p.world.comboAdded[p.side]! += v;
+      p.world.comboTouched[p.side] = true;
     }
   },
   defencemulset: (_c, prm) => (p) => {

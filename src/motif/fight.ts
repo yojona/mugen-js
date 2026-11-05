@@ -153,7 +153,8 @@ export class FightHud {
       if (i < 2) this.tickPower(m, p, simulated);
     }
     const comboSec = findSection(this.doc, 'Combo');
-    const unit = this.localWidth / 320;
+    // Combo_Tick and Rd_ComboShake's units come from GameVars.game_coord.
+    const unit = (this.comboUnit = m.world.gameWidth / 320);
     for (let side = 0; side < 2; side++) {
       const c = this.combo[side]!;
       const pre = `team${side + 1}`;
@@ -245,6 +246,7 @@ export class FightHud {
   }
 
   private layer = 0;
+  private comboUnit = 1;
 
   private drawHudParts(r: Renderer, m: Match): void {
     const w = m.world;
@@ -510,7 +512,7 @@ export class FightHud {
     const text = parseElement(sec, `${pre}.text`);
     const n = String(c.shown);
     const fmt = (t: string | undefined) => (t ?? '').replace('%i', n);
-    const unit = this.localWidth / 320;
+    const unit = this.comboUnit;
     const displayTime = parseInt(getValue(sec, `${pre}.displaytime`) ?? '90', 10);
     const shake = (base: number, team1: boolean) => {
       if (parseInt(getValue(sec, `${pre}.counter.shake`) ?? '0', 10) === 0) return base;
