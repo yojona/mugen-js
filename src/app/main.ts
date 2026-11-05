@@ -69,7 +69,8 @@ setStatus('Cargando motif…');
 const motif = await loadMotif(vfs, await motifPath());
 const [mw, mh] = motif.localCoord;
 const renderer = new Renderer(canvas);
-const zoom = Math.max(1, Math.floor(960 / mw));
+// ?zoom: output pixels per motif unit (the harness compares at the reference's 640x480).
+const zoom = Number(new URLSearchParams(location.search).get('zoom')) || Math.max(1, Math.floor(960 / mw));
 renderer.resize(mw, mh, zoom);
 const mixer = new Mixer();
 const keys = new Keyboard();
