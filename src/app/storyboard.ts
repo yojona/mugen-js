@@ -118,6 +118,8 @@ export class StoryboardScreen implements Screen {
   result: true | undefined;
   private scene = 0;
   private t = 0;
+  /** Storyboard_Update: ticks of the 5-tick palette fade out a button started, -1 none. */
+  private skipT = -1;
   private anims = new Map<Layer, AnimPlayer>();
   private bg: StageRuntime | undefined;
 
@@ -150,11 +152,14 @@ export class StoryboardScreen implements Screen {
       this.result = true;
       return;
     }
-    // Start or any button skips the storyboard.
-    if (this.t > 5 && this.ctx.keys.pads[0]!.pressed(BUTTONS | IN_S)) {
-      this.result = true;
-      return;
-    }
+    // Start or any button skips the storyboard: a 5-tick palette fade out
+    // (Storyboard_Update), the scene running on meanwhile.
+    if (this.skipT >= 0) {
+      if (++this.skipT >= 5) {
+        this.result = true;
+        return;
+      }
+    } else if (this.t > 5 && this.ctx.keys.pads[0]!.pressed(BUTTONS | IN_S)) this.skipT = 0;
     for (const L of s.layers) {
       if (L.anim === undefined) continue;
       if (this.t === L.start) {
@@ -208,5 +213,6 @@ export class StoryboardScreen implements Screen {
       col = s.fadeOutCol;
     }
     if (a > 0) r.rect(0, 0, w, h, [col[0], col[1], col[2], Math.round(Math.min(1, a) * 255)]);
+    if (this.skipT >= 0) r.rect(0, 0, w, h, [0, 0, 0, Math.round(Math.min(1, this.skipT / 5) * 255)]);
   }
 }
