@@ -275,23 +275,18 @@ export class Renderer {
     const sin = Math.sin(a);
     const sx = p.scaleX;
     const sy = p.scaleY;
-    // mugen.exe's software renderer (Soft_Blit / Soft_Scale), per output
-    // axis: unscaled, the axis goes to Ftol of the anchor; scaled, the
-    // sprite starts at the float anchor less the scaled axis and each
-    // output pixel samples the source at its left / top edge (GL samples at
-    // the centre: half a pixel on). Flipped, the sprite sits one output
-    // pixel further on (x + axis - w + 1).
     if (this.snap && !this.cornerMode && !p.angle) {
       const v = this.view;
-      const place = (pos: number, scale: number, o: number, k: number): number => {
+      const kx = this.canvas.width / this.width;
+      const ky = this.canvas.height / this.height;
+      const scx = Math.abs(sx * v.s * kx);
+      const scy = Math.abs(sy * v.s * ky);
+      const unscaled = Math.abs(s.width - s.width * scx) < 0.001 && Math.abs(s.height - s.height * scy) < 0.001;
+      const place = (pos: number, scale: number, sc: number, size: number, axis: number, o: number, k: number): number => {
         const d = (pos * v.s + o) * k;
-        const unscaled = Math.abs(Math.abs(scale * v.s * k) - 1) < 0.001;
-        // (+0.25, not +0.5: GL's sample points stay clear of texel edges,
-        // where its interpolation would round either way.)
-        const out = (unscaled ? Math.trunc(d) : d + 0.25) + (scale < 0 ? 1 : 0);
-        return (out / k - o) / v.s;
+        return (softAnchor(d, scale < 0, sc, size, axis, unscaled) / k - o) / v.s;
       };
-      p = { ...p, x: place(p.x, p.scaleX, v.ox, this.canvas.width / this.width), y: place(p.y, p.scaleY, v.oy, this.canvas.height / this.height) };
+      p = { ...p, x: place(p.x, sx, scx, s.width, s.axisX, v.ox, kx), y: place(p.y, sy, scy, s.height, s.axisY, v.oy, ky) };
     }
     // Columns of the 2x2 part, then translation.
     const m00 = cos * sx;
@@ -429,4 +424,27 @@ function combinePalFx(a: PalFx, b: PalFx): PalFx {
     color: a.color * b.color,
     invertAll: a.invertAll || b.invertAll,
   };
+}
+
+/**
+ * The anchor (in output pixels) that makes GL's nearest sampling at pixel
+ * centres pick the source pixels of mugen.exe's software renderer, for one
+ * axis. Soft_Blit: the axis goes to Ftol of the anchor, one pixel further
+ * flipped. Soft_Scale / Soft_StartPixel: the sprite's start is rounded to the
+ * nearest pixel (halves down) and the source keeps the offset of that
+ * rounding, truncated to 16.16; flipped, the start lies at axis - size + 1.
+ */
+function softAnchor(d: number, flip: boolean, sc: number, size: number, axis: number, unscaled: boolean): number {
+  if (unscaled) return Math.trunc(d) + (flip ? 1 : 0);
+  const start = flip ? d - ((size - axis) * sc - 1) : d - axis * sc;
+  let first = Math.floor(start);
+  let frac = 0;
+  if (start > first) {
+    if (start - 0.5 > first) first++;
+    frac = Math.floor(((first - start) / sc) * 65536);
+  }
+  // A sixteenth of an output pixel on: clear of texel edges and of the
+  // rasterizer's own snapping of the quad's corners.
+  const u = frac / 65536 + 0.0625 / sc;
+  return flip ? first + 0.5 + sc * (size - u - axis) : first + 0.5 - sc * u + axis * sc;
 }
