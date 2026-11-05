@@ -53,6 +53,8 @@ export interface FightResult {
   winner: number | undefined;
   /** The winner's victory quote (VictoryQuote, else a random one). */
   quote?: string;
+  /** Matches won by each side (survival: the rounds survived). */
+  wins?: [number, number];
 }
 
 export class FightScreen implements Screen {
@@ -157,7 +159,7 @@ export class FightScreen implements Screen {
     if (this.s.training) this.refillLife();
     if (m.finished && !this.fade.fadingOut) {
       this.saveRecords();
-      this.pendingResult = { winner: m.winner ? m.winner.side : -1, quote: m.winner ? pickVictoryQuote(m.winner) : undefined };
+      this.pendingResult = { winner: m.winner ? m.winner.side : -1, quote: m.winner ? pickVictoryQuote(m.winner) : undefined, wins: [...m.wins] };
       this.fade.fadeOut();
     }
   }

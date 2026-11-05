@@ -368,7 +368,7 @@ export class SelectScreen implements Screen {
     // (measured in mugen.exe: the done cursor shows 5 frames).
     if (++this.doneWait <= DONE_WAIT) return;
     let stage = this.stageShown ? this.stageList[this.stageIndex] : undefined;
-    if (stage === 'random') stage = this.stageList[1 + Math.floor(Math.random() * (this.stageList.length - 1))];
+    // "random" is drawn later from the session RNG (Gameflow_PickStage).
     const t0 = this.teams[0]!;
     const t1 = this.teams[1]!;
     this.pending = { p1: t0.picks[0]!, p2: t1.picks[0], stage, teams: [t0, t1] };

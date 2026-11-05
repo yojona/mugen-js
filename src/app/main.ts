@@ -16,7 +16,7 @@ import { FightHud } from '../motif/fight';
 import { charDefPath, loadMotif, loadRoster, type Roster } from '../motif/system';
 import { Renderer } from '../render/renderer';
 import { loadStage, type Stage } from '../stage/stage';
-import { FightScreen, type FightTeam } from './fight-screen';
+import { FightScreen, type FightResult, type FightTeam } from './fight-screen';
 import type { TeamMode } from '../engine/match';
 import { ContinueScreen } from './continue';
 import { loadFont } from '../motif/font';
@@ -26,6 +26,7 @@ import type { AppContext, Screen } from './screen';
 import { SelectScreen, type Pick, type RosterChar, type SelectResult, type TeamPick } from './select';
 import { TitleScreen, type GameMode } from './title';
 import { loadStoryboard, StoryboardScreen } from './storyboard';
+import { SurvivalResultsScreen } from './results';
 
 const params = new URLSearchParams(location.search);
 const status = document.getElementById('status')!;
@@ -81,6 +82,7 @@ async function aiLevel(): Promise<number> {
     return 4;
   }
 }
+
 const ctx: AppContext = { renderer, mixer, keys, motif, aiLevel: await aiLevel() };
 
 setStatus('Cargando personajes…');
@@ -223,7 +225,13 @@ const teamOptions = await (async () => {
   }
 })();
 
-async function teamFight(sides: [TeamSide, TeamSide], stagePath: string | undefined, survival = false): Promise<FightScreen> {
+/** Charsel_End: the select screen's "random" stage is a session draw over the stage list. */
+function pickStage(s: string | undefined): string | undefined {
+  return s === 'random' ? stages[session.next() % stages.length]!.path : s;
+}
+
+/** survival: the reseed of each new round (the next opponent's draws, then the match seed). */
+async function teamFight(sides: [TeamSide, TeamSide], stagePath: string | undefined, survival?: () => number): Promise<FightScreen> {
   const lead = sides[1].picks[0] ?? sides[0].picks[0]!;
   const sp = stagePath ?? vfs.resolve(lead.char.entry.stage ?? '') ?? stages[0]!.path;
   const teams = (await Promise.all(
@@ -242,7 +250,7 @@ async function teamFight(sides: [TeamSide, TeamSide], stagePath: string | undefi
     training: false,
     teams,
     options: teamOptions,
-    survival: survival ? { side: 0, reseed: () => session.matchSeed() } : undefined,
+    survival: survival ? { side: 0, reseed: survival } : undefined,
   });
 }
 
@@ -262,18 +270,47 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
       { mode: theirs.mode, picks: theirs.picks, pads: padsOf(theirs, 1) },
     ];
     if (mode === 'teamversus') await until(new VersusScreen(ctx, sides[0].picks[0]!, sides[1].picks[0]!, 1));
-    await until(await loading(() => teamFight(sides, sel.stage)));
+    await until(await loading(() => teamFight(sides, pickStage(sel.stage))));
     return;
   }
   if (mode === 'survival' || mode === 'survivalcoop') {
     // Charsel_End / Match_NextRound: a random computer team for every round
     // (Team_Randomize); its characters are loaded ahead, a list of them.
+    // The session draws, as mugen.exe makes them: Team_Randomize at the end
+    // of the select screen draws members 0 and 1 (each slot a character
+    // and, with AI.RandomColor, a palette), Gameflow_PickStage a random
+    // stage, then the match seed; every later round one more member, then
+    // the match seed again. The later members are worked out ahead on a
+    // copy of the RNG (their characters have to be loaded).
     const size = theirs.mode === 'simul' ? 2 : 1;
     const all = rosterChars.filter((c) => c.data);
-    const list = Array.from({ length: Math.min(60, all.length * size) }, () => all[session.next() % all.length]!);
-    const opp: TeamSide = { mode: theirs.mode === 'simul' ? 'simul' : 'single', picks: cpuPicks(list), pads: list.map(() => undefined) };
+    const slot = (rng: SessionRng): Pick => {
+      const c = all[rng.next() % all.length]!;
+      return { char: c, pal: rng.opponentPalette((i) => !!c.data?.palettes?.[i]) };
+    };
+    const picks = Array.from({ length: 2 * size }, () => slot(session));
+    const sp = pickStage(sel.stage) ?? vfs.resolve(picks[0]!.char.entry.stage ?? '') ?? stages[0]!.path;
+    const ahead = new SessionRng(session.seed);
+    ahead.matchSeed();
+    while (picks.length < 60 * size) {
+      for (let k = 0; k < size; k++) picks.push(slot(ahead));
+      ahead.matchSeed();
+    }
+    const opp: TeamSide = { mode: theirs.mode === 'simul' ? 'simul' : 'single', picks, pads: picks.map(() => undefined) };
     const human: TeamSide = { mode: mine.mode, picks: mine.picks, pads: padsOf(mine, 0) };
-    await until(await loading(() => teamFight([human, opp], sel.stage, true)));
+    // Gameflow 10: the versus screen with the first opponent.
+    await until(new VersusScreen(ctx, human.picks[0]!, opp.picks[0]!, 1));
+    const reseed = () => {
+      for (let k = 0; k < size; k++) slot(session);
+      return session.matchSeed();
+    };
+    const res = await until<FightResult>(await loading(() => teamFight([human, opp], sp, reseed)));
+    if (res.winner === undefined) return;
+    // Gameflow 15: the survival results ([Survival Results Screen] enabled).
+    if ((motif.value('Survival Results Screen', 'enabled') ?? '1') !== '0') {
+      const players = await Promise.all(human.picks.slice(0, human.mode === 'simul' ? 2 : 1).map(async (pk) => ({ prog: await program(pk.char), pal: pk.pal })));
+      await until(await loading(async () => new SurvivalResultsScreen(ctx, { players, stage: await stage(sp), fightFx, wins: res.wins?.[0] ?? 0, seed: session.matchSeed() })));
+    }
     return;
   }
   // Team arcade / co-op: the computer team takes its characters from the
@@ -352,10 +389,13 @@ async function runMode(mode: GameMode): Promise<void> {
   for (;;) {
     const sel = await until<SelectResult>(new SelectScreen(ctx, mode, rosterChars, stages));
     if (sel.cancelled) return;
+    // Charsel_End: a "random" stage is drawn first of all the session draws.
+    sel.stage = pickStage(sel.stage);
     const team = sel.teams && (mode !== 'watch' || sel.teams.some((t) => t.mode !== 'single'));
     if (team && mode !== 'arcade' && mode !== 'versus' && mode !== 'training') {
       await runTeamMode(mode, sel);
-      if (mode !== 'teamversus' && mode !== 'watch') return;
+      // State 6 after a team versus, watch or survival match: back to the select screen.
+      if (mode !== 'teamversus' && mode !== 'watch' && mode !== 'survival' && mode !== 'survivalcoop') return;
       continue;
     }
     if (mode === 'arcade') {
@@ -395,7 +435,7 @@ async function runMode(mode: GameMode): Promise<void> {
     }
     const p2 = sel.p2 ?? randomOpponent();
     if (mode === 'versus') await until(new VersusScreen(ctx, sel.p1, p2, 1));
-    await until(await loading(() => fight(mode, sel.p1, p2, sel.stage)));
+    await until(await loading(() => fight(mode, sel.p1, p2, pickStage(sel.stage))));
   }
 }
 
