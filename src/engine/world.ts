@@ -27,6 +27,8 @@ interface PauseState {
   moveTime: number;
   fresh?: boolean;
   darken: boolean;
+  /** Game_Tick darkens from the tick after the SuperPause ran (pause_kind is decided as the tick starts). */
+  dimming?: boolean;
   unhittable: boolean;
   /** endcmdbuftime: in its last frames the paused players' commands stay active (floor 2). */
   endCmdBufTime: number;
@@ -414,7 +416,7 @@ export class World {
   }
 
   get darkened(): boolean {
-    return !!this.superPause?.darken;
+    return !!this.superPause?.darken && !!this.superPause.dimming;
   }
 
   /** Feed this tick's raw inputs (one bitmask per player) and advance one tick. */
@@ -436,6 +438,7 @@ export class World {
     // gameloop's pause_kind for this tick: a pause counting since an earlier
     // tick (a Pause re-applied during the tick keeps it).
     const pauseKind = this.superPause && !this.superPause.fresh ? 1 : !this.superPause && this.pause && !this.pause.fresh ? 0 : -1;
+    if (this.superPause && !this.superPause.fresh) this.superPause.dimming = true;
     this.updateEnemies();
     // MUGEN's order (main tick 0x4130xx): facing sync and human key events,
     // then the CPU AI pass, then every player's input processing.
