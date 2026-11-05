@@ -5,6 +5,7 @@
 // exact tick alignment still has to be checked against the reference binary.
 
 import { newAfterImage, newPalFx } from './fx';
+import { IN_A, IN_B, IN_C, IN_X, IN_Y, IN_Z } from './cmd';
 import { emptyGetHitVars } from './hitdef';
 import type { Player } from './player';
 import { WIN_ICON, type World } from './world';
@@ -172,13 +173,69 @@ export class Match {
    * starts, out to black over the last 16 ticks of RoundState 4 (black stays
    * until the next round's fade in). Drawing only.
    */
-  fade: { out: boolean; ticks: number; time: number } | undefined;
-  /** 0 clear .. 1 black. */
+  fade: { out: boolean; ticks: number; time: number; bars?: boolean } | undefined;
+  /** 0 clear .. 1 black (the palette fade; a bars fade is drawn with fadeBars). */
   get fadeAlpha(): number {
     const f = this.fade;
-    if (!f) return 0;
+    if (!f || f.bars) return 0;
     const k = Math.min(1, f.ticks / f.time);
     return f.out ? k : 1 - k;
+  }
+
+  /** Fade_DrawBars' progress, 0 open .. 1 closed, when the fade is the bars one (intro skip). */
+  get fadeBars(): number | undefined {
+    const f = this.fade;
+    if (!f || !f.bars) return undefined;
+    const k = f.ticks / f.time;
+    return f.out ? k : 1 - k;
+  }
+
+  /** intro_skipped: a human's button closed the bars over the intro (Player_UpdateInput). */
+  private introSkipped = false;
+  /** The human pads' bits last tick, for new presses. */
+  private lastBits: number[] = [];
+
+  /**
+   * Player_UpdateInput: a human player's new button press (a, b, c, x, y,
+   * z) in RoundState 1, or in 0 after its first 2 ticks, while the round
+   * announcement has not passed, starts the intro skip: the screen closes
+   * with black bars over 12 ticks (6 after round 1).
+   */
+  private checkIntroSkip(inputs: readonly number[] | undefined): void {
+    if (!inputs) return;
+    const buttons = IN_A | IN_B | IN_C | IN_X | IN_Y | IN_Z;
+    const pressed = this.world.players.some((p, i) => p.pad !== undefined && !p.isHelper && ((inputs[i] ?? 0) & ~(this.lastBits[i] ?? 0) & buttons) !== 0);
+    this.lastBits = [...inputs];
+    if (!pressed || this.introSkipped) return;
+    const ok = (this.phase === 'wait' && this.phaseTime > 2) || this.phase === 'intro' || (this.phase === 'announce' && this.phaseTime <= this.cfg.roundTime);
+    if (!ok) return;
+    this.introSkipped = true;
+    this.fade = { out: true, ticks: 0, time: this.round <= 1 ? 12 : 6, bars: true };
+  }
+
+  /**
+   * Round_RunState: once the skip's bars have closed, straight to
+   * RoundState 2: everyone back at the start in its own state 0, helpers,
+   * projectiles and explods gone, and the bars open again over 12 ticks.
+   */
+  private skipIntro(): void {
+    const w = this.world;
+    this.introSkipped = false;
+    w.roundState = 2;
+    this.placePlayers();
+    for (const p of this.players) {
+      if (p.isHelper) continue;
+      p.resetToOwnState0();
+    }
+    w.explods = [];
+    w.projectiles = [];
+    w.helpers = [];
+    w.helperSlots = [];
+    w.inputLocked = false;
+    this.announce = undefined;
+    this.fade = { out: false, ticks: 1, time: 12, bars: true };
+    this.phase = 'fight';
+    this.phaseTime = -1;
   }
 
   /** RoundState 4 lasts until this tick (over.time, pushed back by roundnotover). */
@@ -413,16 +470,21 @@ export class Match {
   }
 
   /** Advance one tick: returns true if the world should simulate this tick. */
-  tick(): boolean {
+  /** inputs: the human pads' bits per world player (the intro skip). */
+  tick(inputs?: readonly number[]): boolean {
     // Frames shown before this one (mugen.exe counts at the end of a frame).
     this.world.frames = this.frameNo++;
     this.sounds = [];
     if (this.announce) this.announce.age++;
+    this.checkIntroSkip(inputs);
+    if (this.introSkipped && !this.fade && (this.phase === 'wait' || this.phase === 'intro' || this.phase === 'announce')) this.skipIntro();
+    else if (this.phase !== 'wait' && this.phase !== 'intro' && this.phase !== 'announce') this.introSkipped = false;
     const simulate = this.step();
-    // Fade_Update: a finished fade in clears; a fade out stays black.
+    // Fade_Update: a finished fade in clears; a fade out stays black, but
+    // the bars of the intro skip clear too (Fade_Update resets any fade).
     if (this.fade) {
       this.fade.ticks++;
-      if (!this.fade.out && this.fade.ticks >= this.fade.time) this.fade = undefined;
+      if ((!this.fade.out || this.fade.bars) && this.fade.ticks >= this.fade.time) this.fade = undefined;
     }
     this.phaseTime++;
     // Round_RunState's end: camera_mode++ every tick.

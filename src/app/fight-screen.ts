@@ -9,6 +9,7 @@ import { Match, type TeamMode, type TeamPlan } from '../engine/match';
 import { pickVictoryQuote, Player, type CharacterProgram } from '../engine/player';
 import { World, type FightFx } from '../engine/world';
 import type { FightHud } from '../motif/fight';
+import type { Renderer } from '../render/renderer';
 import { drawScene } from '../render/scene';
 import { drawOverdrawBars, drawStageLayer } from '../render/stage-draw';
 import { StageRuntime, type Stage } from '../stage/stage';
@@ -144,7 +145,7 @@ export class FightScreen implements Screen {
     const m = this.match;
     const w = this.world;
     const inputs = w.players.map((p) => (p.pad !== undefined ? (this.ctx.keys.pads[p.pad]?.bits ?? 0) : 0));
-    const simulated = m.tick();
+    const simulated = m.tick(inputs);
     if (simulated) {
       w.tick(inputs);
       if (!w.superPause && !w.pause) this.bg.tick();
@@ -238,6 +239,29 @@ export class FightScreen implements Screen {
     this.s.hud.draw(r, this.match);
     const a = this.match.fadeAlpha;
     if (a > 0) r.rect(0, 0, mw, mh, [0, 0, 0, Math.round(a * 255)]);
+    const bars = this.match.fadeBars;
+    if (bars !== undefined) drawFadeBars(r, mw, mh, bars);
     this.fade.draw(r, mw, mh);
+  }
+}
+
+/**
+ * Fade_DrawBars: black bars from the top and bottom edges, then 12 bands of
+ * bar_size / 12 (bar_size = an eighth of the screen) that get lighter.
+ */
+function drawFadeBars(r: Renderer, w: number, h: number, progress: number): void {
+  const size = Math.trunc(h / 8);
+  let bar = Math.trunc((Math.trunc(h / 2) + size) * progress - size);
+  if (bar > 0) {
+    r.rect(0, 0, w, bar, [0, 0, 0, 255]);
+    r.rect(0, h - bar, w, h, [0, 0, 0, 255]);
+  }
+  const step = Math.trunc(size / 12);
+  for (let k = 0; k < 12; k++) {
+    const next = bar + step;
+    const alpha = Math.round(255 * (1 - k / 12));
+    r.rect(0, bar, w, next, [0, 0, 0, alpha]);
+    r.rect(0, h - next, w, h - bar, [0, 0, 0, alpha]);
+    bar = next;
   }
 }
