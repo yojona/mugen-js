@@ -686,6 +686,8 @@ function makeFlowHarness() {
     screen.draw();
     console.log(`SHOT|${frame}|${canvas.toDataURL('image/png')}`);
   };
+  // ?dumpexplods=from:to logs the fight's explods (action, element, position, owner).
+  const [exFrom, exTo] = (params.get('dumpexplods') ?? '-1:-1').split(':').map(Number) as [number, number];
   const [rtFrom, rtTo] = (params.get('randtrace') ?? '-1:-1').split(':').map(Number) as [number, number];
   if (rtFrom >= 0) {
     const orig = World.prototype.random;
@@ -722,6 +724,9 @@ function makeFlowHarness() {
         }
       }
       if (s instanceof FightScreen && seedFrom >= 0 && frame >= seedFrom && frame <= seedTo) console.log(`SEED|${frame}|${s.world.seed}|${s.world.players.map((p) => `${p.stateNo}/${p.time} y${p.pos.y.toFixed(2)} vy${p.vel.y.toFixed(3)}${p.ctrl ? ' c' : ''}`).join(' ')}`);
+      if (s instanceof FightScreen && frame >= exFrom && frame <= exTo) {
+        for (const e of s.world.explods) console.log(`DBG|${frame}|explod ${e.anim.current?.group},${e.anim.current?.number} common=${e.common} x=${e.x.toFixed(1)} y=${e.y.toFixed(1)} age=${e.age} scale=${e.drawScale} owner=${e.owner?.slotNo}`);
+      }
       if (s instanceof FightScreen) {
         const key = `${s.world.roundState}`;
         if (key !== lastRs) console.log(`DBG|${frame}|rs ${s.world.roundState} seed ${s.world.seed} life ${s.world.players.map((p) => p.life).join(',')}`);
