@@ -96,7 +96,7 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
     const v = p.anim.view();
     if (!v || v.element.group < 0) return;
     const s = p.prog.data.sff.get(v.element.group, v.element.number);
-    const fx = groupFx(palFxUniforms(p.palFx), w.playersMul);
+    const fx = palFxUniforms(p.palFx);
     const angle = p.angleDraw ? p.angle : v.angle;
     const k = p.scale;
     sprite(
@@ -194,9 +194,3 @@ function drawShadows(r: Renderer, w: World, sx: (x: number) => number, sy: (y: n
   }
 }
 
-/** A palette group's colour factor on top of the player's PalFX (PalGroups_MulColor). */
-function groupFx(fx: ReturnType<typeof palFxUniforms>, k: number): ReturnType<typeof palFxUniforms> {
-  if (k === 1) return fx;
-  if (!fx) return { add: [0, 0, 0], mul: [k, k, k], color: 1, invertAll: false };
-  return { ...fx, mul: [fx.mul[0] * k, fx.mul[1] * k, fx.mul[2] * k] };
-}

@@ -346,7 +346,7 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
       const pks = human.picks.slice(0, human.mode === 'simul' ? 2 : 1);
       await until(
         await loading(async () => {
-          const players = await Promise.all(pks.map(async (pk) => ({ prog: await program(pk.char), pal: pk.pal })));
+          const players = await Promise.all(pks.map(async (pk) => ({ prog: await program(pk.char), pal: pk.char.data?.def.palDefaults[0] ?? 1 })));
           return new SurvivalResultsScreen(ctx, { players, stage: await stage(sp), fightFx, wins: res.wins?.[0] ?? 0, seed: session.matchSeed() });
         }),
       );
@@ -421,7 +421,7 @@ async function arcadeEnding(picks: Pick[], stagePath: string | undefined): Promi
     const sp = stagePath ?? stages[0]!.path;
     await until(
       await loading(async () => {
-        const players = await Promise.all(picks.map(async (pk) => ({ prog: await program(pk.char), pal: pk.pal })));
+        const players = await Promise.all(picks.map(async (pk) => ({ prog: await program(pk.char), pal: pk.char.data?.def.palDefaults[0] ?? 1 })));
         return new SurvivalResultsScreen(ctx, { players, stage: await stage(sp), fightFx, wins: 0, seed: session.matchSeed(), kind: 'win' });
       }),
     );

@@ -2,9 +2,9 @@
 // arcade win screen (gameflow 16, versus.c WinScreen_*): the human side's
 // players back on the last match's stage in a pose state (results: win 180
 // or lose 170 by [Survival Results Screen] roundstowin; win screen: 180),
-// the first at the camera's centre and a partner 50 units to the side,
-// with the players' palette group at half (PalGroups_MulColor 0x80 every
-// tick) and the screen's text (winstext with the wins as %i, or wintext).
+// the first at the camera's centre and a partner 50 units to the side, in
+// their first default palette, with the stage's palette group at half
+// (PalGroups_MulColor 0x80 every tick; measured) and the screen's text (winstext with the wins as %i, or wintext).
 // It ends after show.time / pose.time ticks or with a button, fading out
 // over fadeout.time.
 
@@ -65,7 +65,6 @@ export class SurvivalResultsScreen implements Screen {
     w.fightFx = s.fightFx;
     w.seed = s.seed;
     w.roundState = 0;
-    w.playersMul = 0.5;
     const state = win || s.wins >= num('roundstowin', 5) ? 180 : 170;
     // Result_Init: the first player at the camera's centre; with a partner,
     // 50 (320-wide units) to each side, the partner facing the other way.
@@ -109,6 +108,8 @@ export class SurvivalResultsScreen implements Screen {
       background: () => {
         drawStageLayer(r, this.bg, w.camera, 0, W, H, -(w.shakeBase + w.cropTop));
         drawOverdrawBars(r, w, this.s.stage.info.camera.overdrawLow, this.s.stage.info.camera.overdrawHigh);
+        // The stage's palette group at half (the players keep theirs).
+        r.rect(0, 0, W, H, [0, 0, 0, 128]);
       },
       foreground: () => drawStageLayer(r, this.bg, w.camera, 1, W, H, -(w.shakeBase + w.cropTop)),
     });

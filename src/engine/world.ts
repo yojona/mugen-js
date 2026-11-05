@@ -650,8 +650,6 @@ export class World {
     if (!this.framesDriven) this.frames++;
   }
 
-  /** The players' palette group colour factor (win / survival result screens halve it), 1 = none. */
-  playersMul = 1;
   /** Vertical camera shift of the EnvShake, in whole stage units (GameVars.camera_y_base). */
   shakeBase = 0;
   /** Camera_UpdateCrop: stage rows cut at the top / bottom of a screen of another height (crop_top / crop_bottom). */
