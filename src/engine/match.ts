@@ -259,7 +259,7 @@ export class Match {
     world.overHitTime = cfg.overHitTime;
     world.roundsWon = () => this.wins;
     world.resetWinIcons();
-    this.clock = cfg.roundSeconds < 0 ? -1 : (cfg.roundSeconds + 1) * cfg.framesPerCount - 1;
+    this.clock = this.roundStartClock();
     const mk = (t: number): TeamState => {
       const plan = opts.teams?.[t];
       const mode = plan?.mode ?? 'single';
@@ -458,7 +458,7 @@ export class Match {
     // Camera_Reset: the edges back at the start position; camera_mode 0.
     w.camEdges = undefined;
     w.cameraMode = 0;
-    this.clock = this.cfg.roundSeconds < 0 ? -1 : (this.cfg.roundSeconds + 1) * this.cfg.framesPerCount - 1;
+    this.clock = this.roundStartClock();
     this.phase = 'wait';
     this.phaseTime = 0;
     this.announce = undefined;
@@ -470,6 +470,12 @@ export class Match {
   }
 
   /** Advance one tick: returns true if the world should simulate this tick. */
+  /** Round_Reset: (time + 1) * framespercount - 1, or no time limit (-1) in survival. */
+  private roundStartClock(): number {
+    if (this.cfg.roundSeconds < 0 || this.opts.survivalSide !== undefined) return -1;
+    return (this.cfg.roundSeconds + 1) * this.cfg.framesPerCount - 1;
+  }
+
   /** inputs: the human pads' bits per world player (the intro skip). */
   tick(inputs?: readonly number[]): boolean {
     // Frames shown before this one (mugen.exe counts at the end of a frame).
