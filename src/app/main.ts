@@ -360,12 +360,12 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
   const maxMatches = size > 1 || theirs.mode !== 'single' ? roster.teamMaxMatches : roster.arcadeMaxMatches;
   const order = session.arcadeOrder(pool, maxMatches, size).map((x) => x.c);
   let human: TeamSide = { mode: mine.mode, picks: mine.picks, pads: padsOf(mine, 0) };
-  // Gameflow state 9: before the first match, the intro storyboard of the
-  // arcade side's first character.
-  const lead = mine.picks[0]?.char;
-  await storyboard(lead?.data?.def.arcade.intro, lead?.data?.dir ?? '');
   for (let n = 0, match = 1; n + size <= order.length; n += size, match++) {
     const opp: TeamSide = { mode: theirs.mode, picks: cpuPicks(order.slice(n, n + size)), pads: new Array(size).fill(undefined) };
+    // Gameflow state 9: before match 1 (again after continuing it), the
+    // intro storyboard of the arcade side's first character.
+    const lead = human.picks[0]?.char;
+    if (match === 1) await storyboard(lead?.data?.def.arcade.intro, lead?.data?.dir ?? '');
     await until(new VersusScreen(ctx, human.picks[0]!, opp.picks[0]!, match));
     // Player_GetAiLevel: the team ramp against a simul / turns team, else the arcade one, by the matches before.
     const ramp = theirs.mode !== 'single' || size > 1 ? 'team' : 'arcade';
@@ -443,13 +443,15 @@ async function runMode(mode: GameMode): Promise<void> {
     }
     if (mode === 'arcade') {
       const chosen = sel.p1.char;
-      await storyboard(chosen.data?.def.arcade.intro, chosen.data?.dir ?? '');
       // 0x40a370: shuffled roster by order, the player's character included.
       const pool = rosterChars.filter((c) => c.data).map((c) => ({ c, order: c.entry.order }));
       const opponents = session.arcadeOrder(pool, roster.arcadeMaxMatches).map((x) => x.c);
       for (let n = 1; n <= opponents.length; n++) {
         const oc = opponents[n - 1]!;
         const opp: Pick = { char: oc, pal: session.opponentPalette((i) => !!oc.data?.palettes?.[i]) };
+        // Gameflow state 9: the intro storyboard before match 1, again after
+        // continuing it (arcade_match stays 1).
+        if (n === 1) await storyboard(sel.p1.char.data?.def.arcade.intro, sel.p1.char.data?.dir ?? '');
         await until(new VersusScreen(ctx, sel.p1, opp, n));
         const res = await until<{ winner: number | undefined; quote?: string }>(await loading(() => fight(mode, sel.p1, opp, undefined, () => rampedAiLevel('arcade', n - 1))));
         if (res.winner !== 0) {
