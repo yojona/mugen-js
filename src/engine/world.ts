@@ -125,6 +125,8 @@ export class World {
   /** Players' x-range in the stage, and minimum distance to the screen edges. */
   leftBound = -1000;
   rightBound = 1000;
+  /** Training mode (team_variant 3): KO recovery and refills (Player_Update). */
+  training = false;
   screenLeft = 15;
   screenRight = 15;
   /** Stage autoturn: ChangeState turns a player with control towards the enemy. */

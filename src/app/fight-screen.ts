@@ -79,7 +79,6 @@ export class FightScreen implements Screen {
   private fade = new Fader(0, 2);
   /** Training dummy settings, changed with keys 1-5. */
   private dummy: DummySettings = { stance: 0, guard: false, distance: 0, jumpDistance: 0, button: 0 };
-  private idle = [0, 0];
 
   constructor(
     private ctx: AppContext,
@@ -94,6 +93,7 @@ export class FightScreen implements Screen {
     w.screenHeight = Math.floor((mh * w.screenWidth) / mw + 0.5);
     w.updateCrop(s.stage.info.localCoord[1], s.stage.info.camera.cutHigh, s.stage.info.camera.cutLow, s.stage.info.camera.overdrawLow);
     w.fightFx = s.fightFx;
+    w.training = s.training;
     if (s.seed !== undefined) w.seed = s.seed;
     // The survival result screen continues the match's scene (Result_Setup
     // loads_match): it follows a frame sooner (measured: 212 frames after
@@ -194,7 +194,6 @@ export class FightScreen implements Screen {
     for (const [g, n] of m.sounds) this.ctx.mixer.play(this.s.hud.snd?.get(g, n));
     this.ctx.mixer.run(w.sounds, (owner, g, n) => (owner ? owner.prog.data.snd : this.s.commonSnd)?.get(g, n));
     w.sounds.length = 0;
-    if (this.s.training) this.refillLife();
     if (m.finished && !this.fade.fadingOut) {
       this.saveRecords();
       this.pendingResult = { winner: m.winner ? m.winner.side : -1, quote: m.winner ? pickVictoryQuote(m.winner) : undefined, wins: [...m.wins] };
@@ -244,15 +243,6 @@ export class FightScreen implements Screen {
   private saveRecords(): void {
     this.restoreHelp();
     for (const p of this.world.players) p.recorder?.saveToCharacter();
-  }
-
-  /** Training mode: life refills once a combo is over. */
-  private refillLife(): void {
-    this.world.players.forEach((p, i) => {
-      this.idle[i] = p.moveType === 'h' ? 0 : this.idle[i]! + 1;
-      if (this.idle[i] === 60) p.life = p.lifeMax;
-      p.power = p.const('data.power');
-    });
   }
 
   draw(): void {

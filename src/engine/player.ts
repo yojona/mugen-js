@@ -1431,11 +1431,10 @@ export class Player {
       if (this.moveGuarded) this.moveGuarded++;
       if (this.moveReversed) this.moveReversed++;
     }
-    if (this.freshState) {
-      this.freshState = false;
-      return;
-    }
-    this.time++;
+    if (this.freshState) this.freshState = false;
+    else this.time++;
+    this.idleTime = this.moveType === 'i' ? this.idleTime + 1 : 0;
+    if (this.world.training && !this.isHelper) this.trainingRefill();
   }
   private freshState = false;
 }
@@ -1448,6 +1447,29 @@ export type { ControllerDef };
  * from victory1; victory0 only comes up by wrapping around).
  */
 export function pickVictoryQuote(p: Player): string | undefined {
+  /** idle_time: updates spent in movetype I. */
+  idleTime = 0;
+
+  /**
+   * Training (Player_Update, team_variant 3): a KO'd player gets up after 90
+   * ticks lying in 5150 (the state number moves straight to 5120, life
+   * full); power refills after 30 idle updates and life after 60.
+   */
+  private trainingRefill(): void {
+    if (this.stateNo === 5150 && this.time >= 90) {
+      this.stateNo = 5120;
+      this.time = 0;
+      this.persist.clear();
+      this.pendingEntry = true;
+      this.freshState = true;
+      this.life = this.lifeMax;
+      this.alive = true;
+    }
+    const leader = this.powerLeader ?? this;
+    const max = leader.const('data.power');
+    if (this.idleTime > 30 && this.power < max) this.power = max;
+    if (this.idleTime > 60 && this.life < this.lifeMax) this.life = this.lifeMax;
+  }
   const quotes = p.prog.quotes;
   const count = quotes.filter((x) => x !== undefined).length;
   if (count === 0) return undefined;
