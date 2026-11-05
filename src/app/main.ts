@@ -710,6 +710,8 @@ function makeFlowHarness() {
   };
   // ?dumpexplods=from:to logs the fight's explods (action, element, position, owner).
   const [exFrom, exTo] = (params.get('dumpexplods') ?? '-1:-1').split(':').map(Number) as [number, number];
+  const [cmFrom, cmTo] = (params.get('dumpcmds') ?? '-1:-1').split(':').map(Number) as [number, number];
+  const commandLabel = (n: string) => (/^[\x20-\x7e]+$/.test(n) ? n : [...n].map((c) => c.charCodeAt(0).toString(16)).join(''));
   const [rtFrom, rtTo] = (params.get('randtrace') ?? '-1:-1').split(':').map(Number) as [number, number];
   if (rtFrom >= 0) {
     const orig = World.prototype.random;
@@ -748,6 +750,11 @@ function makeFlowHarness() {
       if (s instanceof FightScreen && seedFrom >= 0 && frame >= seedFrom && frame <= seedTo) console.log(`SEED|${frame}|${s.world.seed}|${s.world.players.map((p) => `${p.stateNo}/${p.time} y${p.pos.y.toFixed(2)} vy${p.vel.y.toFixed(3)} pal${p.palNo}${p.ctrl ? ' c' : ''}`).join(' ')}`);
       // ?dumpsuper logs the frames a darkening SuperPause runs.
       if (s instanceof FightScreen && params.get('dumpsuper') && s.world.darkened) console.log(`DBG|${frame}|superpause owner=${s.world.superPause!.owner.slotNo}`);
+      // ?dumpcmds=from:to logs each player's active commands and the AI's injected indices.
+      if (s instanceof FightScreen && frame >= cmFrom && frame <= cmTo) {
+        console.log(`DBG|${frame}|flags ${[...s.world.assertFlags].join(',')} helpers ${s.world.helpers.map((h) => `${h.root.slotNo}:${h.helperId}:${h.stateNo}/${h.time}`).join(' ')}`);
+        for (const p of s.world.players) console.log(`DBG|${frame}|cmds P${p.slotNo} state=${p.stateNo} ai=${p.ai?.cmds.join(',') ?? ''} active=${[...(p.cmdInput?.active() ?? [])].map((n) => commandLabel(n)).join(' ')} write=${p.cmdInput?.debugWrite} queue=${(p.cmdInput?.debugQueue(14) ?? []).map(([k, t, h]) => `${k.toString(16)}@${t}/${h}`).join(' ')}`);
+      }
       if (s instanceof FightScreen && frame >= exFrom && frame <= exTo) {
         for (const e of s.world.explods) console.log(`DBG|${frame}|explod ${e.anim.current?.group},${e.anim.current?.number} common=${e.common} x=${e.x.toFixed(1)} y=${e.y.toFixed(1)} age=${e.age} scale=${e.drawScale} owner=${e.owner?.slotNo}`);
       }
