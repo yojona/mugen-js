@@ -6,13 +6,14 @@ import { BUTTONS } from './input';
 import { fader, MotifBackground, motifSound, type AppContext, type Screen } from './screen';
 
 export type GameMode = 'arcade' | 'versus' | 'teamarcade' | 'teamversus' | 'teamcoop' | 'survival' | 'survivalcoop' | 'training' | 'watch';
+/** An item of the title menu: a mode, or the options screen / exit (Title_Run: GAMEFLOW_OPTIONS, GAMEFLOW_EXIT). */
+export type TitleChoice = GameMode | 'options' | 'exit';
 
 /**
  * Menu items in MUGEN's order (motif.c title_item_keys) with the names used
  * when [Title Info] has no menu.itemname.<key> (title_item_defaults).
- * Options and exit are not modes of this engine.
  */
-const ITEMS: { key: GameMode; name: string }[] = [
+export const TITLE_ITEMS: { key: TitleChoice; name: string }[] = [
   { key: 'arcade', name: 'Arcade' },
   { key: 'versus', name: 'VS Mode' },
   { key: 'teamarcade', name: 'Team Arcade' },
@@ -22,17 +23,19 @@ const ITEMS: { key: GameMode; name: string }[] = [
   { key: 'survivalcoop', name: 'Survival Co-op' },
   { key: 'training', name: 'Training' },
   { key: 'watch', name: 'Watch' },
+  { key: 'options', name: 'Options' },
+  { key: 'exit', name: 'Exit' },
 ];
 
 export class TitleScreen implements Screen {
   /** A mode, or 'demo' after [Demo Mode] title.waittime idle ticks. */
-  result: GameMode | 'demo' | undefined;
+  result: TitleChoice | 'demo' | undefined;
   private bg: MotifBackground;
   private fade;
-  private items: { name: string; mode: GameMode }[];
+  private items: { name: string; mode: TitleChoice }[];
   private cursor = 0;
   private scroll = 0;
-  private chosen: GameMode | 'demo' | undefined;
+  private chosen: TitleChoice | 'demo' | undefined;
   /** ScreenLoop.idle_ticks: ticks without a key. */
   private idle = 0;
 
@@ -42,7 +45,7 @@ export class TitleScreen implements Screen {
   ) {
     this.bg = new MotifBackground(ctx, 'title');
     this.fade = fader(ctx, 'Title Info');
-    this.items = ITEMS.map((i) => ({ name: this.v(`menu.itemname.${i.key}`)?.replace(/^"|"$/g, '') ?? i.name, mode: i.key })).filter((i) => i.name !== '');
+    this.items = TITLE_ITEMS.map((i) => ({ name: this.v(`menu.itemname.${i.key}`)?.replace(/^"|"$/g, '') ?? i.name, mode: i.key })).filter((i) => i.name !== '');
     this.cursor = Math.min(start, this.items.length - 1);
   }
 
@@ -54,7 +57,17 @@ export class TitleScreen implements Screen {
     this.bg.tick();
     this.fade.tick();
     if (this.fade.done && this.chosen) this.result = this.chosen;
-    if (this.fade.fadingOut) return;
+    if (this.fade.fadingOut) {
+      // Title_Update: escape skips the fade out.
+      if (this.ctx.keys.escape && this.chosen) this.result = this.chosen;
+      return;
+    }
+    // Title_Update: escape chooses EXIT (Title_Run returns GAMEFLOW_EXIT).
+    if (this.ctx.keys.escape) {
+      this.chosen = 'exit';
+      this.fade.fadeOut();
+      return;
+    }
     const pad = this.ctx.keys.pads[0]!;
     const n = this.items.length;
     // Title_Update: idle past [Demo Mode] title.waittime starts a demo fight.

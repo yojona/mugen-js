@@ -19,13 +19,14 @@ import { loadStage, type Stage } from '../stage/stage';
 import { FightScreen, type FightResult, type FightTeam } from './fight-screen';
 import type { TeamMode } from '../engine/match';
 import { ContinueScreen } from './continue';
-import { loadFont } from '../motif/font';
+import { loadFont, loadFontSized, type Font } from '../motif/font';
 import { Keyboard } from './input';
 import { VersusScreen, VictoryScreen } from './interstitial';
 import type { AppContext, Screen } from './screen';
 import { SelectScreen, type Pick, type RosterChar, type SelectResult, type TeamPick } from './select';
-import { TitleScreen, type GameMode } from './title';
+import { TitleScreen, TITLE_ITEMS, type GameMode, type TitleChoice } from './title';
 import { GameOptions } from './game-options';
+import { OptionsScreen, OPTIONS_GAME_SIZE, optionsFontHeight } from './options';
 import { loadStoryboard, StoryboardScreen } from './storyboard';
 import { SurvivalResultsScreen } from './results';
 
@@ -201,6 +202,12 @@ const commonSnd: Snd | undefined = await vfs.read(ff('common.snd', 'common.snd')
 
 // mugen.exe's system font for the continue screen (G+0x873c).
 const systemFont = await loadFont(vfs, 'font/f-6x9.def').catch(() => undefined);
+// Options_GetFont: font/options.def at a height that fits the game, else the medium font (f-6x9).
+let optionsFont: Font | undefined;
+async function getOptionsFont(): Promise<Font | undefined> {
+  optionsFont ??= await loadFontSized(vfs, 'font/options.def', optionsFontHeight(OPTIONS_GAME_SIZE[1])).catch(() => systemFont);
+  return optionsFont;
+}
 
 // The whole character (sprites, animations, sounds), loaded when picked.
 const fullChars = new Map<string, Promise<CharacterData>>();
@@ -552,7 +559,7 @@ async function mainLoop(): Promise<void> {
   await storyboard(motif.introStoryboard);
   let demoCycles = 0;
   for (;;) {
-    const mode = await until<GameMode | 'demo'>(new TitleScreen(ctx, menuPos));
+    const mode = await until<TitleChoice | 'demo'>(new TitleScreen(ctx, menuPos));
     if (mode === 'demo') {
       await runDemo();
       // Title_Init: back on Arcade after a demo; Demo_TickFight: after
@@ -565,7 +572,19 @@ async function mainLoop(): Promise<void> {
       }
       continue;
     }
-    menuPos = ['arcade', 'versus', 'teamarcade', 'teamversus', 'teamcoop', 'survival', 'survivalcoop', 'training', 'watch'].indexOf(mode);
+    // Title_End: the chosen item stays the cursor's (GameVars.game_mode).
+    menuPos = TITLE_ITEMS.findIndex((i) => i.key === mode);
+    if (mode === 'exit') {
+      // Title_Run: GAMEFLOW_EXIT quits mugen.exe; the page starts afresh.
+      location.reload();
+      return;
+    }
+    if (mode === 'options') {
+      // Gameflow state 5: Options_Run, then the title again.
+      const font = await loading(getOptionsFont);
+      if (font) await until(new OptionsScreen(ctx, font, gameOptions));
+      continue;
+    }
     arcadeEnd = undefined;
     await runMode(mode);
     // Gameflow 14 (game over: [Game Over Screen] storyboard) or 19 (after
