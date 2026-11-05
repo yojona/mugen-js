@@ -183,7 +183,7 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
       vel: [(prm.num(p, 'vel', 0) ?? 0) * k, (prm.num(p, 'vel', 1) ?? 0) * k],
       velDir: facing * faceParam,
       accel: [(prm.num(p, 'accel', 0) ?? 0) * k, (prm.num(p, 'accel', 1) ?? 0) * k],
-      drawScale: anim.common ? 1 : k,
+      drawScale: anim.common ? p.world.fightFxScale : k,
       removeTime: prm.int(p, 'removetime') ?? -2,
       age: 0,
       scale: [prm.num(p, 'scale', 0) ?? 1, prm.num(p, 'scale', 1) ?? 1],
@@ -326,7 +326,7 @@ export function simpleExplod(p: P, a: Animation, common: boolean, x: number, y: 
   return {
     owner: p, id: -1, anim: new AnimPlayer(a), common, space: 'stage', x, y, facing, vfacing: 1, bindTo: undefined, bindTime: 0, bindOffset: [0, 0],
     vel: [0, 0], velDir: facing, accel: [0, 0], removeTime: -2, age: 0, scale: [1, 1], angle: 0, sprPriority, onTop: false, ownPal: true, removeOnGetHit: false,
-    ignoreHitPause: true, trans: undefined, superMoveTime: 0, pauseMoveTime: 0, drawScale: common ? 1 : p.scale,
+    ignoreHitPause: true, trans: undefined, superMoveTime: 0, pauseMoveTime: 0, drawScale: common ? p.world.fightFxScale : p.scale,
   };
 }
 

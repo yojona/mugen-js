@@ -15,6 +15,10 @@ import type { Player } from './player';
 export interface FightFx {
   anims: AnimationMap;
   sff: Sff;
+  /** fight.def [FightFx] scale (default 1). */
+  scale?: number;
+  /** The motif's localcoord width: fightfx sprites are in motif pixels. */
+  motifWidth?: number;
 }
 
 interface PauseState {
@@ -125,6 +129,14 @@ export class World {
   /** Players' x-range in the stage, and minimum distance to the screen edges. */
   leftBound = -1000;
   rightBound = 1000;
+  /**
+   * Stage units per fightfx sprite pixel: mugen.exe draws sparks, dust and
+   * fightfx explods at fightfx_scale * motif_scale game pixels.
+   */
+  get fightFxScale(): number {
+    const f = this.fightFx;
+    return ((f?.scale ?? 1) * this.localWidth) / (f?.motifWidth ?? 320);
+  }
   /** Training mode (team_variant 3): KO recovery and refills (Player_Update). */
   training = false;
   screenLeft = 15;

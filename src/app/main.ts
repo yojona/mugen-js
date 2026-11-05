@@ -184,6 +184,8 @@ const fightDir = motif.fightDef.replace(/\/[^/]*$/, '');
 const fightFx: FightFx = {
   anims: parseAir(await vfs.text(ff('fightfx.air', 'fightfx.air'), fightDir, 'data')),
   sff: await parseSff(await vfs.read(ff('fightfx.sff', 'fightfx.sff'), fightDir, 'data')),
+  scale: parseFloat(getValue(findSection(fightDoc, 'FightFx'), 'scale') ?? '1') || 1,
+  motifWidth: motif.localCoord[0],
 };
 const commonSnd: Snd | undefined = await vfs.read(ff('common.snd', 'common.snd'), fightDir, 'data').then(parseSnd).catch(() => undefined);
 
