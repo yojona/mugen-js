@@ -98,7 +98,7 @@ export interface HitDefData {
   getPower: [number, number];
   givePower: [number, number];
   /** PalFX applied to P2 on hit. */
-  palFx: { time: number; mul: [number, number, number]; add: [number, number, number]; color: number; invertAll: boolean } | undefined;
+  palFx: { time: number; mul: [number, number, number]; add: [number, number, number]; sinAdd: [number, number, number]; sinPeriod: number; color: number; invertAll: boolean } | undefined;
   envShake: { time: number; freq: number; ampl: number; phase: number } | undefined;
   fallEnvShake: { time: number; freq: number; ampl: number; phase: number } | undefined;
   /** Juggle points this hit costs on an airborne opponent (statedef juggle + air.juggle). */
@@ -321,7 +321,7 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
     const guardCornerPush = n('guard.cornerpush.veloff') ?? groundCornerPush;
 
     return {
-      palFx: palTime !== 0 ? { time: palTime, mul: local3('palfx.mul', [256, 256, 256]), add: local3('palfx.add', [0, 0, 0]), color: n('palfx.color') ?? 256, invertAll: (ni('palfx.invertall') ?? 0) !== 0 } : undefined,
+      palFx: palTime !== 0 ? { time: palTime, mul: local3('palfx.mul', [256, 256, 256]), add: local3('palfx.add', [0, 0, 0]), sinAdd: local3('palfx.sinadd', [0, 0, 0]), sinPeriod: ni('palfx.sinadd', 3) ?? 0, color: n('palfx.color') ?? 256, invertAll: (ni('palfx.invertall') ?? 0) !== 0 } : undefined,
       envShake: shake('envshake'),
       fallEnvShake: shake('fall.envshake'),
       // A projectile's juggle cost (players use their statedef juggle).

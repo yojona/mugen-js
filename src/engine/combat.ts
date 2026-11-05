@@ -757,7 +757,7 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
       g['fall.envshake.phase'] = hd.fallEnvShake.phase;
     }
     if (hd.envShake) world.envShake = makeEnvShake(hd.envShake.time, hd.envShake.freq, hd.envShake.ampl, hd.envShake.phase, a.scale * (world.gameWidth / world.screenWidth));
-    if (hd.palFx) d.palFx = { time: hd.palFx.time, elapsed: 0, add: hd.palFx.add, mul: hd.palFx.mul, sinAdd: [0, 0, 0], sinPeriod: 0, invertAll: hd.palFx.invertAll, color: hd.palFx.color };
+    if (hd.palFx) d.palFx = { time: hd.palFx.time, elapsed: 0, add: hd.palFx.add, mul: hd.palFx.mul, sinAdd: hd.palFx.sinAdd, sinPeriod: hd.palFx.sinPeriod, invertAll: hd.palFx.invertAll, color: hd.palFx.color };
     g.chainid = hd.id;
     d.ghvAttacker = a;
     d.ghvAttr = hitDefAttrBits(hd.attrState, hd.attrType);
