@@ -76,7 +76,7 @@ export async function peekMatch(o: PeekOptions): Promise<string[]> {
     m = new Match(w, hud.roundConfig(), [
       { x: stage.info.p1.x, y: stage.info.p1.y, facing: stage.info.p1.facing },
       { x: stage.info.p2.x, y: stage.info.p2.y, facing: stage.info.p2.facing },
-    ]);
+    ], { quickVs: true });
   }
   w.seed = o.seed;
   const lines: string[] = [];

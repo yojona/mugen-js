@@ -112,6 +112,8 @@ export interface MatchOptions {
   loseOnKo?: boolean;
   /** Quick VS (command line): no life multiplier between unequal teams. */
   quickVs?: boolean;
+  /** Quick VS -rounds: the wins needed in place of match.wins (1000000 without it: endless). */
+  rounds?: number;
   /**
    * Survival: the human side; the other side's plan spawns a new random
    * team for every member number (Team_Randomize after each round).
@@ -212,7 +214,7 @@ export class Match {
         slots: mode === 'simul' ? Math.min(2, plan!.count) : 1,
         cur: 0,
         lifeMul: 1,
-        winsNeeded: cfg.matchWins,
+        winsNeeded: opts.quickVs ? (opts.rounds ?? 1000000) : cfg.matchWins,
         drawsMax: cfg.maxDrawGames,
         lifeReset: true,
         recoveryBase: 0,
