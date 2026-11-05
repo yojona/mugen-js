@@ -266,20 +266,36 @@ export class FightScreen implements Screen {
       const top = w.groundY - w.camera.y;
       r.view = { s: zv.scale, ox: (W / 2) * (1 - zv.scale) - (zv.shakeX / k) * zv.scale, oy: top * (1 - zv.scale) - (zv.shakeY / k) * zv.scale };
     }
+    const [mw, mh] = this.ctx.motif.localCoord;
+    const showBars = (!this.s.demo || this.s.demo.bars) && !w.globalFlag('nobardisplay');
+    // The HUD draws in motif coordinates between the stage's sprites.
+    const inMotif = (f: () => void) => {
+      const view = r.view;
+      r.view = { s: 1, ox: 0, oy: 0 };
+      r.setProjection(mw, mh);
+      f();
+      r.view = view;
+      r.setProjection(W, H);
+    };
     drawScene(r, w, {
       background: () => {
         drawStageLayer(r, this.bg, w.camera, 0, W, H, -(w.shakeBase + w.cropTop));
         drawOverdrawBars(r, w, this.s.stage.info.camera.overdrawLow, this.s.stage.info.camera.overdrawHigh);
       },
       foreground: () => drawStageLayer(r, this.bg, w.camera, 1, W, H, -(w.shakeBase + w.cropTop)),
+      hud: (layer) => {
+        if (showBars) inMotif(() => {
+          // The HUD's palette group (0x200) darkens with the stage in a SuperPause.
+          r.tint = w.darkened ? DARKEN_BG : undefined;
+          this.s.hud.drawLayer(r, this.match, layer);
+          r.tint = undefined;
+        });
+      },
+      systemElements: () => inMotif(() => this.s.hud.drawAnnouncements(r, this.match)),
     });
     r.view = { s: 1, ox: 0, oy: 0 };
-    const [mw, mh] = this.ctx.motif.localCoord;
     r.setProjection(mw, mh);
-    // The HUD's palette group (0x200) darkens with the stage in a SuperPause.
-    r.tint = w.darkened ? DARKEN_BG : undefined;
-    this.s.hud.draw(r, this.match, (!this.s.demo || this.s.demo.bars) && !w.globalFlag('nobardisplay'));
-    r.tint = undefined;
+    this.s.hud.drawCombos(r);
     const a = this.match.fadeAlpha;
     if (a > 0) r.rect(0, 0, mw, mh, [0, 0, 0, Math.round(a * 255)]);
     const bars = this.match.fadeBars;

@@ -212,19 +212,42 @@ export class FightHud {
   }
 
   /**
-   * bars false: no Fight_DrawHud (demo fights with [Demo Mode]
-   * fight.bars.display = 0), only combos and announcements. Fight_DrawHud
-   * draws each part for both sides before the next part: bar backgrounds,
-   * life bars, power bars and counters, turns teammate backgrounds, face
-   * backgrounds, faces (the last slot first), teammate faces and KO marks,
-   * names, the timer and the win icons.
+   * Fight_DrawHud(layer): each part for both sides before the next part: bar
+   * backgrounds, life bars, power bars and counters, turns teammate
+   * backgrounds, every face background, the faces (the last slot first),
+   * teammate faces and KO marks, names, the timer and the win icons, only
+   * the elements of that layerno. Layer 0 is drawn before Lifebars_Tick and
+   * so shows the bars' previous values.
    */
-  draw(r: Renderer, m: Match, bars = true): void {
-    if (!bars) {
-      for (let side = 0; side < 2; side++) this.drawCombo(r, side);
-      this.drawAnnounce(r, m);
-      return;
-    }
+  drawLayer(r: Renderer, m: Match, layer: number): void {
+    ElementInstance.layerFilter = layer;
+    this.layer = layer;
+    this.drawHudParts(r, m);
+    ElementInstance.layerFilter = undefined;
+  }
+
+  /** The bars' values for the layer being drawn. */
+  private barValues(m: Match, i: number): FightHud['shown'][number] | undefined {
+    if (this.layer === 0) return this.shown[i];
+    const p = m.world.slot(i + 1);
+    if (!p) return undefined;
+    const leader = m.world.slot((i % 2) + 1) ?? p;
+    return { life: p.lifebarLife, red: p.lifebarRed, max: p.lifeMax, power: p.powerbarPower, powerMax: leader.const('data.power') };
+  }
+
+  /** The announcements, system elements drawn after the stage's front layer. */
+  drawAnnouncements(r: Renderer, m: Match): void {
+    this.drawAnnounce(r, m);
+  }
+
+  /** Combo_Draw, after everything else. */
+  drawCombos(r: Renderer): void {
+    for (let side = 0; side < 2; side++) this.drawCombo(r, side);
+  }
+
+  private layer = 0;
+
+  private drawHudParts(r: Renderer, m: Match): void {
     const w = m.world;
     const sides = [0, 1].map((side) => {
       const kind = this.sideKind(m, side);
@@ -246,18 +269,18 @@ export class FightHud {
     }
     for (const sd of sides) {
       for (const i of sd.slots) {
-        const v = this.shown[i];
+        const v = this.barValues(m, i);
         if (w.slot(i + 1) && v) this.drawGauge(r, this.lifeSets[sd.kind][i]!, v.life, v.max, v.red);
       }
     }
     for (const k of ['bg0', 'bg1'] as const) for (const sd of sides) this.power[sd.side]![k]?.draw(r, this.power[sd.side]!.pos[0], this.power[sd.side]!.pos[1]);
     for (const sd of sides) {
-      const v = this.shown[sd.side];
+      const v = this.barValues(m, sd.side);
       if (w.slot(sd.side + 1) && v) this.drawGauge(r, this.power[sd.side]!, v.power, v.powerMax, undefined);
     }
     for (const sd of sides) {
       const pb = this.power[sd.side]!;
-      const v = this.shown[sd.side];
+      const v = this.barValues(m, sd.side);
       if (w.slot(sd.side + 1) && v) pb.counter?.draw(r, pb.pos[0], pb.pos[1], String(Math.trunc(v.power / 1000)));
     }
     for (const sd of sides) if (sd.kind === 'turns') this.drawTeammates(r, m, sd.side, sd.faceSec, 'bg');
@@ -280,8 +303,6 @@ export class FightHud {
     }
     this.drawClock(r, m);
     for (const sd of sides) this.drawWinIcons(r, m, sd.side);
-    for (const sd of sides) this.drawCombo(r, sd.side);
-    this.drawAnnounce(r, m);
   }
 
   /** Turns: the members still waiting (small faces) and a KO mark on those beaten. */
@@ -413,7 +434,7 @@ export class FightHud {
     }
     if (!data) return;
     const face = parseElement(sec, `${pre}.face`);
-    if (face?.spr) {
+    if (face?.spr && face.layer === this.layer) {
       const s = data.sff.get(face.spr[0], face.spr[1]);
       if (s) {
         // Character sprites are in the character's coordinate space.

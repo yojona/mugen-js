@@ -132,7 +132,11 @@ function draw(): void {
     background: () => drawStageLayer(renderer, bg, world.camera, 0, W, H),
     foreground: () => drawStageLayer(renderer, bg, world.camera, 1, W, H),
   });
-  if (match && hud) hud.draw(renderer, match);
+  if (match && hud) {
+    for (const layer of [0, 1, 2]) hud.drawLayer(renderer, match, layer);
+    hud.drawAnnouncements(renderer, match);
+    hud.drawCombos(renderer);
+  }
   else drawLifebars();
   playSounds();
   const f = (n: number) => n.toFixed(2);

@@ -67,6 +67,8 @@ export interface ElementAssets {
 
 /** A live element instance (animations keep their own time). */
 export class ElementInstance {
+  /** SysElem_DrawFight's layer: only elements of this layerno draw while set. */
+  static layerFilter: number | undefined;
   private anim: AnimPlayer | undefined;
   constructor(
     readonly def: ElementDef,
@@ -93,6 +95,7 @@ export class ElementInstance {
   /** Draw at base (x, y); `text` overrides the def's text (with %s / %i already substituted). */
   draw(r: Renderer, x: number, y: number, text?: string): void {
     const d = this.def;
+    if (ElementInstance.layerFilter !== undefined && d.layer !== ElementInstance.layerFilter) return;
     const px = x + d.offset[0];
     const py = y + d.offset[1];
     if (this.anim) {

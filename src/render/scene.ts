@@ -21,6 +21,10 @@ export interface SceneOptions {
   background?: () => void;
   /** Called after all sprites (stage layer 1). */
   foreground?: () => void;
+  /** Fight_DrawHud(layer): 0 before the shadows and sprites, 1 after the sprites, 2 after the ontop explods. */
+  hud?: (layer: number) => void;
+  /** The system elements (announcements), after the stage's front layer. */
+  systemElements?: () => void;
 }
 
 /** SuperPause darken multipliers (Game_Tick): stage / HUD / fightfx, and the other players. */
@@ -55,6 +59,10 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
   if (!env) {
     // Game_Draw: AssertSpecial nobg leaves the cleared screen, globalnoshadow no shadows.
     if (!w.globalFlag('nobg')) tinted(dimBg, () => opts.background?.());
+  }
+  // Fight_DrawHud(0): in front of the background, behind the players.
+  opts.hud?.(0);
+  if (!env) {
     if (!w.globalFlag('globalnoshadow')) drawShadows(r, w, sx, sy);
   } else if (env.time > 0 && env.under) envFill();
 
@@ -113,9 +121,12 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
 
   list.sort((a, b) => a.priority - b.priority || b.order - a.order);
   for (const d of list) d.draw();
+  opts.hud?.(1);
   if (!w.globalFlag('nofg')) tinted(dimBg, () => opts.foreground?.());
+  opts.systemElements?.();
   if (env && env.time > 0 && !env.under) envFill();
   for (const d of top) d.draw();
+  opts.hud?.(2);
 
   function drawPlayer(p: Player): void {
     const v = p.anim.view();
