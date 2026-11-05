@@ -23,6 +23,10 @@ export interface SceneOptions {
   foreground?: () => void;
 }
 
+/** SuperPause darken multipliers (Game_Tick): stage / HUD / fightfx, and the other players. */
+export const DARKEN_BG: [number, number, number] = [80 / 256, 80 / 256, 128 / 256];
+const DARKEN_PLAYER: [number, number, number] = [128 / 256, 128 / 256, 192 / 256];
+
 export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void {
   const camLeft = w.camera.x - w.screenWidth / 2;
   // EnvShake: the camera moves by whole stage units (camera_y_base); a
@@ -37,9 +41,19 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
   // over everything but the on-top layer.
   const env = w.envColor;
   const envFill = () => env && r.rect(0, 0, w.screenWidth, w.screenHeight, [env.rgb[0], env.rgb[1], env.rgb[2], 255]);
+  // Game_Tick: a SuperPause with darken scales the palette groups of the
+  // stage, the HUD and fightfx (mask 0xB00) by 80/256 (blue 128/256) and
+  // every player's but the pauser's by 1/2 (blue 3/4).
+  const pauser = w.darkened ? w.superPause!.owner : undefined;
+  const dimBg = pauser ? DARKEN_BG : undefined;
+  const dimOf = (owner: Player | undefined): [number, number, number] | undefined => (pauser && owner !== pauser ? DARKEN_PLAYER : undefined);
+  const tinted = (t: [number, number, number] | undefined, f: () => void) => {
+    r.tint = t;
+    f();
+    r.tint = undefined;
+  };
   if (!env) {
-    opts.background?.();
-    if (w.darkened) r.rect(0, 0, w.screenWidth, w.screenHeight, [0, 0, 0, 110]);
+    tinted(dimBg, () => opts.background?.());
     drawShadows(r, w, sx, sy);
   } else if (env.time > 0 && env.under) envFill();
 
@@ -51,44 +65,54 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
     r.draw({ sprite: s, palette, x, y, scaleX, scaleY, angle, blend, palfx });
   };
 
-  for (const p of w.allPlayers()) {
-    // Afterimages sit just behind their player.
-    for (const ai of afterImageDraws(p.afterImage)) {
-      const f = ai.frame;
-      list.push({
-        priority: p.sprPriority - 0.5,
-        order: order++,
-        draw: () => sprite(f.sprite, f.palette, sx(f.x), sy(f.y), f.scaleX, f.scaleY, f.angle, p.afterImage.blend, { add: ai.add, mul: ai.mul, color: ai.color, invertAll: ai.invertAll }),
-      });
-    }
+  // Game_Draw queues the players (first to last), the projectiles (last to
+  // first), the explods (slot order) and the afterimages (last to first);
+  // SpriteQueue_Add puts an item before the queued items of its layer, so
+  // among equal priorities the later one is drawn first (below).
+  const players = w.allPlayers();
+  for (const p of players) {
     if (p.special.has('invisible')) continue;
-    list.push({ priority: p.sprPriority, order: order++, draw: () => drawPlayer(p) });
+    list.push({ priority: p.sprPriority, order: order++, draw: () => tinted(dimOf(p), () => drawPlayer(p)) });
   }
 
-  for (const pr of w.projectiles) {
+  for (const pr of [...w.projectiles].reverse()) {
     if (pr.phase === 'dead' || pr.phase === 'removing') continue;
     list.push({
       priority: pr.sprPriority,
       order: order++,
-      draw: () => {
+      draw: () => tinted(dimOf(pr.owner), () => {
         const v = pr.anim.view();
         if (!v || v.element.group < 0) return;
         const o = pr.owner;
         const s = o.prog.data.sff.get(v.element.group, v.element.number);
         sprite(s, s ? o.prog.data.paletteFor(s, o.palRemap ?? o.palNo) : undefined, sx(pr.x + pr.facing * v.x * pr.scale[0]), sy(pr.y + v.y * pr.scale[1]), pr.facing * (v.element.flipH ? -1 : 1) * v.scaleX * pr.scale[0], (v.element.flipV ? -1 : 1) * v.scaleY * pr.scale[1], pr.facing * v.angle, v.blend, palFxUniforms(o.palFx));
-      },
+      }),
     });
   }
 
   for (const e of w.explods) {
-    const d: Drawable = { priority: e.sprPriority, order: order++, draw: () => drawExplod(e) };
+    const d: Drawable = { priority: e.sprPriority, order: order++, draw: () => tinted(e.common ? dimBg : dimOf(e.owner), () => drawExplod(e)) };
     if (e.onTop || e.space === 'screen') top.push(d);
     else list.push(d);
   }
 
-  list.sort((a, b) => a.priority - b.priority || a.order - b.order);
+  for (const p of [...players].reverse()) {
+    // AfterImage_Draw queues the newest image first.
+    for (const ai of afterImageDraws(p.afterImage).reverse()) {
+      const f = ai.frame;
+      // The k-th newest image sits at min(its recorded layer, the
+      // player's) - 1 - k.
+      list.push({
+        priority: Math.min(f.layer, p.sprPriority) - 1 - ai.k,
+        order: order++,
+        draw: () => tinted(dimOf(p), () => sprite(f.sprite, f.palette, sx(f.x), sy(f.y), f.scaleX, f.scaleY, f.angle, p.afterImage.blend, { add: ai.add, mul: ai.mul, color: ai.color, invertAll: ai.invertAll })),
+      });
+    }
+  }
+
+  list.sort((a, b) => a.priority - b.priority || b.order - a.order);
   for (const d of list) d.draw();
-  opts.foreground?.();
+  tinted(dimBg, () => opts.foreground?.());
   if (env && env.time > 0 && !env.under) envFill();
   for (const d of top) d.draw();
 

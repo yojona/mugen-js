@@ -10,7 +10,7 @@ import { pickVictoryQuote, Player, type CharacterProgram } from '../engine/playe
 import { World, type FightFx } from '../engine/world';
 import type { FightHud } from '../motif/fight';
 import type { Renderer } from '../render/renderer';
-import { drawScene } from '../render/scene';
+import { DARKEN_BG, drawScene } from '../render/scene';
 import { drawOverdrawBars, drawStageLayer } from '../render/stage-draw';
 import { StageRuntime, type Stage } from '../stage/stage';
 import type { Snd } from '../formats/snd';
@@ -270,7 +270,10 @@ export class FightScreen implements Screen {
     r.view = { s: 1, ox: 0, oy: 0 };
     const [mw, mh] = this.ctx.motif.localCoord;
     r.setProjection(mw, mh);
+    // The HUD's palette group (0x200) darkens with the stage in a SuperPause.
+    r.tint = w.darkened ? DARKEN_BG : undefined;
     this.s.hud.draw(r, this.match, !this.s.demo || this.s.demo.bars);
+    r.tint = undefined;
     const a = this.match.fadeAlpha;
     if (a > 0) r.rect(0, 0, mw, mh, [0, 0, 0, Math.round(a * 255)]);
     const bars = this.match.fadeBars;

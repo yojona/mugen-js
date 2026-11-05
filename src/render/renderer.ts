@@ -165,6 +165,12 @@ export class Renderer {
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
   }
 
+  /**
+   * A palette group multiplier applied on top of every draw's PalFX mul
+   * while set (a SuperPause's darkening).
+   */
+  tint: [number, number, number] | undefined;
+
   /** Output pixels per game unit (the view's zoom included). */
   deviceScale(): [number, number] {
     return [(this.canvas.width / this.width) * this.view.s, (this.canvas.height / this.height) * this.view.s];
@@ -292,7 +298,8 @@ export class Renderer {
     gl.uniform1i(this.u.uMask!, p.mask === false ? 0 : 1);
     const fx = p.palfx ?? NO_PALFX;
     gl.uniform3fv(this.u.uAdd!, fx.add);
-    gl.uniform3fv(this.u.uMul!, fx.mul);
+    const t = this.tint;
+    gl.uniform3fv(this.u.uMul!, t ? [fx.mul[0] * t[0], fx.mul[1] * t[1], fx.mul[2] * t[2]] : fx.mul);
     gl.uniform1f(this.u.uColorBal!, fx.color);
     gl.uniform1i(this.u.uInvertAll!, fx.invertAll ? 1 : 0);
 
