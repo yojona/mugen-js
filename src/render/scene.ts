@@ -146,8 +146,8 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
       s,
       s ? p.prog.data.paletteFor(s, p.palRemap ?? p.palNo) : undefined,
       // Player_Draw: a player shaking from a hit moves a 320th of the screen on odd ticks.
-      sx(p.clsnX + p.facing * v.x * k + (p.moveType === 'h' && p.ghv.hitshaketime > 0 ? (w.screenWidth / 320) * (p.time % 2) * p.facing : 0)),
-      sy(p.clsnY + v.y * k),
+      sx(p.clsnX + p.facing * v.x * k * ownerAnimScale(p)[0] + (p.moveType === 'h' && p.ghv.hitshaketime > 0 ? (w.screenWidth / 320) * (p.time % 2) * p.facing : 0)),
+      sy(p.clsnY + v.y * k * ownerAnimScale(p)[1]),
       p.facing * (v.element.flipH ? -1 : 1) * v.scaleX * p.drawScale[0] * p.const('size.xscale') * k,
       (v.element.flipV ? -1 : 1) * v.scaleY * p.drawScale[1] * p.const('size.yscale') * k,
       p.facing * angle,
@@ -180,6 +180,18 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
     const k = e.drawScale;
     sprite(s, palette, x + e.facing * v.x * k * e.scale[0], y + e.vfacing * v.y * k * e.scale[1], e.facing * (v.element.flipH ? -1 : 1) * v.scaleX * e.scale[0] * k, e.vfacing * (v.element.flipV ? -1 : 1) * v.scaleY * e.scale[1] * k, e.facing * (v.angle + e.angle), e.trans ?? v.blend, fx);
   }
+}
+
+/**
+ * Player_Draw: an element of the custom state owner's AIR has its offset in
+ * the owner's scale (the sprite itself stays in the player's).
+ */
+function ownerAnimScale(p: Player): [number, number] {
+  const o = p.animProg;
+  if (!o || o === p.prog || !p.stateOwner) return [1, 1];
+  const ro = p.world.localWidth / (o.data.def.localCoord[0] || 320);
+  const f = (name: string) => Math.fround((o.consts.get(name) ?? 1) * ro) / Math.fround(p.const(name) * p.scale);
+  return [f('size.xscale'), f('size.yscale')];
 }
 
 interface ShadowCaster {
@@ -263,8 +275,8 @@ function drawShadows(r: Renderer, w: World, sx: (x: number) => number, sy: (y: n
     castShadow(r, w, {
       sprite: s,
       palette: p.prog.data.paletteFor(s, p.palRemap ?? p.palNo),
-      x: sx(p.clsnX + p.facing * v.x * k),
-      y: sy(p.clsnY + v.y * k),
+      x: sx(p.clsnX + p.facing * v.x * k * ownerAnimScale(p)[0]),
+      y: sy(p.clsnY + v.y * k * ownerAnimScale(p)[1]),
       top: sy(p.const('size.shadowoffset') * k),
       height: p.pos.y,
       scaleX: p.facing * (v.element.flipH ? -1 : 1) * v.scaleX * p.drawScale[0] * p.const('size.xscale') * k,

@@ -17,6 +17,7 @@ const num = (v: string | undefined, d: number) => nums(v, [d])[0]!;
 export interface StageInfo {
   name: string;
   displayName: string;
+  author: string;
   mugenVersion: string;
   camera: {
     startX: number;
@@ -127,6 +128,7 @@ export async function loadStage(vfs: Vfs, defPath: string): Promise<Stage> {
   const stageInfo: StageInfo = {
     name,
     displayName: unquote(g(info, 'displayname') ?? name),
+    author: unquote(g(info, 'author') ?? ''),
     mugenVersion: g(info, 'mugenversion') ?? '',
     camera: {
       startX: num(g(cam, 'startx'), 0),

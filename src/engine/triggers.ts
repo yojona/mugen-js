@@ -350,6 +350,11 @@ function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
       return boolOut((p) => p.world.p3p4(p)[1]?.name.toLowerCase() === word.toLowerCase());
     case 'authorname':
       return boolOut((p) => p.prog.data.def.author.toLowerCase() === word.toLowerCase());
+    case 'stagevar': {
+      // _stricmp against the stage's [Info] value.
+      const text = (node.words[1] ?? '').toLowerCase();
+      return boolOut((p) => (p.world.stageVars[word] ?? '').toLowerCase() === text);
+    }
     case 'teammode':
       return boolOut((p) => p.world.teamModes[p.side] === word.toLowerCase());
     case 'hitdefattr': {

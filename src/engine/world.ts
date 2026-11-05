@@ -65,6 +65,8 @@ export class World {
   roundsWon: () => readonly number[] = () => [0, 0];
   /** Match_CheckOver for the MatchOver trigger. */
   matchOverNow: () => boolean = () => false;
+  /** [Info] of the stage, for StageVar. */
+  stageVars: Record<string, string> = {};
   /** GameVars.arcade_match (MatchNo). */
   matchNo = 1;
 
@@ -1342,6 +1344,7 @@ export class World {
 
   /** Apply stage settings (stage .def) to the world. */
   applyStage(info: import('../stage/stage').StageInfo): void {
+    this.stageVars = { 'info.name': info.name, 'info.displayname': info.displayName, 'info.author': info.author };
     const c = info.camera;
     this.camera = { x: c.startX, y: c.startY };
     this.camTarget = undefined;
