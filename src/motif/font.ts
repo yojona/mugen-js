@@ -22,12 +22,28 @@ export interface Font {
   offset: [number, number];
   glyph(ch: string): Glyph | undefined;
   palette(bank: number): Uint8Array | undefined;
+  /** A TrueType font (rendered by the browser, tinted per draw). */
+  trueType?: boolean;
+  /** TrueType: the advance of a whole string, as TTF_SizeUTF8 measures it (kerning, real space width). */
+  measure?(text: string): number;
 }
 
 export async function loadFont(vfs: Vfs, file: string, ...bases: string[]): Promise<Font> {
   const path = vfs.resolve(file, ...bases, 'font');
   if (!path) throw new Error(`Fuente no encontrada: ${file}`);
   if (/\.def$/i.test(path)) return loadFontV2(vfs, path);
+  return parseFntV1(await vfs.read(path));
+}
+
+/**
+ * Font_Load (0x46D030) with a height: a TrueType .def is opened at that
+ * pixel height, its width scaled along (Font_LoadDef: size_w * height /
+ * size_h, at least 1). Bitmap fonts ignore it.
+ */
+export async function loadFontSized(vfs: Vfs, file: string, height: number): Promise<Font> {
+  const path = vfs.resolve(file, 'font');
+  if (!path) throw new Error(`Fuente no encontrada: ${file}`);
+  if (/\.def$/i.test(path)) return loadFontV2(vfs, path, height);
   return parseFntV1(await vfs.read(path));
 }
 
@@ -114,14 +130,20 @@ export function parseFntV1(bytes: Uint8Array): Font {
   };
 }
 
-async function loadFontV2(vfs: Vfs, path: string): Promise<Font> {
+async function loadFontV2(vfs: Vfs, path: string, height = 0): Promise<Font> {
   const doc = parseIni(await vfs.text(path));
   const def = findSection(doc, 'Def');
   if ((getValue(def, 'type') ?? '').toLowerCase() === 'truetype') {
     const size = (getValue(def, 'size') ?? '8,16').split(',').map((x) => parseInt(x, 10));
     const spacing = (getValue(def, 'spacing') ?? '0,0').split(',').map((x) => parseInt(x, 10));
     const offset = (getValue(def, 'offset') ?? '0,0').split(',').map((x) => parseInt(x, 10));
-    return trueTypeFont(getValue(def, 'file') ?? '', size[1] ?? 16, size[0] ?? 8, [spacing[0] ?? 0, spacing[1] ?? 0], [offset[0] ?? 0, offset[1] ?? 0]);
+    let w = size[0] ?? 8;
+    let h = size[1] ?? 16;
+    if (height > 0) {
+      w = Math.max(1, Math.trunc((w * height) / h));
+      h = height;
+    }
+    return trueTypeFont(getValue(def, 'file') ?? '', h, w, [spacing[0] ?? 0, spacing[1] ?? 0], [offset[0] ?? 0, offset[1] ?? 0]);
   }
   const n2 = (k: string, d: [number, number]): [number, number] => {
     const v = getValue(def, k);
@@ -163,6 +185,8 @@ function trueTypeFont(file: string, height: number, spaceWidth: number, spacing:
   const family = TT_FAMILIES[file.toLowerCase()] ?? 'sans-serif';
   const glyphs = new Map<string, Glyph>();
   const font = `${height}px ${family}`;
+  const widths = new Map<string, number>();
+  let probe: OffscreenCanvasRenderingContext2D | undefined;
   const make = (ch: string): Glyph | undefined => {
     if (typeof OffscreenCanvas === 'undefined') return undefined;
     const probe = new OffscreenCanvas(1, 1).getContext('2d')!;
@@ -193,6 +217,18 @@ function trueTypeFont(file: string, height: number, spaceWidth: number, spacing:
       return g;
     },
     palette: () => undefined,
+    trueType: true,
+    measure(text) {
+      let w = widths.get(text);
+      if (w === undefined) {
+        if (typeof OffscreenCanvas === 'undefined') return 0;
+        probe ??= new OffscreenCanvas(1, 1).getContext('2d')!;
+        probe.font = font;
+        w = probe.measureText(text).width;
+        widths.set(text, w);
+      }
+      return w;
+    },
   };
 }
 
