@@ -821,7 +821,8 @@ export class SelectScreen implements Screen {
     if (this.stageShown) {
       const sp = this.stageList[this.stageIndex]!;
       const label = sp === 'random' ? 'Stage: Random' : `Stage ${this.stageIndex}: ${this.stageNames.get(sp) ?? sp}`;
-      const key = this.stageDone ? 'stage.done' : Math.floor(this.time / 6) % 2 ? 'stage.active2' : 'stage.active';
+      // Charsel_Draw: the active fonts alternate every 2 ticks.
+      const key = this.stageDone ? 'stage.done' : Math.floor(this.time / 2) & 1 ? 'stage.active2' : 'stage.active';
       const el = parseElement(sec, key) ?? parseElement(sec, 'stage.active');
       const [sx, sy] = this.pair('stage.pos');
       if (el?.font) {
