@@ -849,7 +849,13 @@ export class World {
       const anim = this.fightFx?.anims.get(120);
       if (!anim) continue;
       // Player_MakeDust: no owner and id 0, like a spark (but it stops in pauses).
-      const e = simpleExplod(p, anim, true, p.wx + dx, p.wy + dy, -1, 1);
+      // At the player's draw position, whole screen pixels (internal units), in sprite layer 10.
+      const k = this.internalUnit;
+      const left = this.camera.x - this.screenWidth / 2;
+      const top = this.groundY - this.camera.y - this.shakeBase - this.cropTop;
+      const x = Math.trunc((p.clsnX - left) * k + dx) / k + left;
+      const y = Math.trunc((top + p.clsnY) * k + dy) / k - top;
+      const e = simpleExplod(p, anim, true, x, y, 10, 1);
       e.id = 0;
       e.system = true;
       this.explods.push(e);

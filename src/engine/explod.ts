@@ -364,8 +364,9 @@ export function updateExplod(e: Explod): boolean {
     e.vel[1] += e.accel[1];
   }
   if (e.bindTo && e.bindTime !== 0) {
-    e.x = e.bindTo.wx + e.bindOffset[0];
-    e.y = e.bindTo.wy + e.bindOffset[1];
+    // PlayerRef_GetPos: an explod's anchor includes the player's draw offset.
+    e.x = e.bindTo.clsnX + e.bindOffset[0];
+    e.y = e.bindTo.clsnY + e.bindOffset[1];
     if (e.bindTime > 0) e.bindTime--;
   }
   e.age++;
