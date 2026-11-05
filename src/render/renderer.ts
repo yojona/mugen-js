@@ -233,13 +233,23 @@ export class Renderer {
     const sin = Math.sin(a);
     const sx = p.scaleX;
     const sy = p.scaleY;
-    // mugen.exe's software renderer places sprites on whole output pixels
-    // (Ftol of the anchor): snap the anchor the same way when not rotated.
+    // mugen.exe's software renderer (Soft_Blit / Soft_Scale), per output
+    // axis: unscaled, the axis goes to Ftol of the anchor; scaled, the
+    // sprite starts at the float anchor less the scaled axis and each
+    // output pixel samples the source at its left / top edge (GL samples at
+    // the centre: half a pixel on). Flipped, the sprite sits one output
+    // pixel further on (x + axis - w + 1).
     if (this.snap && !this.cornerMode && !p.angle) {
       const v = this.view;
-      const kx = this.canvas.width / this.width;
-      const ky = this.canvas.height / this.height;
-      p = { ...p, x: (Math.trunc((p.x * v.s + v.ox) * kx) / kx - v.ox) / v.s, y: (Math.trunc((p.y * v.s + v.oy) * ky) / ky - v.oy) / v.s };
+      const place = (pos: number, scale: number, o: number, k: number): number => {
+        const d = (pos * v.s + o) * k;
+        const unscaled = Math.abs(Math.abs(scale * v.s * k) - 1) < 0.001;
+        // (+0.25, not +0.5: GL's sample points stay clear of texel edges,
+        // where its interpolation would round either way.)
+        const out = (unscaled ? Math.trunc(d) : d + 0.25) + (scale < 0 ? 1 : 0);
+        return (out / k - o) / v.s;
+      };
+      p = { ...p, x: place(p.x, p.scaleX, v.ox, this.canvas.width / this.width), y: place(p.y, p.scaleY, v.oy, this.canvas.height / this.height) };
     }
     // Columns of the 2x2 part, then translation.
     const m00 = cos * sx;
