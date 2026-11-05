@@ -467,6 +467,27 @@ export class Player {
     this.anim.set(a, elem);
   }
 
+  /** A statedef anim held back by deferStatedefAnim, set when the player's states next run. */
+  private pendingAnimNo: number | undefined;
+
+  /**
+   * A state change from a hit (p2stateno, HitOverride): mugen.exe only moves
+   * the state number; Player_RunState sets the statedef's anim in the
+   * player's next update, so the old animation (and its boxes) stays for
+   * the rest of this tick (Lucky in Kim's 2050, Lin in her 1560).
+   */
+  deferStatedefAnim(change: () => void): void {
+    const keep = { anim: this.anim.anim, time: this.anim.time, no: this.animNo, prog: this.animProg };
+    change();
+    if (this.anim.anim === keep.anim && this.animNo === keep.no) return;
+    this.pendingAnimNo = this.animNo;
+    this.animNo = keep.no;
+    this.animProg = keep.prog;
+    this.anim.set(keep.anim);
+    this.anim.time = keep.time;
+    this.anim.resync();
+  }
+
   /** ChangeState: enter `no`; controllers of the new state run this same tick. */
   changeState(no: number, ctrl?: boolean, anim?: number): void {
     const cs = this.compiledState(no);
@@ -579,9 +600,8 @@ export class Player {
     const juggle = num('juggle');
     if (juggle !== undefined) this.juggleCost = juggle;
     const anim = num('anim');
-    // Player_RunState: the statedef's anim is always the player's own AIR
-    // (p->anim->anim = p->data->anim), in a custom state too (Elisabeth
-    // landing in Ken's states uses her own 47).
+    // Player_RunState: the statedef's anim is the player's own AIR
+    // (p->anim->anim = p->data->anim, 0x45c12f), in a custom state too.
     if (anim !== undefined) this.changeAnim(anim, 0, false);
   }
 
@@ -845,6 +865,11 @@ export class Player {
 
   private runStatesInner(): void {
     this.resetTickFlags();
+    if (this.pendingAnimNo !== undefined) {
+      const no = this.pendingAnimNo;
+      this.pendingAnimNo = undefined;
+      this.changeAnim(no);
+    }
     // Keyctrl helpers have their own command state (World.tick); others none.
     if (this.isHelper && !(this.keyCtrl && this.cmdInput)) this.commands = this.keyCtrl ? this.root.commands : new Set();
     if (this.hitPause > 0) {
