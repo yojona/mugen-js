@@ -1,5 +1,6 @@
 // Player runtime: state machine, physics and per-tick processing.
 
+import { animSlots } from '../formats/air';
 import { isPre10 } from './sctrl-params';
 import { hitDefAttrBits } from './hitdef';
 import { STATEDEF_SPEC } from './sctrl-spec';
@@ -460,6 +461,24 @@ export class Player {
     const a: Animation | undefined = src.data.anims.get(no);
     if (!a) {
       this.warn(`Animación ${no} no existe`);
+      // Player_ChangeAnimSelf / ChangeAnim2 switch the AnimState to the
+      // other AIR before setting the action: when that fails, the action
+      // index (KeyedArray slot) and time stay and now read the new AIR
+      // (Elisabeth, in Ken's 804, gets her own action at that slot).
+      const cur = this.animProg ?? this.prog;
+      if (cur !== src) {
+        const idx = animSlots(cur.data.anims).indexOf(this.anim.anim);
+        const slots = animSlots(src.data.anims);
+        const na = slots[idx] ?? slots[0];
+        if (na) {
+          const t = this.anim.time;
+          this.anim.set(na);
+          this.anim.time = t;
+          this.anim.resync();
+          this.animNo = na.action;
+          this.animProg = src;
+        }
+      }
       return;
     }
     this.animNo = no;

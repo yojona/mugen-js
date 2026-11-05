@@ -46,6 +46,15 @@ export interface Animation {
 
 export type AnimationMap = Map<number, Animation>;
 
+const slotLists = new WeakMap<AnimationMap, Animation[]>();
+/**
+ * The actions in mugen.exe's KeyedArray slot order (every non-empty action
+ * as loaded, duplicates included): what an AnimState's action index means.
+ */
+export function animSlots(map: AnimationMap): Animation[] {
+  return slotLists.get(map) ?? [...map.values()];
+}
+
 const ACTION_RE = /^\[\s*begin\s+action\s+(-?\d+)\s*\]/i;
 const CLSN_HDR_RE = /^clsn([12])(default)?\s*:\s*(\d+)/i;
 const CLSN_BOX_RE = /^clsn([12])\s*\[\s*\d+\s*\]\s*=\s*(.+)$/i;
@@ -78,6 +87,8 @@ export function parseBlend(s: string | undefined): Blend {
 
 export function parseAir(text: string): AnimationMap {
   const anims: AnimationMap = new Map();
+  const slots: Animation[] = [];
+  slotLists.set(anims, slots);
   let cur: Animation | null = null;
   let clsnTarget: { which: 1 | 2; isDefault: boolean; boxes: Clsn[] } | null = null;
   let def1: Clsn[] | null = null;
@@ -97,7 +108,10 @@ export function parseAir(text: string): AnimationMap {
     if (!cur) return;
     // Anim_Load skips an action without elements ("must have at least 1
     // element"); of duplicated actions the first kept one wins.
-    if (cur.elements.length && !anims.has(cur.action)) anims.set(cur.action, cur);
+    if (cur.elements.length) {
+      slots.push(cur);
+      if (!anims.has(cur.action)) anims.set(cur.action, cur);
+    }
     // Interpolate lines before the first element apply to last -> first wrap.
     const last = cur.elements[cur.elements.length - 1];
     if (last) last.interp = { ...interpBeforeFirst };
