@@ -272,6 +272,10 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
   const maxMatches = size > 1 || theirs.mode !== 'single' ? roster.teamMaxMatches : roster.arcadeMaxMatches;
   const order = session.arcadeOrder(pool, maxMatches, size).map((x) => x.c);
   const human: TeamSide = { mode: mine.mode, picks: mine.picks, pads: padsOf(mine, 0) };
+  // Gameflow state 9: before the first match, the intro storyboard of the
+  // arcade side's first character.
+  const lead = mine.picks[0]?.char;
+  await storyboard(lead?.data?.def.arcade.intro, lead?.data?.dir ?? '');
   for (let n = 0, match = 1; n + size <= order.length; n += size, match++) {
     const opp: TeamSide = { mode: theirs.mode, picks: cpuPicks(order.slice(n, n + size)), pads: new Array(size).fill(undefined) };
     await until(new VersusScreen(ctx, human.picks[0]!, opp.picks[0]!, match));
