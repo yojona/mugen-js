@@ -56,9 +56,15 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
     f();
     r.tint = undefined;
   };
+  // The stage's palette group: dimmed like the rest, with its BGPalFX.
+  const stageLayer = (f: () => void) => {
+    r.groupFx = palFxUniforms(w.bgPalFx);
+    tinted(dimBg, f);
+    r.groupFx = undefined;
+  };
   if (!env) {
     // Game_Draw: AssertSpecial nobg leaves the cleared screen, globalnoshadow no shadows.
-    if (!w.globalFlag('nobg')) tinted(dimBg, () => opts.background?.());
+    if (!w.globalFlag('nobg')) stageLayer(() => opts.background?.());
   }
   // Fight_DrawHud(0): in front of the background, behind the players.
   opts.hud?.(0);
@@ -123,7 +129,7 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
   list.sort((a, b) => a.priority - b.priority || b.order - a.order);
   for (const d of list) d.draw();
   opts.hud?.(1);
-  if (!w.globalFlag('nofg')) tinted(dimBg, () => opts.foreground?.());
+  if (!w.globalFlag('nofg')) stageLayer(() => opts.foreground?.());
   opts.systemElements?.();
   if (env && env.time > 0 && !env.under) envFill();
   for (const d of top) d.draw();

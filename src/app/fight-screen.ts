@@ -6,6 +6,7 @@
 
 import { MugenAI, type DummySettings } from '../engine/ai';
 import { Match, type TeamMode, type TeamPlan } from '../engine/match';
+import { palFxUniforms } from '../engine/fx';
 import { pickVictoryQuote, Player, type CharacterProgram } from '../engine/player';
 import { World, type FightFx } from '../engine/world';
 import type { FightHud } from '../motif/fight';
@@ -277,6 +278,8 @@ export class FightScreen implements Screen {
       r.view = view;
       r.setProjection(W, H);
     };
+    // The global PalFX reaches everything drawn with sprites, the HUD included.
+    r.allFx = palFxUniforms(w.allPalFx);
     drawScene(r, w, {
       background: () => {
         drawStageLayer(r, this.bg, w.camera, 0, W, H, -(w.shakeBase + w.cropTop));
@@ -296,6 +299,7 @@ export class FightScreen implements Screen {
     r.view = { s: 1, ox: 0, oy: 0 };
     r.setProjection(mw, mh);
     this.s.hud.drawCombos(r);
+    r.allFx = undefined;
     const a = this.match.fadeAlpha;
     if (a > 0) r.rect(0, 0, mw, mh, [0, 0, 0, Math.round(a * 255)]);
     const bars = this.match.fadeBars;

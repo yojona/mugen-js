@@ -185,7 +185,10 @@ export class World {
    * offset (shake_x/y) and the stage draw scale; neutral without a zoom.
    */
   zoomView = { l: 0, r: 0, shakeX: 0, shakeY: 0, scale: 1, active: false };
+  /** BGPalFX: the stage's palette group (0x100). */
   bgPalFx: PalFxState = newPalFx();
+  /** AllPalFX: the global PalFX, combined with every sprite's. */
+  allPalFx: PalFxState = newPalFx();
   pause: PauseState | undefined;
   superPause: PauseState | undefined;
   /** A Pause requested during a SuperPause starts when the SuperPause ends. */
@@ -201,6 +204,7 @@ export class World {
     this.zoom = undefined;
     this.zoomView = { l: 0, r: 0, shakeX: 0, shakeY: 0, scale: 1, active: false };
     this.bgPalFx = newPalFx();
+    this.allPalFx = newPalFx();
   }
 
   /** Root players followed by helpers. */
@@ -445,6 +449,7 @@ export class World {
     // Game_Tick ends the PalFX definitions before the states run: one set with
     // time 1 shows on the frame it is set and is gone on the next.
     tickPalFx(this.bgPalFx);
+    tickPalFx(this.allPalFx);
     for (const p of active) tickPalFx(p.palFx);
     // MUGEN advances animations at the end of each player's update; here it
     // runs at the start of the next tick.

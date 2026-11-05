@@ -410,8 +410,7 @@ const EXTRA: Record<string, Impl> = {
     p.palFx = palFxFrom(prm, p);
   },
   allpalfx: (_c, prm) => (p) => {
-    for (const q of p.world.players) q.palFx = palFxFrom(prm, p);
-    p.world.bgPalFx = palFxFrom(prm, p);
+    p.world.allPalFx = palFxFrom(prm, p);
   },
   victoryquote: (_c, prm) => (p) => {
     // SCTRL_VICTORYQUOTE: helpers are ignored; default -1 (random).

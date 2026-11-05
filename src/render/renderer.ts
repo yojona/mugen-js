@@ -170,6 +170,10 @@ export class Renderer {
    * while set (a SuperPause's darkening).
    */
   tint: [number, number, number] | undefined;
+  /** The PalFX of sprites drawn without their own: the stage's BGPalFX. */
+  groupFx: PalFx | undefined;
+  /** AllPalFX: combined with every sprite's PalFX (PalFx_Combine). */
+  allFx: PalFx | undefined;
 
   /** Output pixels per game unit (the view's zoom included). */
   deviceScale(): [number, number] {
@@ -296,7 +300,8 @@ export class Renderer {
     gl.uniform2f(this.u.uSize!, s.width, s.height);
     gl.uniform1i(this.u.uIndexed!, st.indexed ? 1 : 0);
     gl.uniform1i(this.u.uMask!, p.mask === false ? 0 : 1);
-    const fx = p.palfx ?? NO_PALFX;
+    let fx = p.palfx ?? this.groupFx ?? NO_PALFX;
+    if (this.allFx && s !== SOLID_SPRITE) fx = combinePalFx(fx, this.allFx);
     gl.uniform3fv(this.u.uAdd!, fx.add);
     const t = this.tint;
     gl.uniform3fv(this.u.uMul!, t ? [fx.mul[0] * t[0], fx.mul[1] * t[1], fx.mul[2] * t[2]] : fx.mul);
@@ -406,4 +411,14 @@ function link(gl: WebGL2RenderingContext, vs: string, fs: string): WebGLProgram 
   gl.linkProgram(p);
   if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p) ?? 'link error');
   return p;
+}
+
+/** PalFx_Combine: colors and mul multiply, add sums, either inverts. */
+function combinePalFx(a: PalFx, b: PalFx): PalFx {
+  return {
+    add: [a.add[0] + b.add[0], a.add[1] + b.add[1], a.add[2] + b.add[2]],
+    mul: [a.mul[0] * b.mul[0], a.mul[1] * b.mul[1], a.mul[2] * b.mul[2]],
+    color: a.color * b.color,
+    invertAll: a.invertAll || b.invertAll,
+  };
 }
