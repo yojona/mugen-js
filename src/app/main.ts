@@ -282,7 +282,7 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
   const pool = rosterChars.filter((c) => c.data).map((c) => ({ c, order: c.entry.order }));
   const maxMatches = size > 1 || theirs.mode !== 'single' ? roster.teamMaxMatches : roster.arcadeMaxMatches;
   const order = session.arcadeOrder(pool, maxMatches, size).map((x) => x.c);
-  const human: TeamSide = { mode: mine.mode, picks: mine.picks, pads: padsOf(mine, 0) };
+  let human: TeamSide = { mode: mine.mode, picks: mine.picks, pads: padsOf(mine, 0) };
   // Gameflow state 9: before the first match, the intro storyboard of the
   // arcade side's first character.
   const lead = mine.picks[0]?.char;
@@ -291,11 +291,31 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
     const opp: TeamSide = { mode: theirs.mode, picks: cpuPicks(order.slice(n, n + size)), pads: new Array(size).fill(undefined) };
     await until(new VersusScreen(ctx, human.picks[0]!, opp.picks[0]!, match));
     const res = await until<{ winner: number | undefined; quote?: string }>(await loading(() => teamFight([human, opp], undefined)));
-    if (res.winner !== 0) return;
+    if (res.winner !== 0) {
+      // Match_Run: an arcade loss goes to the continue screen (state 13), as
+      // in arcade, with the team's first character; Yes picks the team again
+      // and replays this match.
+      if (res.winner === undefined || (motif.value('Continue Screen', 'enabled') ?? '1') === '0') return;
+      const first = human.picks[0]!.char;
+      const sp = vfs.resolve(opp.picks[0]!.char.entry.stage ?? '') ?? stages[0]!.path;
+      const again = await until<boolean>(
+        await loading(async () => new ContinueScreen(ctx, { prog: await program(first), pal: first.data?.def.palDefaults[0] ?? 1, stage: await stage(sp), fightFx, font: systemFont, seed: session.matchSeed() })),
+      );
+      if (!again) return;
+      const re = await until<SelectResult>(new SelectScreen(ctx, mode, rosterChars, stages));
+      if (re.cancelled || !re.teams) return;
+      human = { mode: re.teams[0].mode, picks: re.teams[0].picks, pads: padsOf(re.teams[0], 0) };
+      n -= size;
+      match--;
+      continue;
+    }
     if (n + size < order.length && (motif.value('Victory Screen', 'enabled') ?? '1') !== '0') {
       await until(new VictoryScreen(ctx, human.picks[0]!, res.quote ?? (motif.value('Victory Screen', 'winquote.text') ?? 'Winner!').replace(/^"|"$/g, '')));
     }
   }
+  // After the last match: the ending of the arcade side's first character.
+  const winner = human.picks[0]?.char;
+  await storyboard(winner?.data?.def.arcade.ending, winner?.data?.dir ?? '');
 }
 
 async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | undefined): Promise<FightScreen> {
