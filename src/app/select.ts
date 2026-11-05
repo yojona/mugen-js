@@ -61,7 +61,6 @@ const PAL_BUTTONS: [number, number][] = [
   [IN_C, 6],
 ];
 
-const DONE_WAIT = 3;
 
 // ---- select scripts (Charsel_SetupMode, select.c 0x408b20) ----
 
@@ -363,10 +362,17 @@ export class SelectScreen implements Screen {
     }
     this.runScripts();
     this.updateBoxes();
-    if (!(this.sideDone[0] && this.sideDone[1])) return;
-    // The screen holds a few frames after the last pick before fading out
-    // (measured in mugen.exe: the done cursor shows 5 frames).
-    if (++this.doneWait <= DONE_WAIT) return;
+    // Charsel_Update / Charsel_Tick: with both sides done, phase 1; phase
+    // 2 once the cell flashes are over (Tick, the same frame); the fade out
+    // starts on the next Update in phase 2.
+    let fade = false;
+    if (this.sideDone[0] && this.sideDone[1] && this.phase !== 1) {
+      if (this.phase === 2) fade = true;
+      else this.phase = 1;
+    }
+    for (const k of [0, 1]) if (this.flashTicks[k]! > 0) this.flashTicks[k]!--;
+    if (this.phase === 1 && this.flashTicks[0]! <= 0 && this.flashTicks[1]! <= 0) this.phase = 2;
+    if (!fade) return;
     let stage = this.stageShown ? this.stageList[this.stageIndex] : undefined;
     // "random" is drawn later from the session RNG (Gameflow_PickStage).
     const t0 = this.teams[0]!;
@@ -375,7 +381,10 @@ export class SelectScreen implements Screen {
     this.fade.fadeOut();
   }
   private pending: SelectResult | undefined;
-  private doneWait = 0;
+  /** Charsel phase: 0 picking, 1 both sides done, 2 flashes over. */
+  private phase = 0;
+  /** Charsel_FlashCell: the two cell flashes' ticks left (length 4 + 1). */
+  private flashTicks = [0, 0];
 
   // ---- script runner (Charsel_Update) ----
 
@@ -563,6 +572,9 @@ export class SelectScreen implements Screen {
     pal = this.reservePal(ch, pal - 1) + 1;
     box.state = 'done';
     box.pal = pal;
+    // Charsel_FlashCell: the flash slot that is further along.
+    const fk = this.flashTicks[1]! < Math.min(999, this.flashTicks[0]!) ? 1 : 0;
+    this.flashTicks[fk] = 5;
     const team = this.teams[cur.team]!;
     team.picks.push({ char: ch, pal });
     team.ai.push(cur.members[cur.slot]!.ai);
