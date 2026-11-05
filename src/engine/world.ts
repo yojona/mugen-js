@@ -155,6 +155,8 @@ export class World {
    * whether a combo is still going (Player_UpdateCombo); the HUD runs the rest.
    */
   comboAdded: [number, number] = [0, 0];
+  /** Combo_AddHits ran this tick, even for 0 hits (it still restarts a shown counter's time). */
+  comboTouched: [boolean, boolean] = [false, false];
   comboOngoing: [boolean, boolean] = [false, false];
   /** [Reflection] intensity (0..256): players mirrored on the floor. */
   reflection = 0;
@@ -427,6 +429,7 @@ export class World {
   /** Feed this tick's raw inputs (one bitmask per player) and advance one tick. */
   tick(inputs: number[]): void {
     this.comboAdded = [0, 0];
+    this.comboTouched = [false, false];
     this.comboOngoing = [false, false];
     // gameloop.c: envcolor_time counts down before the tick.
     if (this.envColor && this.envColor.time > 0 && --this.envColor.time === 0) this.envColor = undefined;

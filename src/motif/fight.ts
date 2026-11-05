@@ -183,9 +183,8 @@ export class FightHud {
         }
       }
       // Combo_AddHits for this tick's hits.
-      const add = m.world.comboAdded[side] ?? 0;
-      if (add > 0) {
-        c.hits += add;
+      if (m.world.comboTouched[side]) {
+        c.hits += m.world.comboAdded[side] ?? 0;
         if (c.timer === 0 && c.hits >= 2) c.x = startX;
         if (c.hits >= 2) {
           c.timer = displayTime;
