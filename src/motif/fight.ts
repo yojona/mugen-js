@@ -136,6 +136,10 @@ export class FightHud {
   tick(m: Match, simulated = true): void {
     for (const b of [...Object.values(this.lifeSets).flat(), ...this.power]) for (const e of [b.bg0, b.bg1, b.mid, b.front]) e?.tick();
     for (const e of this.round.values()) e.tick();
+    // A new announcement starts its element over this tick (whether or not
+    // the frame gets drawn: several ticks can run per drawn frame).
+    const a = m.announce;
+    if (a && a.age === 0) this.round.get(this.announceKey(a))?.reset();
     for (const p of m.players) {
       const i = p.slotNo - 1;
       if (i < 0 || i > 3) continue;
@@ -394,15 +398,17 @@ export class FightHud {
     }
   }
 
+  private announceKey(a: NonNullable<Match['announce']>): string {
+    return a.kind === 'round' ? 'round.default' : a.kind === 'win' ? (a.winner ? 'win' : 'draw') : a.kind;
+  }
+
   private drawAnnounce(r: Renderer, m: Match): void {
     const a = m.announce;
     if (!a) return;
     const sec = findSection(this.doc, 'Round');
     const [bx, by] = pair(getValue(sec, 'pos'));
-    const key = a.kind === 'round' ? 'round.default' : a.kind === 'win' ? (a.winner ? 'win' : 'draw') : a.kind;
-    const e = this.round.get(key);
+    const e = this.round.get(this.announceKey(a));
     if (!e) return;
-    if (a.age === 0) e.reset();
     if (e.def.displayTime >= 0 ? a.age > e.def.displayTime : e.finished) return;
     let text = e.def.text;
     if (text && a.kind === 'round') text = text.replace('%i', String(a.round));
