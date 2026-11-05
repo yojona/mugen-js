@@ -433,6 +433,10 @@ export class World {
     // Before the round starts (and after it ends) input is ignored and nobody has control.
     if (this.roundState === 2) this.fightTime++;
     const active = this.allPlayers().filter((p) => !this.frozen(p));
+    // Game_Tick ends the PalFX definitions before the states run: one set with
+    // time 1 shows on the frame it is set and is gone on the next.
+    tickPalFx(this.bgPalFx);
+    for (const p of active) tickPalFx(p.palFx);
     // MUGEN advances animations at the end of each player's update; here it
     // runs at the start of the next tick.
     for (const p of active) p.advanceAnim();
@@ -650,7 +654,6 @@ export class World {
     this.updateCamera();
     this.updateZoom();
     for (const p of active) {
-      tickPalFx(p.palFx);
       p.advance();
       p.pruneTargets();
     }
@@ -667,7 +670,6 @@ export class World {
     }
     this.updateExplods();
     this.tickPauses();
-    tickPalFx(this.bgPalFx);
     this.tickEnvShake();
     this.gameTime++;
     if (!this.framesDriven) this.frames++;
