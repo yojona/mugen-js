@@ -212,6 +212,8 @@ function applyReversal(r: Player, a: Player): void {
   const rv = r.reversal!;
   r.reversal = undefined;
   const sparkAt = r.world.reversalSparkPos(r, a, rv.hd.sparkXY, a.hitDef?.sparkXY ?? [0, 0]);
+  r.sprPriority = rv.hd.p1SprPriority;
+  a.sprPriority = rv.hd.p2SprPriority;
   // Player_Reverse: a hitonce ReversalDef (a throw's default) lets go of
   // the reverser's other targets.
   if (rv.hd.hitOnce) r.releaseTargets(a);
@@ -528,6 +530,9 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
   // hold lets the target go).
   const overridden = d.hitOverrides.some((o) => overrides(o, hd));
   if (!overridden && d.bind?.byTarget && d.bind.to === a) d.bind.time = 0;
+  // Before the states change: a p1stateno or p2stateno statedef's sprpriority wins.
+  if (!proj) a.sprPriority = hd.p1SprPriority;
+  if (!proj || !overridden) d.sprPriority = hd.p2SprPriority;
   // Player_AddTarget: a new entry starts with the attacker's airjuggle.
   if (!a.targetJuggle.has(d)) a.targetJuggle.set(d, a.const('data.airjuggle'));
   // HitDef_Apply: a HitDef with ground.type (air.type in the air) = None
@@ -852,13 +857,11 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     world.spawnSpark(a, hd.spark, sparkAt);
     world.playHitSound(a, hd.hitSound);
   }
-  d.sprPriority = hd.p2SprPriority;
   if (proj) {
     // Projectiles_HitPlayer: a projectile hit's p1stateno changes the owner's state.
     if (!guarded && hd.p1StateNo >= 0) a.changeState(hd.p1StateNo);
     return;
   }
-  a.sprPriority = hd.p1SprPriority;
   // Player_Hit: a hit (not guarded or overridden) binds the target for
   // snap's time at the snap offset (bind_x/y = Ftol(FromLocal(snap))).
   if (!guarded && !overridden && hd.snapTime !== 0) {
