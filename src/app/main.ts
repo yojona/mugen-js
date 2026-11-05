@@ -343,8 +343,13 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
     if (res.winner === undefined) return;
     // Gameflow 15: the survival results ([Survival Results Screen] enabled).
     if ((motif.value('Survival Results Screen', 'enabled') ?? '1') !== '0') {
-      const players = await Promise.all(human.picks.slice(0, human.mode === 'simul' ? 2 : 1).map(async (pk) => ({ prog: await program(pk.char), pal: pk.pal })));
-      await until(await loading(async () => new SurvivalResultsScreen(ctx, { players, stage: await stage(sp), fightFx, wins: res.wins?.[0] ?? 0, seed: session.matchSeed() })));
+      const pks = human.picks.slice(0, human.mode === 'simul' ? 2 : 1);
+      await until(
+        await loading(async () => {
+          const players = await Promise.all(pks.map(async (pk) => ({ prog: await program(pk.char), pal: pk.pal })));
+          return new SurvivalResultsScreen(ctx, { players, stage: await stage(sp), fightFx, wins: res.wins?.[0] ?? 0, seed: session.matchSeed() });
+        }),
+      );
     }
     return;
   }

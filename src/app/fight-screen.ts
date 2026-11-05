@@ -89,6 +89,10 @@ export class FightScreen implements Screen {
     w.updateCrop(s.stage.info.localCoord[1], s.stage.info.camera.cutHigh, s.stage.info.camera.cutLow, s.stage.info.camera.overdrawLow);
     w.fightFx = s.fightFx;
     if (s.seed !== undefined) w.seed = s.seed;
+    // The survival result screen continues the match's scene (Result_Setup
+    // loads_match): it follows a frame sooner (measured: 212 frames after
+    // RoundState 4, against 213 for the continue screen).
+    if (s.survival) this.fade = new Fader(0, 1);
     const info = s.stage.info;
     const cfg = s.hud.roundConfig();
     if (s.training) cfg.roundSeconds = -1;
