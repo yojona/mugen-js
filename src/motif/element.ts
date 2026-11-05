@@ -133,13 +133,16 @@ export class ElementInstance {
  */
 export function drawText(r: Renderer, font: Font, text: string, x: number, y: number, bank: number, align: number, scale: [number, number] = [1, 1], color?: [number, number, number]): void {
   const tint = color ? { add: [0, 0, 0] as [number, number, number], mul: [color[0] / 255, color[1] / 255, color[2] / 255] as [number, number, number], color: 1, invertAll: false } : undefined;
+  // Font_DrawLines / Font_DrawLine: the glyphs hang a screen pixel below
+  // size_h above the baseline; right-aligned text ends a screen pixel further.
+  const px = r.screenPixel;
   const w = textWidth(font, text) * scale[0];
-  let cx = align > 0 ? x : align < 0 ? x - w : x - Math.floor(w / 2);
-  const top = y - font.height * scale[1] + font.offset[1];
+  let cx = align > 0 ? x : align < 0 ? x - w + px : x - w / 2;
+  const top = y + (font.offset[1] - font.height) * scale[1] + px;
   const palette = font.palette(bank);
   for (const ch of text) {
     const g = font.glyph(ch);
-    if (g) r.draw({ sprite: g.sprite, palette, x: cx + font.offset[0], y: top, scaleX: scale[0], scaleY: scale[1], palfx: tint });
+    if (g) r.draw({ sprite: g.sprite, palette, x: cx + font.offset[0] * scale[0], y: top, scaleX: scale[0], scaleY: scale[1], palfx: tint });
     cx += ((g?.width ?? font.spaceWidth) + font.spacing[0]) * scale[0];
   }
 }

@@ -175,6 +175,14 @@ export class Renderer {
   /** AllPalFX: combined with every sprite's PalFX (PalFx_Combine). */
   allFx: PalFx | undefined;
 
+  /** [Config] GameWidth: the width of the screen the reference renders to. */
+  gameWidth = 640;
+
+  /** One pixel of the reference's screen in the current projection's units. */
+  get screenPixel(): number {
+    return this.width / this.gameWidth;
+  }
+
   /** Output pixels per game unit (the view's zoom included). */
   deviceScale(): [number, number] {
     return [(this.canvas.width / this.width) * this.view.s, (this.canvas.height / this.height) * this.view.s];
