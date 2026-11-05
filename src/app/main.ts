@@ -668,6 +668,8 @@ function makeFlowHarness() {
     .filter(Boolean)
     .map((c) => c.split(':').map(Number) as [number, number]);
   const shotEvery = parseInt(params.get('shotevery') ?? '0', 10);
+  // ?shots=f,f,...: also a shot on these frames.
+  const shotAt = new Set((params.get('shots') ?? '').split(',').filter(Boolean).map(Number));
   const keyDelay = parseInt(params.get('keydelay') ?? '0', 10);
   // ?mashdelay: the same for the in-fight button presses (default keydelay).
   const mashDelay = parseInt(params.get('mashdelay') ?? params.get('keydelay') ?? '0', 10);
@@ -719,7 +721,7 @@ function makeFlowHarness() {
         console.log(`FLOW|${frame}|${name}`);
         lastName = name;
         if (shotEvery) shot();
-      } else if (shotEvery && frame % shotEvery === 0) shot();
+      } else if ((shotEvery && frame % shotEvery === 0) || shotAt.has(frame)) shot();
       frame++;
     },
   };
