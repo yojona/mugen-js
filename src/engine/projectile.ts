@@ -3,6 +3,7 @@
 import { BOTTOM, compileExprList, R, toInt, type Fn, type TriggerEnv } from '../expr/compile';
 import type { Animation } from '../formats/air';
 import { AnimPlayer } from './anim';
+import { shadowOn } from './fx';
 import type { ControllerDef } from './cns';
 import { compileHitDef, type HitDefData } from './hitdef';
 import type { Player } from './player';
@@ -34,6 +35,8 @@ export interface Projectile {
   missTimer: number;
   priority: number;
   sprPriority: number;
+  /** Casts a shadow (projshadow). */
+  shadow: boolean;
   edgeBound: number;
   stageBound: number;
   heightBound: [number, number];
@@ -140,6 +143,7 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
       missTimer: 0,
       priority: int(p, 'projpriority') ?? 1,
       sprPriority: int(p, 'projsprpriority') ?? 3,
+      shadow: shadowOn(int(p, 'projshadow', 0), int(p, 'projshadow', 1), int(p, 'projshadow', 2)),
       edgeBound: (int(p, 'projedgebound') ?? Math.trunc(40 * local)) * k,
       stageBound: (int(p, 'projstagebound') ?? Math.trunc(40 * local)) * k,
       heightBound: [(int(p, 'projheightbound', 0) ?? Math.trunc(-240 * local)) * k, (int(p, 'projheightbound', 1) ?? Math.trunc(1 * local)) * k],

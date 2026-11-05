@@ -174,62 +174,140 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
   }
 }
 
-/** Floor shadows: each player's sprite flattened onto the ground (stage [Shadow]). */
-function drawShadows(r: Renderer, w: World, sx: (x: number) => number, sy: (y: number) => number): void {
-  // Shadow_Draw: the floor line ("top") includes the character's
-  // [Size] shadowoffset; ty is the sprite position's height above it (the
-  // player's height plus the AIR element offset, both scaled).
-  const refl = Math.max(0, Math.min(256, w.reflection));
+interface ShadowCaster {
+  sprite: Sprite;
+  palette: Uint8Array | undefined;
+  /** Screen position of the sprite's axis. */
+  x: number;
+  y: number;
+  /** Screen y of the floor line the sprite is mirrored about. */
+  top: number;
+  /** World height, for the shadow's fade.range. */
+  height: number;
+  scaleX: number;
+  scaleY: number;
+  angle: number;
+  /** The animation element's own transparency. */
+  blend: Blend;
+  palfx: PalFx | undefined;
+}
+
+/**
+ * Shadow_Draw: the reflection (mirrored about the floor line) and the shadow
+ * (squashed by -yscale, solid black: [Shadow] color is parsed but unused,
+ * xshear is not supported as no stage in the reference tree has it). Both
+ * inherit the element's transparency: a sprite adding fully to the background
+ * casts no shadow.
+ */
+function castShadow(r: Renderer, w: World, c: ShadowCaster): void {
+  const ty = c.top - c.y;
+  const refl = w.reflection;
+  const add = c.blend.kind === 'add' ? c.blend : undefined;
+  if (refl > 0) {
+    const src = refl / 256;
+    const dst = 1 - src;
+    r.draw({
+      sprite: c.sprite,
+      palette: c.palette,
+      x: c.x,
+      y: c.top + ty,
+      scaleX: c.scaleX,
+      scaleY: -c.scaleY,
+      angle: c.angle,
+      palfx: c.palfx,
+      blend: { kind: 'add', src: 256 * (add ? src * (add.src / 256) : src), dst: 256 * (add ? dst + (1 - dst) * (add.dst / 256) : dst) },
+    });
+  }
   const sh = w.shadow;
-  for (const p of w.allPlayers()) {
-    if (p.special.has('invisible')) continue;
+  if (!sh) return;
+  const elemDst = add ? add.dst / 256 : c.blend.kind === 'sub' ? 1 : 0;
+  let alpha = (1 - elemDst) * (sh.intensity / 256);
+  const [lo, hi] = sh.fadeRange;
+  if (lo < hi) {
+    if (lo >= c.height) return;
+    if (hi > c.height) alpha = (alpha * (c.height - lo)) / (hi - lo);
+  }
+  if (alpha <= 0) return;
+  r.draw({
+    sprite: c.sprite,
+    palette: c.palette,
+    x: c.x,
+    y: c.top + ty * sh.yscale,
+    scaleX: c.scaleX,
+    scaleY: -sh.yscale * c.scaleY,
+    angle: c.angle,
+    palfx: { add: [0, 0, 0], mul: [0, 0, 0], color: 1, invertAll: false },
+    blend: { kind: 'add', src: alpha * 256, dst: (1 - alpha) * 256 },
+  });
+}
+
+/** Game_Draw: the shadows of the players, the projectiles (both last to first) and the explods. */
+function drawShadows(r: Renderer, w: World, sx: (x: number) => number, sy: (y: number) => number): void {
+  const players = [...w.allPlayers()].reverse();
+  for (const p of players) {
+    if (p.special.has('invisible') || p.special.has('noshadow')) continue;
     const v = p.anim.view();
     if (!v || v.element.group < 0) continue;
     const s = p.prog.data.sff.get(v.element.group, v.element.number);
     if (!s) continue;
+    // The floor line includes the character's [Size] shadowoffset.
     const k = p.scale;
-    const top = sy(p.const('size.shadowoffset') * k);
-    const ty = top - sy((p.pos.y + v.y + p.drawOffset[1]) * k);
-    const x = sx((p.pos.x + p.facing * (v.x + p.drawOffset[0])) * k);
-    const scaleX = p.facing * (v.element.flipH ? -1 : 1) * v.scaleX * p.drawScale[0] * p.const('size.xscale') * k;
-    const scaleY = (v.element.flipV ? -1 : 1) * v.scaleY * p.drawScale[1] * p.const('size.yscale') * k;
-    // The reflection: mirrored about the floor line, blended with alpha
-    // intensity / 256 (drawn before the shadow).
-    if (refl > 0) {
-      r.draw({
+    castShadow(r, w, {
+      sprite: s,
+      palette: p.prog.data.paletteFor(s, p.palRemap ?? p.palNo),
+      x: sx((p.pos.x + p.facing * (v.x + p.drawOffset[0])) * k),
+      y: sy((p.pos.y + v.y + p.drawOffset[1]) * k),
+      top: sy(p.const('size.shadowoffset') * k),
+      height: p.pos.y,
+      scaleX: p.facing * (v.element.flipH ? -1 : 1) * v.scaleX * p.drawScale[0] * p.const('size.xscale') * k,
+      scaleY: (v.element.flipV ? -1 : 1) * v.scaleY * p.drawScale[1] * p.const('size.yscale') * k,
+      angle: p.facing * (p.angleDraw ? p.angle : v.angle),
+      blend: v.blend,
+      palfx: palFxUniforms(p.palFx),
+    });
+  }
+  for (const owner of players) {
+    for (const pr of w.projectiles) {
+      if (pr.owner !== owner || !pr.shadow || pr.phase === 'dead' || pr.phase === 'removing') continue;
+      const v = pr.anim.view();
+      if (!v || v.element.group < 0) continue;
+      const s = owner.prog.data.sff.get(v.element.group, v.element.number);
+      if (!s) continue;
+      castShadow(r, w, {
         sprite: s,
-        palette: p.prog.data.paletteFor(s, p.palRemap ?? p.palNo),
-        x,
-        y: top + ty,
-        scaleX,
-        scaleY: -scaleY,
-        palfx: palFxUniforms(p.palFx),
-        blend: { kind: 'add', src: refl, dst: 256 - refl },
+        palette: owner.prog.data.paletteFor(s, owner.palRemap ?? owner.palNo),
+        x: sx(pr.x + pr.facing * v.x * pr.scale[0]),
+        y: sy(pr.y + v.y * pr.scale[1]),
+        top: sy(0),
+        height: pr.y,
+        scaleX: pr.facing * (v.element.flipH ? -1 : 1) * v.scaleX * pr.scale[0],
+        scaleY: (v.element.flipV ? -1 : 1) * v.scaleY * pr.scale[1],
+        angle: pr.facing * v.angle,
+        blend: v.blend,
+        palfx: palFxUniforms(owner.palFx),
       });
     }
-    // The shadow: the sprite squashed by -yscale (a positive yscale falls
-    // towards the screen) at top + ty * yscale, fading out between the
-    // fade.range heights. ([Shadow] xshear is not supported: no stage in
-    // the reference tree uses it.)
-    if (!sh || sh.intensity <= 0 || p.special.has('noshadow')) continue;
-    let fade = 1;
-    const [lo, hi] = sh.fadeRange;
-    if (lo < hi) {
-      if (lo >= p.pos.y) continue;
-      if (hi > p.pos.y) fade = (p.pos.y - lo) / (hi - lo);
-    }
-    const a = Math.round((sh.intensity / 256) * fade * 256);
-    if (a <= 0) continue;
-    r.draw({
+  }
+  for (const e of w.explods) {
+    if (!e.shadow) continue;
+    const v = e.anim.view();
+    if (!v || v.element.group < 0) continue;
+    const sff = e.common ? w.fightFx?.sff : e.owner.prog.data.sff;
+    const s = sff?.get(v.element.group, v.element.number);
+    if (!s || !sff) continue;
+    const k = e.drawScale;
+    castShadow(r, w, {
       sprite: s,
-      palette: p.prog.data.paletteFor(s, p.palNo),
-      x,
-      y: top + ty * sh.yscale,
-      scaleX,
-      scaleY: -sh.yscale * scaleY,
-      // Shadow color with partial opacity: multiply to black, blend by alpha.
-      palfx: { add: [sh.color[0] / 255, sh.color[1] / 255, sh.color[2] / 255], mul: [0, 0, 0], color: 1, invertAll: false },
-      blend: { kind: 'add', src: a, dst: 256 - a },
+      palette: e.common ? sff.palettes[s.palette] : e.owner.prog.data.paletteFor(s, e.owner.palRemap ?? e.owner.palNo),
+      x: (e.space === 'screen' ? e.x : sx(e.x)) + e.facing * v.x * k * e.scale[0],
+      y: (e.space === 'screen' ? e.y : sy(e.y)) + e.vfacing * v.y * k * e.scale[1],
+      top: sy(0),
+      height: e.y,
+      scaleX: e.facing * (v.element.flipH ? -1 : 1) * v.scaleX * e.scale[0] * k,
+      scaleY: e.vfacing * (v.element.flipV ? -1 : 1) * v.scaleY * e.scale[1] * k,
+      angle: e.facing * (v.angle + e.angle),
+      blend: v.blend,
+      palfx: e.ownPal ? undefined : palFxUniforms(e.owner.palFx),
     });
   }
 }

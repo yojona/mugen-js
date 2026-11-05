@@ -180,3 +180,13 @@ export function makeEnvShake(time: number, freq: number, ampl: number, phase: nu
   const f = freq === 0 ? 0.001 : Math.abs(freq);
   return { time, freq: Math.fround(f), ampl: Math.fround(ampl * unit), phase: Math.fround(phase ?? (f >= 90 ? 90 : 0)), elapsed: 0 };
 }
+
+/**
+ * The shadow parameters of explods and projectiles: -1 asks for a shadow, an
+ * illegal value too; otherwise Video_MapRGB (RGB565 in the reference's 16-bit
+ * mode) decides, and a colour mapping to 0 means none.
+ */
+export function shadowOn(r = 0, g = 0, b = 0): boolean {
+  if (r < -1 || g < -1 || b < -1 || r > 255 || g > 255 || b > 255) return true;
+  return r >> 3 !== 0 || g >> 2 !== 0 || b >> 3 !== 0;
+}

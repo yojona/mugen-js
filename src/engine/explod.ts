@@ -1,6 +1,7 @@
 // Explods (sctrls.html Explod, ModifyExplod, RemoveExplod, ExplodBindTime,
 // GameMakeAnim, MakeDust): free-standing animations owned by a player.
 
+import { shadowOn } from './fx';
 import { isPre10 } from './sctrl-params';
 import { BOTTOM, compileExprList, R, toInt, type Fn, type TriggerEnv } from '../expr/compile';
 import type { Animation, Blend } from '../formats/air';
@@ -39,6 +40,8 @@ export interface Explod {
   ownPal: boolean;
   removeOnGetHit: boolean;
   ignoreHitPause: boolean;
+  /** Casts a shadow (the shadow parameter). */
+  shadow: boolean;
   trans: Blend | undefined;
   /** Sprite scale: the owner's unit scale (own files) or the fightfx scale. */
   drawScale: number;
@@ -190,6 +193,7 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
       scale: [prm.num(p, 'scale', 0) ?? 1, prm.num(p, 'scale', 1) ?? 1],
       angle: prm.num(p, 'angle') ?? 0,
       sprPriority: prm.int(p, 'sprpriority') ?? 0,
+      shadow: shadowOn(prm.int(p, 'shadow', 0), prm.int(p, 'shadow', 1), prm.int(p, 'shadow', 2)),
       onTop: (prm.int(p, 'ontop') ?? 0) !== 0,
       ownPal: (prm.int(p, 'ownpal') ?? (anim.common ? 1 : 0)) !== 0,
       removeOnGetHit: (prm.int(p, 'removeongethit') ?? 0) !== 0,
@@ -259,6 +263,7 @@ export function compileModifyExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P
         if (e.bindTime === 0) e.bindTime = 1;
       }
       e.scale = v2('scale', 1) ?? e.scale;
+      if (prm.has('shadow')) e.shadow = shadowOn(prm.int(p, 'shadow', 0), prm.int(p, 'shadow', 1), prm.int(p, 'shadow', 2));
       if (prm.has('angle')) e.angle = prm.num(p, 'angle') ?? e.angle;
       if (anchored && prm.has('facing')) e.facing = (prm.int(p, 'facing') ?? 1) < 0 ? -1 : 1;
       if (anchored && prm.has('vfacing')) e.vfacing = (prm.int(p, 'vfacing') ?? 1) < 0 ? -1 : 1;
@@ -326,7 +331,7 @@ export function compileMakeDust(c: ControllerDef, env: TriggerEnv<P>): (p: P) =>
 export function simpleExplod(p: P, a: Animation, common: boolean, x: number, y: number, sprPriority: number, facing = p.facing): Explod {
   return {
     owner: p, id: -1, anim: new AnimPlayer(a), common, space: 'stage', x, y, facing, vfacing: 1, bindTo: undefined, bindTime: 0, bindOffset: [0, 0],
-    vel: [0, 0], velDir: facing, accel: [0, 0], removeTime: -2, age: 0, scale: [1, 1], angle: 0, sprPriority, onTop: false, ownPal: true, removeOnGetHit: false,
+    vel: [0, 0], velDir: facing, accel: [0, 0], removeTime: -2, age: 0, scale: [1, 1], angle: 0, sprPriority, onTop: false, ownPal: true, removeOnGetHit: false, shadow: false,
     ignoreHitPause: true, trans: undefined, superMoveTime: 0, pauseMoveTime: 0, drawScale: common ? p.world.fightFxScale : p.scale,
   };
 }
