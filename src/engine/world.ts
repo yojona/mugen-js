@@ -626,7 +626,7 @@ export class World {
     this.updateCamera();
     this.updateZoom();
     for (const p of active) {
-      recordAfterImage(p.afterImage, p.drawFrame());
+      recordAfterImage(p.afterImage, p.drawFrame(), p.hitPause === 0);
       tickPalFx(p.palFx);
       p.advance();
       p.pruneTargets();

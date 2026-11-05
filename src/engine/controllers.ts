@@ -10,7 +10,7 @@ import type { ControllerDef } from './cns';
 import { compileHitDef, parseAttrList } from './hitdef';
 import { attrBits } from './ai-learn';
 import { compileExplod, compileExplodBindTime, compileGameMakeAnim, compileMakeDust, compileModifyExplod, compileRemoveExplod, simpleExplod, transBlend } from './explod';
-import { makeEnvShake, newAfterImage, type PalFxState } from './fx';
+import { makeEnvShake, newAfterImage, startAfterImage, type PalFxState } from './fx';
 import { compileBindTo, compileDestroySelf, compileHelper, compileParentVar } from './helper';
 import { compileProjectile } from './projectile';
 import type { MoveType, Physics, Player, StateType } from './player';
@@ -444,16 +444,28 @@ const EXTRA: Record<string, Impl> = {
     a.blend = tr ? transBlend(tr) : { kind: 'none' };
     a.palColor = prm.num(p, 'palcolor') ?? 256;
     a.palInvertAll = (prm.int(p, 'palinvertall') ?? 0) !== 0;
-    a.palBright = v3(prm, p, 'palbright', a.palBright);
+    // Original bug: palbright's first two values both go to its green (red keeps 30).
+    const b0 = prm.num(p, 'palbright', 0);
+    const b1 = prm.num(p, 'palbright', 1);
+    const b2 = prm.num(p, 'palbright', 2);
+    a.palBright = [a.palBright[0], b1 ?? b0 ?? a.palBright[1], b2 ?? a.palBright[2]];
     a.palContrast = v3(prm, p, 'palcontrast', a.palContrast);
     a.palPostBright = v3(prm, p, 'palpostbright', a.palPostBright);
     a.palAdd = v3(prm, p, 'paladd', a.palAdd);
     a.palMul = v3(prm, p, 'palmul', a.palMul);
+    if (a.time < -1) a.time = 1;
+    if (a.length <= 0) a.length = 20;
+    if (a.timeGap < 1) a.timeGap = 1;
+    if (a.frameGap < 1) a.frameGap = 4;
+    startAfterImage(a);
     p.afterImage = a;
   },
   afterimagetime: (_c, prm) => (p) => {
+    // SCTRL_AFTERIMAGETIME: the tick count restarts with the new time.
+    if (!p.afterImage.running) return;
     const t = prm.int(p, 'time') ?? prm.int(p, 'value') ?? 1;
-    p.afterImage.time = t;
+    p.afterImage.ticks = 0;
+    p.afterImage.time = t < -1 ? 1 : t;
   },
   envshake: (_c, prm) => (p) => {
     const unit = p.scale * (p.world.gameWidth / p.world.screenWidth);

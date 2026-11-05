@@ -231,7 +231,7 @@ describe('kfm combat', () => {
     for (let i = 0; i < 120; i++) {
       run(w, 1);
       if (w.superPause) paused = true;
-      if (p1.afterImage.history.length > 0) after = true;
+      if (p1.afterImage.frames.some((f) => f)) after = true;
       if (p2.moveType === 'h') p2Hit = true;
     }
     expect(paused).toBe(true);

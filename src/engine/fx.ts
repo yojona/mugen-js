@@ -67,47 +67,86 @@ export interface AfterImageState {
   palPostBright: [number, number, number];
   palAdd: [number, number, number];
   palMul: [number, number, number];
-  /** Most recent first. */
-  history: AfterImageFrame[];
-  counter: number;
+  /** afterimage.c: the ring of recorded frames (null: a blank one), the next slot, the oldest, the ticks run and whether it runs. */
+  frames: (AfterImageFrame | null)[];
+  next: number;
+  oldest: number;
+  ticks: number;
+  running: boolean;
 }
 
 export function newAfterImage(): AfterImageState {
   return {
     time: 0, length: 20, timeGap: 1, frameGap: 4, blend: { kind: 'none' }, palColor: 256, palInvertAll: false,
     palBright: [30, 30, 30], palContrast: [120, 120, 220], palPostBright: [0, 0, 0], palAdd: [10, 10, 25], palMul: [0.65, 0.65, 0.75],
-    history: [], counter: 0,
+    frames: [], next: 0, oldest: 0, ticks: 0, running: false,
   };
 }
 
-/** Record this tick's frame (if due) and count down the effect time. */
-export function recordAfterImage(a: AfterImageState, frame: AfterImageFrame | undefined): void {
-  if (a.time === 0) {
-    a.history.length = 0;
-    return;
-  }
-  if (frame && a.counter++ % Math.max(1, a.timeGap) === 0) {
-    a.history.unshift(frame);
-    if (a.history.length > a.length) a.history.length = a.length;
-  }
-  if (a.time > 0) a.time--;
+/** AfterImage_Apply: an empty ring, running from tick 0. */
+export function startAfterImage(a: AfterImageState): void {
+  a.frames = new Array<AfterImageFrame | null>(a.length).fill(null);
+  a.next = a.oldest = a.ticks = 0;
+  a.running = true;
 }
 
-/** Frames to draw (oldest first) with their cumulative palette effect. */
+/**
+ * AfterImage_Update, once per player update: every timegap ticks the
+ * player's frame goes into the ring (a blank one once `time` is over, so
+ * the trail empties out), then the tick counts unless in hit pause. It
+ * stops timegap * length ticks after `time`.
+ */
+export function recordAfterImage(a: AfterImageState, frame: AfterImageFrame | undefined, active: boolean): void {
+  if (!a.running) return;
+  if (a.time !== -1 && a.ticks + 1 >= a.timeGap * a.length + a.time) {
+    a.running = false;
+    return;
+  }
+  if (a.ticks % a.timeGap === 0) {
+    a.frames[a.next] = a.ticks + 1 >= a.time && a.time !== -1 ? null : (frame ?? null);
+    if (++a.next >= a.length) a.next = 0;
+    if (a.next === a.oldest && ++a.oldest >= a.length) a.oldest = 0;
+  }
+  if (active) a.ticks++;
+}
+
+/**
+ * AfterImage_Draw: every framegap-th recorded frame, newest first, with
+ * palcolor / palinvertall, palbright, palcontrast and palpostbright /
+ * palcontrast; the k-th one drawn (from 0) also paladd * k and palmul to
+ * the k-th power. Returned oldest first (drawing order).
+ */
 export function afterImageDraws(a: AfterImageState): { frame: AfterImageFrame; add: [number, number, number]; mul: [number, number, number]; color: number; invertAll: boolean }[] {
-  const out = [];
-  // Base effect: bright (add), contrast (mul/256), postbright (add). Each
-  // successive image applies paladd then palmul once more.
-  let add: [number, number, number] = [...a.palBright];
-  let mul: [number, number, number] = [a.palContrast[0] / 256, a.palContrast[1] / 256, a.palContrast[2] / 256];
-  const gap = Math.max(1, a.frameGap);
-  for (let i = gap - 1; i < a.history.length; i += gap) {
-    add = [add[0] + a.palAdd[0], add[1] + a.palAdd[1], add[2] + a.palAdd[2]];
-    mul = [mul[0] * a.palMul[0], mul[1] * a.palMul[1], mul[2] * a.palMul[2]];
+  const out: ReturnType<typeof afterImageDraws> = [];
+  if (!a.running || a.next === a.oldest) return out;
+  let idx = a.next;
+  let wrapped = idx >= a.oldest;
+  let drawn = 0;
+  const mulAcc = [256, 256, 256];
+  for (;;) {
+    idx -= a.frameGap;
+    if (idx < 0 && !wrapped) {
+      idx += a.length;
+      wrapped = true;
+    }
+    if (idx < a.oldest && wrapped) break;
+    const f = a.frames[idx];
+    if (!f) continue;
+    const add = [0, 1, 2].map((i) => a.palBright[i]!);
+    const mul = [0, 1, 2].map((i) => a.palContrast[i]!);
+    for (let i = 0; i < 3; i++) if (a.palContrast[i] !== 0) add[i]! += Math.trunc(a.palPostBright[i]! / a.palContrast[i]!);
+    if (drawn > 0) {
+      for (let i = 0; i < 3; i++) {
+        add[i]! += a.palAdd[i]! * drawn;
+        mulAcc[i] = Math.fround(a.palMul[i]! * mulAcc[i]!);
+        mul[i] = (mul[i]! * Math.trunc(mulAcc[i]!)) >> 8;
+      }
+    }
+    drawn++;
     out.push({
-      frame: a.history[i]!,
-      add: [(add[0] + a.palPostBright[0] / Math.max(mul[0], 1e-3)) / 255, (add[1] + a.palPostBright[1] / Math.max(mul[1], 1e-3)) / 255, (add[2] + a.palPostBright[2] / Math.max(mul[2], 1e-3)) / 255] as [number, number, number],
-      mul: [...mul] as [number, number, number],
+      frame: f,
+      add: [add[0]! / 255, add[1]! / 255, add[2]! / 255] as [number, number, number],
+      mul: [mul[0]! / 256, mul[1]! / 256, mul[2]! / 256] as [number, number, number],
       color: a.palColor / 256,
       invertAll: a.palInvertAll,
     });
