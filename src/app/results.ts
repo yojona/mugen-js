@@ -1,9 +1,12 @@
-// Survival results screen (mugen.exe gameflow 15, result.c 0x444450-0x444A9F):
-// the human side's players back on the stage in a win (180) or lose (170)
-// state, by whether they won at least [Survival Results Screen] roundstowin
-// matches, with winstext showing that count (as %i). Everything in the
-// scene is darkened to half (PalGroups_MulColor 0x80 every tick). It ends
-// after show.time ticks or with a button, fading out over fadeout.time.
+// The survival results screen (mugen.exe gameflow 15, result.c) and the
+// arcade win screen (gameflow 16, versus.c WinScreen_*): the human side's
+// players back on the last match's stage in a pose state (results: win 180
+// or lose 170 by [Survival Results Screen] roundstowin; win screen: 180),
+// the first at the camera's centre and a partner 50 units to the side,
+// with the players' palette group at half (PalGroups_MulColor 0x80 every
+// tick) and the screen's text (winstext with the wins as %i, or wintext).
+// It ends after show.time / pose.time ticks or with a button, fading out
+// over fadeout.time.
 
 import { IN_S } from '../engine/cmd';
 import { Player, type CharacterProgram } from '../engine/player';
@@ -21,12 +24,12 @@ export interface ResultsSetup {
   players: { prog: CharacterProgram; pal: number }[];
   stage: Stage;
   fightFx: FightFx;
-  /** Matches the human side won. */
+  /** Matches the human side won (survival results). */
   wins: number;
   seed: number;
+  /** 'win': the arcade win screen instead of the survival results. */
+  kind?: 'results' | 'win';
 }
-
-const SECTION = 'Survival Results Screen';
 
 export class SurvivalResultsScreen implements Screen {
   result: true | undefined;
@@ -36,18 +39,23 @@ export class SurvivalResultsScreen implements Screen {
   private t = 0;
   private showTime: number;
   private text: ElementInstance | undefined;
+  private section: string;
+  private textKey: string;
 
   constructor(
     private ctx: AppContext,
     private s: ResultsSetup,
   ) {
-    const v = (k: string) => ctx.motif.value(SECTION, k);
+    const win = s.kind === 'win';
+    this.section = win ? 'Win Screen' : 'Survival Results Screen';
+    this.textKey = win ? 'wintext' : 'winstext';
+    const v = (k: string) => ctx.motif.value(this.section, k);
     const num = (k: string, d: number) => {
       const n = parseInt(v(k) ?? '', 10);
       return Number.isFinite(n) ? n : d;
     };
     this.fade = new Fader(num('fadein.time', 10), num('fadeout.time', 10));
-    this.showTime = num('show.time', 300);
+    this.showTime = num(win ? 'pose.time' : 'show.time', 300);
     const w = this.world;
     const [mw, mh] = ctx.motif.localCoord;
     w.applyStage(s.stage.info);
@@ -57,7 +65,8 @@ export class SurvivalResultsScreen implements Screen {
     w.fightFx = s.fightFx;
     w.seed = s.seed;
     w.roundState = 0;
-    const state = s.wins < num('roundstowin', 5) ? 170 : 180;
+    w.playersMul = 0.5;
+    const state = win || s.wins >= num('roundstowin', 5) ? 180 : 170;
     // Result_Init: the first player at the camera's centre; with a partner,
     // 50 (320-wide units) to each side, the partner facing the other way.
     const off = (50 * s.stage.info.localCoord[0]) / 320;
@@ -72,7 +81,7 @@ export class SurvivalResultsScreen implements Screen {
       p.changeState(state);
     });
     this.bg = new StageRuntime(s.stage);
-    const el = parseElement(ctx.motif.section(SECTION), 'winstext');
+    const el = parseElement(ctx.motif.section(this.section), this.textKey);
     if (el) this.text = new ElementInstance(el, ctx.motif.assets);
   }
 
@@ -103,12 +112,9 @@ export class SurvivalResultsScreen implements Screen {
       },
       foreground: () => drawStageLayer(r, this.bg, w.camera, 1, W, H, -(w.shakeBase + w.cropTop)),
     });
-    // Every palette at half intensity.
-    r.setProjection(W, H);
-    r.rect(0, 0, W, H, [0, 0, 0, 128]);
     const [mw, mh] = this.ctx.motif.localCoord;
     r.setProjection(mw, mh);
-    const fmt = (this.ctx.motif.value(SECTION, 'winstext.text') ?? '').replace(/^"|"$/g, '');
+    const fmt = (this.ctx.motif.value(this.section, `${this.textKey}.text`) ?? '').replace(/^"|"$/g, '');
     this.text?.draw(r, 0, 0, fmt.replace('%i', String(this.s.wins)));
     this.fade.draw(r, mw, mh);
   }
