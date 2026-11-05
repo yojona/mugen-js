@@ -48,6 +48,8 @@ export interface Projectile {
   fresh: boolean;
   /** Velocity from the next ending tick on (remvelocity). */
   endVel?: [number, number];
+  /** The hit / remove / cancel animation to take on the next update. */
+  endAnim?: Animation;
   age: number;
   hitPause: number;
   superMoveTime: number;
@@ -185,27 +187,32 @@ export function endProjectile(pr: Projectile, anim: number, vel?: [number, numbe
   pr.endVel = vel ? [...vel] : [...pr.remVel];
   pr.accel = [0, 0];
   pr.velMul = [1, 1];
-  if (a) {
-    // Anim_SetAction keeps the time when the action does not change
-    // (projhitanim = projanim: the end counts from where it is).
-    if (a !== pr.anim.anim) pr.anim.set(a);
-    pr.phase = 'ending';
-  } else pr.phase = 'removing';
+  // Projectiles_Update takes the animation on the projectile's next update
+  // past any hit pause (time 0): until then the old one keeps showing.
+  pr.endAnim = a;
+  pr.phase = a ? 'ending' : 'removing';
+}
+
+/** Anim_SetAction keeps the time when the action does not change (projhitanim = projanim: the end counts from where it is). */
+function takeEndAnim(pr: Projectile): void {
+  const a = pr.endAnim;
+  pr.endAnim = undefined;
+  if (a && a !== pr.anim.anim) pr.anim.set(a);
 }
 
 /** Move, age and bound-check one projectile. */
 export function updateProjectile(pr: Projectile): void {
   if (pr.phase === 'dead') return;
-  if (pr.phase === 'removing') {
-    pr.phase = 'dead';
-    return;
-  }
   const fresh = pr.fresh;
   pr.fresh = false;
   if (pr.hitPause > 0) {
     // Projectiles_Update: in hit pause the animation still steps.
     if (!fresh) stepAnim(pr);
     pr.hitPause--;
+    return;
+  }
+  if (pr.phase === 'removing') {
+    pr.phase = 'dead';
     return;
   }
   if (pr.phase === 'ending') {
@@ -215,6 +222,7 @@ export function updateProjectile(pr: Projectile): void {
       pr.vel = pr.endVel;
       pr.endVel = undefined;
     }
+    takeEndAnim(pr);
     // Projectiles_Update: an end animation with no length (or endless:
     // total_time <= 0) removes the projectile at once; otherwise it goes
     // when the animation time reached its length before this tick's step.
@@ -262,6 +270,7 @@ function removeNow(pr: Projectile): void {
   pr.x += pr.vel[0] * pr.facing;
   pr.y += pr.vel[1];
   endProjectile(pr, pr.remAnim, pr.remVel, true);
+  takeEndAnim(pr);
   pr.vel = [...pr.remVel];
   pr.endVel = undefined;
   // Projectiles_Update, same update: an end animation with no length goes

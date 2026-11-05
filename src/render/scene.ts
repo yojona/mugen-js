@@ -91,7 +91,7 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
   }
 
   for (const pr of [...w.projectiles].reverse()) {
-    if (pr.phase === 'dead' || pr.phase === 'removing') continue;
+    if (pr.phase === 'dead') continue;
     list.push({
       priority: pr.sprPriority,
       order: order++,
@@ -275,7 +275,7 @@ function drawShadows(r: Renderer, w: World, sx: (x: number) => number, sy: (y: n
   }
   for (const owner of players) {
     for (const pr of w.projectiles) {
-      if (pr.owner !== owner || !pr.shadow || pr.phase === 'dead' || pr.phase === 'removing') continue;
+      if (pr.owner !== owner || !pr.shadow || pr.phase === 'dead') continue;
       const v = pr.anim.view();
       if (!v || v.element.group < 0) continue;
       const s = owner.prog.data.sff.get(v.element.group, v.element.number);

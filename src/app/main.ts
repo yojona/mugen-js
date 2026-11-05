@@ -780,6 +780,7 @@ function makeFlowHarness() {
         for (const p of s.world.players) console.log(`DBG|${frame}|cmds P${p.slotNo} state=${p.stateNo} ai=${p.ai?.cmds.join(',') ?? ''} active=${[...(p.cmdInput?.active() ?? [])].map((n) => commandLabel(n)).join(' ')} write=${p.cmdInput?.debugWrite} queue=${(p.cmdInput?.debugQueue(14) ?? []).map(([k, t, h]) => `${k.toString(16)}@${t}/${h}`).join(' ')}`);
       }
       if (s instanceof FightScreen && frame >= exFrom && frame <= exTo) {
+        for (const pr of s.world.projectiles) console.log(`DBG|${frame}|proj owner=${pr.owner.slotNo} phase=${pr.phase} x=${pr.x.toFixed(1)} y=${pr.y.toFixed(1)} f=${pr.facing} scale=${pr.scale} elem=${pr.anim.view()?.element.group},${pr.anim.view()?.element.number} ${pr.anim.view()?.element.flipH ? 'H' : ''} off=${pr.anim.view()?.x},${pr.anim.view()?.y} ang=${pr.anim.view()?.angle}`);
         for (const e of s.world.explods) console.log(`DBG|${frame}|explod ${e.anim.current?.group},${e.anim.current?.number} common=${e.common} x=${e.x.toFixed(1)} y=${e.y.toFixed(1)} age=${e.age} scale=${e.drawScale} owner=${e.owner?.slotNo} facing=${e.facing} v=${e.vfacing} ang=${e.angle} sx=${e.scale[0]} elem=${e.anim.view()?.element.flipH ? 'H' : ''}${e.anim.view()?.x ?? ''},${e.anim.view()?.y ?? ''}`);
       }
       if (s instanceof FightScreen) {
