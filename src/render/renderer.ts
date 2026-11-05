@@ -327,10 +327,10 @@ export class Renderer {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
-  /** Draw an untextured rectangle outline or fill (debug: collision boxes). */
-  rect(x1: number, y1: number, x2: number, y2: number, rgba: [number, number, number, number]): void {
+  /** Draw an untextured rectangle outline or fill (debug: collision boxes); `blend`: additive / subtractive fills. */
+  rect(x1: number, y1: number, x2: number, y2: number, rgba: [number, number, number, number], blend?: DrawBlend): void {
     const pal = solidPalette(rgba);
-    this.draw({ sprite: SOLID_SPRITE, palette: pal, x: Math.min(x1, x2), y: Math.min(y1, y2), scaleX: Math.abs(x2 - x1), scaleY: Math.abs(y2 - y1) });
+    this.draw({ sprite: SOLID_SPRITE, palette: pal, x: Math.min(x1, x2), y: Math.min(y1, y2), scaleX: Math.abs(x2 - x1), scaleY: Math.abs(y2 - y1), blend });
   }
 
   private spriteTexture(s: Sprite): SpriteTex {
