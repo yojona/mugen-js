@@ -35,13 +35,6 @@ export interface RoundConfig {
   framesPerCount: number;
 }
 
-/**
- * Ticks between our intro-end detection and the round announcement. Measured
- * with tools/harness against MUGEN 1.1: RoundState 2 starts 70 ticks after the
- * intro's last state change with data/fight.def (60 display + 10); our
- * detection already lags by 2 ticks.
- */
-export const ROUND_LEAD = 8;
 
 export const DEFAULT_ROUND: RoundConfig = {
   matchWins: 2,
@@ -249,6 +242,10 @@ export class Match {
   private overEndTime = 0;
 
   private frameNo = 0;
+  /** The KO / double KO / time over announcement waiting for ko.time. */
+  private pendingKo: 'ko' | 'dko' | 'to' | undefined;
+  /** Its fight.def sound (ko / dko / to) waiting for ko.sndtime. */
+  private pendingKoSnd: number | undefined;
   /** The game's frame counter (GameVars.frames, every screen counted), when the match runs inside the app. */
   frameClock: (() => number) | undefined;
 
@@ -394,6 +391,8 @@ export class Match {
 
   private startRound(): void {
     const w = this.world;
+    this.pendingKo = undefined;
+    this.pendingKoSnd = undefined;
     const first = this.round === 1;
     this.players.forEach((p) => {
       const s = this.starts[p.slotNo - 1] ?? this.starts[p.side]!;
@@ -544,17 +543,20 @@ export class Match {
         w.roundState = 1;
         // Intros last while any player asserts "intro".
         if ((this.round > 1 || this.phaseTime > 1) && !this.players.some((p) => p.special.has('intro'))) {
+          // This tick intro_time reaches 1 before and 2 after Round_RunState's
+          // increment (the announce phase's tick t sees t + 2 before it).
+          if (c.roundSndTime === 0) this.sounds.push([0, Math.min(this.round, 9)]);
+          if (c.roundTime === 0) this.announce = { kind: 'round', round: this.round, age: 0 };
           this.enter('announce');
         }
         break;
       case 'announce': {
-        // Measured against MUGEN 1.1 (tools/harness): RoundState 2 begins when
-        // "Fight" appears, ROUND_LEAD ticks after the intro ends plus the
-        // round display time; control is given ctrl.time ticks later.
+        // Round_RunState case 1 with intro_time = t + 2: the round sound when
+        // intro_time is round.sndtime + 1, "Round n" (Round_AddAnnouncements,
+        // after the increment) when it is round.time + 2.
         const t = this.phaseTime;
-        const roundAt = ROUND_LEAD + c.roundTime;
-        if (t === roundAt) this.announce = { kind: 'round', round: this.round, age: 0 };
-        if (t === roundAt + c.roundSndTime) this.sounds.push([0, Math.min(this.round, 9)]);
+        if (t === c.roundTime - 1) this.announce = { kind: 'round', round: this.round, age: 0 };
+        if (t === c.roundSndTime - 1) this.sounds.push([0, Math.min(this.round, 9)]);
         // Round_RunState case 1: RoundState 2 once intro_time reaches
         // intro.time (the intro end is seen 2 ticks into this phase count).
         const fightAt = c.introTime - 2;
@@ -599,10 +601,20 @@ export class Match {
         const noKo = this.players.some((p) => p.special.has('noko')) || w.helpers.some((h) => h.special.has('noko'));
         if (!koSides && !timeUp) this.roundTicks++;
         if ((koSides || timeUp) && this.phaseTime > c.ctrlTime && !noKo) {
-          if (koSides === 2) this.announce = { kind: 'dko', age: 0 };
-          else if (koSides) this.announce = { kind: 'ko', age: 0 };
-          else this.announce = { kind: 'to', age: 0 };
-          this.sounds.push([2, koSides === 2 ? 1 : koSides ? 0 : 2]);
+          // Fight_ReadRound adds over.hittime to ko.time and ko.sndtime: the
+          // sound plays at RoundState 3's time ko.sndtime + over.hittime,
+          // the announcement (Round_AddAnnouncements, after the tick's
+          // increment) at ko.time + over.hittime + 1.
+          this.pendingKo = koSides === 2 ? 'dko' : koSides ? 'ko' : 'to';
+          this.pendingKoSnd = koSides === 2 ? 1 : koSides ? 0 : 2;
+          if (c.koSndTime + c.overHitTime === 0) {
+            this.sounds.push([2, this.pendingKoSnd]);
+            this.pendingKoSnd = undefined;
+          }
+          if (c.koTime + c.overHitTime === 0) {
+            this.announce = { kind: this.pendingKo, age: 0 };
+            this.pendingKo = undefined;
+          }
           this.roundWinnerSide = koSides === 2 ? null : ko[1] === 1 ? 0 : ko[0] === 1 ? 1 : this.decideWinner();
           this.roundWinner = this.roundWinnerSide === null ? null : (this.leader(this.roundWinnerSide) ?? null);
           // Round_CheckResult: time over gives the winner (both on a tie) the time-over icon.
@@ -640,6 +652,14 @@ export class Match {
         }
         const k = this.koTicks++;
         w.roundClock = this.koTicks;
+        if (this.pendingKoSnd !== undefined && k === c.koSndTime + c.overHitTime) {
+          this.sounds.push([2, this.pendingKoSnd]);
+          this.pendingKoSnd = undefined;
+        }
+        if (this.pendingKo && k === c.koTime + c.overHitTime) {
+          this.announce = { kind: this.pendingKo, age: 0 };
+          this.pendingKo = undefined;
+        }
         const st = c.slowTime;
         const setRate = (r: number) => {
           this.slowRate = r;

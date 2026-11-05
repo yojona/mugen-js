@@ -75,8 +75,16 @@ describe('match flow', () => {
     step();
     expect(w.roundState).toBe(2);
     step();
-    expect(m.announce?.kind).toBe('ko');
     expect(w.roundState).toBe(3);
+    // Round_AddAnnouncements shows "KO" at RoundState 3's time ko.time +
+    // over.hittime + 1 (game ticks, the KO slowdown skipping frames).
+    let n = 0;
+    while (m.announce?.kind !== 'ko' && n < 200) {
+      step();
+      n++;
+    }
+    expect(m.announce?.kind).toBe('ko');
+    expect(n).toBe(43);
     // Nobody settles here (P1 never got control, P2 falls in place), so the
     // round ends on the 900-tick limit (mugen.exe 0x414d9f).
     for (let i = 0; i < 2000 && m.round === 1; i++) step();
@@ -104,6 +112,11 @@ describe('match flow', () => {
     untilFight();
     p1.life = 500;
     step(30 + 100 * 60 + 1);
+    let n = 0;
+    while (m.announce?.kind !== 'to' && n < 200) {
+      step();
+      n++;
+    }
     expect(m.announce?.kind).toBe('to');
     step(400);
     expect(m.wins).toEqual([0, 1]);

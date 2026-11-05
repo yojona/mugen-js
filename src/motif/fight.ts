@@ -136,6 +136,7 @@ export class FightHud {
   /** `simulated`: the match ran a game tick this frame (no Combo_Tick in the KO slow motion's skipped frames). */
   tick(m: Match, simulated = true): void {
     for (const b of [...Object.values(this.lifeSets).flat(), ...this.power]) for (const e of [b.bg0, b.bg1, b.mid, b.front]) e?.tick();
+    // Announcements are system elements: SysDraw_Start steps them every frame, KO slowdown included.
     for (const e of this.round.values()) e.tick();
     // A new announcement starts its element over this tick (whether or not
     // the frame gets drawn: several ticks can run per drawn frame).
