@@ -40,7 +40,8 @@ export function drawStageLayer(r: Renderer, rt: StageRuntime, cam: { x: number; 
     const y = pos[1] + oy + shakeY;
 
     if (d.type === 'parallax') {
-      drawParallax(r, sprite, palette, d, cam, x, y, screenW, blend);
+      if (e.anim) drawParallax(r, sprite, palette, d, cam, x, y, screenW, blend);
+      else drawParallaxRows(r, sprite, palette, d, e, x, y, blend, win ? [win[0] - cam.x * d.windowDelta[0], win[1] - cam.y * d.windowDelta[1], win[2] - cam.x * d.windowDelta[0] + 1, win[3] - cam.y * d.windowDelta[1] + 1] : undefined);
       if (win) r.setClip(undefined);
       continue;
     }
@@ -67,6 +68,115 @@ export function drawStageLayer(r: Renderer, rt: StageRuntime, cam: { x: number; 
       }
     }
     if (win) r.setClip(undefined);
+  }
+}
+
+/**
+ * BgElem_DrawParallaxSoft(Masked): mugen.exe's software renderer draws a
+ * sprite parallax row by row in output pixels. Each output row shows one
+ * source row (the next ones come every 1 / yscale rows), starts on a whole
+ * pixel that moves with the camera by a factor running from the top row to
+ * width_bottom / width_top at the bottom ("xscale"), or by the row's width
+ * ("width"), and with tiling repeats every trunc(row width) pixels. Here each
+ * row is a one-pixel strip clipped to its pixels.
+ */
+function drawParallaxRows(
+  r: Renderer,
+  sprite: Sprite,
+  palette: Uint8Array | undefined,
+  d: StageRuntime['elements'][number]['def'],
+  e: StageRuntime['elements'][number],
+  x: number,
+  y: number,
+  blend: StageRuntime['elements'][number]['def']['blend'],
+  win: [number, number, number, number] | undefined,
+): void {
+  const f = Math.fround;
+  const [kx, ky] = r.deviceScale();
+  const cw = r.canvas.width;
+  const ch = r.canvas.height;
+  // The clip rectangle: the screen, or the element's window.
+  let [cx1, cy1, cx2, cy2] = [0, 0, cw, ch];
+  if (win) {
+    const k0x = cw / r.width;
+    const k0y = ch / r.height;
+    cx1 = Math.max(0, Math.round(Math.min(win[0], win[2]) * k0x));
+    cx2 = Math.min(cw, Math.round(Math.max(win[0], win[2]) * k0x));
+    cy1 = Math.max(0, Math.round(Math.min(win[1], win[3]) * k0y));
+    cy2 = Math.min(ch, Math.round(Math.max(win[1], win[3]) * k0y));
+  }
+  const w = sprite.width;
+  const h = sprite.height;
+  const scaleX = f(e.drawScale[0] * kx);
+  const scaleY = f(f(e.yscale * e.drawScale[1]) * ky);
+  if (scaleX <= 0 || scaleY <= 0) return;
+  // Output x of the anchor from the middle of the screen.
+  const px = f((x * r.view.s + r.view.ox) * (cw / r.width) - cw / 2);
+  const axisX = Math.trunc(sprite.axisX * scaleX);
+  const axisY = Math.trunc(sprite.axisY * scaleY);
+  const devY = (y * r.view.s + r.view.oy) * (ch / r.height);
+  let oy = Math.floor(f(f(devY) - axisY) + 0.5);
+  const byWidth = !!d.width;
+  const wTop = byWidth ? d.width![0] : w * (d.xscale ? d.xscale[0] : 1);
+  const wBot = byWidth ? d.width![1] : w * (d.xscale ? d.xscale[1] : 1);
+  const ratio = f(wBot / wTop);
+  const rowWidth = (i: number) => (byWidth ? Math.trunc(((wBot - wTop) * i) / (h - 1) + wTop) : w);
+  const rowStart = (row: number): number => {
+    if (byWidth) {
+      const w0 = rowWidth(0);
+      return Math.trunc(((px - w0 * scaleX * 0.5) * rowWidth(row)) / w0 + Math.trunc(cw / 2));
+    }
+    return Math.trunc((((ratio - 1) * (row + 1)) / h + 1) * px + (Math.trunc(cw / 2) - axisX));
+  };
+  const tiled = d.tile[0] !== 0;
+  const prevSnap = r.snap;
+  r.snap = false;
+  let yAcc = 0;
+  let row = 0;
+  try {
+    if (oy >= cy2) return;
+    while (row < h) {
+      if (oy >= cy1) {
+        const rw = rowWidth(row);
+        const span = rw * scaleX;
+        let xs = rowStart(row);
+        if (tiled && (span - 1 + xs < cx1 || xs > cx1)) {
+          const m = ((xs - cx1) % Math.trunc(span)) + cx1;
+          xs = m > cx1 ? Math.trunc(m - span) : m;
+        }
+        const xe = Math.min(Math.trunc(span - 1 + xs), cx2 - 1);
+        if (xe >= cx1 && xs < cx2) {
+          // Tile starts: the first runs to xe, the next ones trunc(span) apart.
+          const xEnd = tiled ? cx2 - 1 : xe;
+          let t = xs;
+          let len = xe - Math.max(xs, cx1) + 1;
+          let start = Math.max(xs, cx1);
+          while (start <= xEnd && len >= 0) {
+            const stop = Math.min(start + len, cx2);
+            if (stop > start) {
+              r.setClipDevice(start, oy, stop, oy + 1);
+              // Source row `row` on output row oy, the tile's first pixel at t.
+              const [gx, gy] = r.fromDevice(t + 0.25, oy - row);
+              const sx = span / w / kx;
+              const sy = 1 / ky;
+              r.draw({ sprite, palette, x: gx + sprite.axisX * sx, y: gy + sprite.axisY * sy, scaleX: sx, scaleY: sy, blend, mask: d.mask });
+            }
+            t = start + len;
+            start = t;
+            len = Math.trunc(span);
+          }
+        }
+      }
+      yAcc = f(f(1 / scaleY) + yAcc);
+      const n = Math.trunc(yAcc);
+      yAcc = f(yAcc - n);
+      oy++;
+      row += n;
+      if (oy >= cy2) break;
+    }
+  } finally {
+    r.snap = prevSnap;
+    r.setClip(win);
   }
 }
 

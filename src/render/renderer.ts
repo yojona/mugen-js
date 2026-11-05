@@ -165,6 +165,24 @@ export class Renderer {
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
   }
 
+  /** Output pixels per game unit (the view's zoom included). */
+  deviceScale(): [number, number] {
+    return [(this.canvas.width / this.width) * this.view.s, (this.canvas.height / this.height) * this.view.s];
+  }
+
+  /** Game coordinates of an output pixel position (inverse of the view). */
+  fromDevice(x: number, y: number): [number, number] {
+    const v = this.view;
+    return [(x / (this.canvas.width / this.width) - v.ox) / v.s, (y / (this.canvas.height / this.height) - v.oy) / v.s];
+  }
+
+  /** Restrict drawing to a rectangle of output pixels, top-left origin (x2, y2 exclusive). */
+  setClipDevice(x1: number, y1: number, x2: number, y2: number): void {
+    const gl = this.gl;
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(x1, this.canvas.height - y2, Math.max(0, x2 - x1), Math.max(0, y2 - y1));
+  }
+
   /** Restrict drawing to a rectangle in game pixels (undefined = no clip). */
   setClip(rect: [number, number, number, number] | undefined): void {
     const gl = this.gl;
