@@ -64,6 +64,7 @@ void main() {
 // Same color math as MUGEN's indexed.frag (non-premultiplied path).
 const FS = `#version 300 es
 precision highp float;
+precision highp int;
 precision highp usampler2D;
 in vec3 vUvq;
 uniform usampler2D uIndex;
@@ -77,11 +78,30 @@ uniform float uColorBal;
 uniform bool uInvertAll;
 uniform float uSrcAlphaMul;
 uniform bool uPremulOut;
-uniform vec3 uFirst;
+uniform bool uSoft;
+uniform vec2 uSize;
+uniform int uCanvasH;
+uniform ivec4 uSoftX;
+uniform ivec4 uSoftY;
+uniform ivec2 uSoftFlip;
 out vec4 outColor;
+// Soft_Scale's source position of an output pixel: x = first pixel, last
+// pixel, 16.16 start and step. -1 when it draws nothing.
+int softSample(int px, ivec4 a, int size, int flip) {
+  if (px < a.x || px > a.y) return -1;
+  int c = (a.z + (px - a.x) * a.w) >> 16;
+  if (c >= size) return -1;
+  return flip != 0 ? size - 1 - c : c;
+}
 void main() {
-  if (gl_FragCoord.x < uFirst.x || uFirst.z - gl_FragCoord.y < uFirst.y) discard;
   vec2 vUv = vec2(vUvq.x / vUvq.z, vUvq.y);
+  if (uSoft) {
+    ivec2 sz = ivec2(uSize);
+    int cx = softSample(int(gl_FragCoord.x), uSoftX, sz.x, uSoftFlip.x);
+    int cy = softSample(uCanvasH - 1 - int(gl_FragCoord.y), uSoftY, sz.y, uSoftFlip.y);
+    if (cx < 0 || cy < 0) discard;
+    vUv = (vec2(cx, cy) + 0.5) / uSize;
+  }
   vec4 color;
   if (uIndexed) {
     uint idx = texture(uIndex, vUv).r;
@@ -126,7 +146,7 @@ export class Renderer {
     this.gl = gl;
     this.prog = link(gl, VS, FS);
     gl.useProgram(this.prog);
-    for (const n of ['uCornerMode', 'uCorners', 'uQ', 'uMatrix', 'uSize', 'uIndex', 'uRgba', 'uPalette', 'uIndexed', 'uMask', 'uAdd', 'uMul', 'uColorBal', 'uInvertAll', 'uSrcAlphaMul', 'uPremulOut', 'uFirst']) {
+    for (const n of ['uCornerMode', 'uCorners', 'uQ', 'uMatrix', 'uSize', 'uIndex', 'uRgba', 'uPalette', 'uIndexed', 'uMask', 'uAdd', 'uMul', 'uColorBal', 'uInvertAll', 'uSrcAlphaMul', 'uPremulOut', 'uSoft', 'uCanvasH', 'uSoftX', 'uSoftY', 'uSoftFlip']) {
       this.u[n] = gl.getUniformLocation(this.prog, n);
     }
     gl.uniform1i(this.u.uIndex!, 0);
@@ -277,42 +297,53 @@ export class Renderer {
     const sin = Math.sin(a);
     const sx = p.scaleX;
     const sy = p.scaleY;
-    let softFirst = 0;
-    let firstX = 0;
-    let firstY = 0;
+    let soft: { x: SoftAxis; y: SoftAxis } | undefined;
     if (this.snap && !this.cornerMode && !p.angle) {
       const v = this.view;
       const kx = this.canvas.width / this.width;
       const ky = this.canvas.height / this.height;
       const scx = Math.abs(sx * v.s * kx);
       const scy = Math.abs(sy * v.s * ky);
-      const unscaled = Math.abs(s.width - s.width * scx) < 0.001 && Math.abs(s.height - s.height * scy) < 0.001;
-      const place = (pos: number, scale: number, sc: number, size: number, axis: number, o: number, k: number): number => {
-        const d = (pos * v.s + o) * k;
-        const a = softAnchor(d, scale < 0, sc, size, axis, unscaled);
-        softFirst = a.first;
-        return (a.anchor / k - o) / v.s;
-      };
-      const x = place(p.x, sx, scx, s.width, s.axisX, v.ox, kx);
-      firstX = softFirst;
-      const y = place(p.y, sy, scy, s.height, s.axisY, v.oy, ky);
-      firstY = softFirst;
-      p = { ...p, x, y };
+      const dx = (p.x * v.s + v.ox) * kx;
+      const dy = (p.y * v.s + v.oy) * ky;
+      if (Math.abs(s.width - s.width * scx) < 0.001 && Math.abs(s.height - s.height * scy) < 0.001) {
+        // Soft_Blit: the axis goes to Ftol of the anchor, a pixel further flipped.
+        const place = (d: number, scale: number, o: number, k: number): number => ((Math.trunc(d) + (scale < 0 ? 1 : 0)) / k - o) / v.s;
+        p = { ...p, x: place(dx, sx, v.ox, kx), y: place(dy, sy, v.oy, ky) };
+      } else {
+        soft = { x: softAxis(dx, sx < 0, scx, s.width, s.axisX), y: softAxis(dy, sy < 0, scy, s.height, s.axisY) };
+      }
     }
     // Columns of the 2x2 part, then translation.
-    const m00 = cos * sx;
+    let m00 = cos * sx;
     const m10 = -sin * sx;
     const m01 = sin * sy;
-    const m11 = cos * sy;
-    const tx = p.x - (m00 * s.axisX + m01 * s.axisY);
-    const ty = p.y - (m10 * s.axisX + m11 * s.axisY);
+    let m11 = cos * sy;
+    let tx = p.x - (m00 * s.axisX + m01 * s.axisY);
+    let ty = p.y - (m10 * s.axisX + m11 * s.axisY);
+    if (soft) {
+      if (soft.x.last < soft.x.first || soft.y.last < soft.y.first) return;
+      // The quad just covers the output pixels; the shader picks the samples.
+      const px = this.canvas.width / this.width;
+      const py = this.canvas.height / this.height;
+      m00 = (soft.x.last + 1 - soft.x.first) / (px * this.view.s) / s.width;
+      m11 = (soft.y.last + 1 - soft.y.first) / (py * this.view.s) / s.height;
+      tx = (soft.x.first / px - this.view.ox) / this.view.s;
+      ty = (soft.y.first / py - this.view.oy) / this.view.s;
+    }
     // Game space -> view -> clip space.
     const v = this.view;
     const kx = (2 / this.width) * v.s;
     const ky = (-2 / this.height) * v.s;
     gl.uniformMatrix3fv(this.u.uMatrix!, false, [m00 * kx, m10 * ky, 0, m01 * kx, m11 * ky, 0, tx * kx + (v.ox * 2) / this.width - 1, ty * ky - (v.oy * 2) / this.height + 1, 1]);
     gl.uniform2f(this.u.uSize!, s.width, s.height);
-    gl.uniform3f(this.u.uFirst!, firstX, firstY, this.canvas.height);
+    gl.uniform1i(this.u.uSoft!, soft ? 1 : 0);
+    if (soft) {
+      gl.uniform1i(this.u.uCanvasH!, this.canvas.height);
+      gl.uniform4i(this.u.uSoftX!, soft.x.first, soft.x.last, soft.x.start, soft.x.step);
+      gl.uniform4i(this.u.uSoftY!, soft.y.first, soft.y.last, soft.y.start, soft.y.step);
+      gl.uniform2i(this.u.uSoftFlip!, sx < 0 ? 1 : 0, sy < 0 ? 1 : 0);
+    }
     gl.uniform1i(this.u.uIndexed!, st.indexed ? 1 : 0);
     gl.uniform1i(this.u.uMask!, p.mask === false ? 0 : 1);
     let fx = p.palfx ?? this.groupFx ?? NO_PALFX;
@@ -438,31 +469,39 @@ function combinePalFx(a: PalFx, b: PalFx): PalFx {
   };
 }
 
+interface SoftAxis {
+  /** First and last output pixel. */
+  first: number;
+  last: number;
+  /** Source position of the first pixel and step per pixel, 16.16. */
+  start: number;
+  step: number;
+}
+
 /**
- * The anchor (in output pixels) that makes GL's nearest sampling at pixel
- * centres pick the source pixels of mugen.exe's software renderer, for one
- * axis. Soft_Blit: the axis goes to Ftol of the anchor, one pixel further
- * flipped. Soft_Scale / Soft_StartPixel: the sprite's start is rounded to the
- * nearest pixel (halves down) and the source keeps the offset of that
- * rounding, truncated to 16.16; flipped, the start lies at axis - size + 1.
+ * Soft_Scale for one axis, in single precision like mugen.exe: the sprite's
+ * start rounds to the nearest pixel (halves down) and the source keeps that
+ * rounding's offset, truncated; a position before the sprite skips the pixel.
+ * Flipped, the start lies at axis - size + 1.
  */
-function softAnchor(d: number, flip: boolean, sc: number, size: number, axis: number, unscaled: boolean): { anchor: number; first: number } {
-  if (unscaled) return { anchor: Math.trunc(d) + (flip ? 1 : 0), first: 0 };
-  const start = flip ? d - ((size - axis) * sc - 1) : d - axis * sc;
+function softAxis(d: number, flip: boolean, sc: number, size: number, axis: number): SoftAxis {
+  const f = Math.fround;
+  const pos = f(d);
+  const scaled = f(size * sc);
+  const start = flip ? f(pos - ((size - axis) * scaled) / size + 1) : f(pos - (axis * scaled) / size);
   let first = Math.floor(start);
   let frac = 0;
   if (start > first) {
     if (start - 0.5 > first) first++;
-    frac = Math.floor(((first - start) / sc) * 65536);
+    frac = Math.floor(f(((first - start) * size) / scaled * 65536));
   }
-  // A source position before the sprite skips that pixel.
-  const du = Math.trunc(65536 / sc);
-  while (frac < 0) {
-    frac += du;
+  let step = Math.trunc((size * 65536) / scaled);
+  const last = Math.ceil(f(start + scaled - 1));
+  while (frac < 0 && first <= last) {
+    frac += step;
     first++;
   }
-  // A sixteenth of an output pixel on: clear of texel edges and of the
-  // rasterizer's own snapping of the quad's corners.
-  const u = frac / 65536 + 0.0625 / sc;
-  return { anchor: flip ? first + 0.5 + sc * (size - u - axis) : first + 0.5 - sc * u + axis * sc, first };
+  // The last sample stays inside the sprite.
+  if (((last - first) * step + frac) >> 16 >= size) step--;
+  return { first, last, start: frac, step };
 }
