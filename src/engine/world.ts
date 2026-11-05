@@ -667,10 +667,9 @@ export class World {
     for (const p of [...this.players].reverse()) p.recorder?.tick(active.includes(p) && !p.hitPauseLastTick && !pausedAtStart);
     this.updateCamera();
     this.updateZoom();
-    for (const p of active) {
-      p.advance();
-      p.pruneTargets();
-    }
+    for (const p of active) p.advance();
+    // Round_Tick runs Player_UpdateCombo for every player, paused or not.
+    for (const p of this.allPlayers()) p.pruneTargets();
     // A frozen player hit or hitting this tick (hitpause_next) is in hit
     // pause from its next update on: nothing of this tick is left to run.
     for (const p of this.allPlayers()) if (!active.includes(p)) p.hitPauseFresh = false;
