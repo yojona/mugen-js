@@ -57,7 +57,7 @@ export class FightHud {
     this.lifeSets = { single: bars('Lifebar'), simul: bars('Simul Lifebar'), turns: bars('Turns Lifebar') };
     this.power = [0, 1].map((i) => this.bar(findSection(doc, 'Powerbar'), `p${i + 1}`));
     const rs = findSection(doc, 'Round');
-    for (const k of ['round.default', 'fight', 'ko', 'dko', 'to', 'win', 'draw']) {
+    for (const k of ['round.default', 'fight', 'ko', 'dko', 'to', 'win', 'win2', 'draw']) {
       const d = parseElement(rs, k);
       if (d) this.round.set(k, new ElementInstance(d, this.assets));
     }
@@ -541,7 +541,7 @@ export class FightHud {
   }
 
   private announceKey(a: NonNullable<Match['announce']>): string {
-    return a.kind === 'round' ? 'round.default' : a.kind === 'win' ? (a.winner ? 'win' : 'draw') : a.kind;
+    return a.kind === 'round' ? 'round.default' : a.kind === 'win' ? (a.winner ? (a.partner ? 'win2' : 'win') : 'draw') : a.kind;
   }
 
   private drawAnnounce(r: Renderer, m: Match): void {
@@ -554,7 +554,14 @@ export class FightHud {
     if (e.def.displayTime >= 0 ? a.age > e.def.displayTime : e.finished) return;
     let text = e.def.text;
     if (text && a.kind === 'round') text = text.replace('%i', String(a.round));
-    if (text && a.kind === 'win' && a.winner) text = text.replace('%s', a.winner.prog.data.def.displayName);
+    if (text && a.kind === 'win' && a.winner) {
+      text = text.replace('%s', a.winner.prog.data.def.displayName);
+      if (a.partner) text = text.replace('%s', a.partner.prog.data.def.displayName);
+    } else if (text && a.kind === 'win') {
+      // A draw's format gets player 2's name.
+      const p2 = m.world.slot(2);
+      if (p2) text = text.replace('%s', p2.prog.data.def.displayName);
+    }
     e.draw(r, bx, by, text);
   }
 }

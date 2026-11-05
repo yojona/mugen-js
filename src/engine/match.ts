@@ -64,7 +64,7 @@ export type Announce =
   | { kind: 'round'; round: number; age: number }
   | { kind: 'fight'; age: number }
   | { kind: 'ko' | 'dko' | 'to'; age: number }
-  | { kind: 'win'; winner: Player | null; age: number };
+  | { kind: 'win'; winner: Player | null; partner?: Player; age: number };
 
 export interface StartPos {
   x: number;
@@ -244,6 +244,8 @@ export class Match {
   private frameNo = 0;
   /** The KO / double KO / time over announcement waiting for ko.time. */
   private pendingKo: 'ko' | 'dko' | 'to' | undefined;
+  /** GameVars.win_type 3: the round ended by time. */
+  private roundTimeOver = false;
   /** Its fight.def sound (ko / dko / to) waiting for ko.sndtime. */
   private pendingKoSnd: number | undefined;
   /** The game's frame counter (GameVars.frames, every screen counted), when the match runs inside the app. */
@@ -395,6 +397,7 @@ export class Match {
   private startRound(): void {
     const w = this.world;
     this.pendingKo = undefined;
+    this.roundTimeOver = false;
     this.pendingKoSnd = undefined;
     const first = this.round === 1;
     this.players.forEach((p) => {
@@ -611,6 +614,7 @@ export class Match {
           // the announcement (Round_AddAnnouncements, after the tick's
           // increment) at ko.time + over.hittime + 1.
           this.pendingKo = koSides === 2 ? 'dko' : koSides ? 'ko' : 'to';
+          this.roundTimeOver = !koSides;
           this.pendingKoSnd = koSides === 2 ? 1 : koSides ? 0 : 2;
           if (c.koSndTime + c.overHitTime === 0) {
             this.sounds.push([2, this.pendingKoSnd]);
@@ -702,6 +706,13 @@ export class Match {
       case 'over':
         w.roundClock = this.phaseTime + 1;
         w.roundState = 4;
+        // Round_AddAnnouncements: the winner at win.time of every round, a
+        // draw only after a time over; a double KO says nothing.
+        if (this.phaseTime === c.winTime) {
+          const ws = this.roundWinnerSide;
+          if (ws !== null) this.announce = { kind: 'win', winner: this.leader(ws) ?? null, partner: w.slot(3 + ws), age: 0 };
+          else if (this.roundTimeOver) this.announce = { kind: 'win', winner: null, age: 0 };
+        }
         // At over.wintime the winners go to their win pose, the losers still
         // standing to 170, everyone to 175 on a draw (Round_RunState case 4).
         if (this.phaseTime === c.overWinTime) {
@@ -713,7 +724,6 @@ export class Match {
             if (p.compiledState(no)) p.changeState(no);
           }
           this.scoreRound();
-          if (this.matchOver) this.announce = { kind: 'win', winner: this.roundWinner, age: 0 };
         }
         // AssertSpecial roundnotover (asserted during the last tick) keeps
         // the round going for 19 more ticks.
