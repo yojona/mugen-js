@@ -145,7 +145,8 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
     sprite(
       s,
       s ? p.prog.data.paletteFor(s, p.palRemap ?? p.palNo) : undefined,
-      sx(p.clsnX + p.facing * v.x * k),
+      // Player_Draw: a player shaking from a hit moves a 320th of the screen on odd ticks.
+      sx(p.clsnX + p.facing * v.x * k + (p.moveType === 'h' && p.ghv.hitshaketime > 0 ? (w.screenWidth / 320) * (p.time % 2) * p.facing : 0)),
       sy(p.clsnY + v.y * k),
       p.facing * (v.element.flipH ? -1 : 1) * v.scaleX * p.drawScale[0] * p.const('size.xscale') * k,
       (v.element.flipV ? -1 : 1) * v.scaleY * p.drawScale[1] * p.const('size.yscale') * k,
