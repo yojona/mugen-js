@@ -4,6 +4,10 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 "$HERE/build-probes.sh" >/dev/null
 GAMESPEED="${GAMESPEED:-60}" "$HERE/prepare.sh" >/dev/null
+# SELECTDEF=overlay/data/select-win.def: another roster for this run (gitignored like
+# select.def; select-win.def is select.def with kyo-kofa, which has no ending, in
+# place of kfm: sed 's/^kfm, /kyo-kofa, /' overlay/data/select.def).
+[ -n "${SELECTDEF:-}" ] && cp "$HERE/${SELECTDEF}" "$HERE/work/mugen/data/select.def"
 [ -n "${OVERLAY_EXTRA:-}" ] && cp -R "$OVERLAY_EXTRA/." "$HERE/work/mugen/"
 docker build -q --platform linux/amd64 -t mugen-harness "$HERE" >/dev/null
 docker run --rm --platform linux/amd64 --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
