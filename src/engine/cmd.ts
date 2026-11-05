@@ -77,6 +77,17 @@ export function parseCmd(text: string): CommandSet {
   const defaults = findSection(doc, 'Defaults');
   const defTime = parseInt(getValue(defaults, 'command.time') ?? '15', 10) || 15;
   const defBuffer = parseInt(getValue(defaults, 'command.buffer.time') ?? '1', 10) || 1;
+  // [Remap]: each button letter of the commands stands for the button the
+  // table names (Cmd_ParseKey through CmdRemap); an unknown value is bit 1.
+  const remap: Record<string, number> = { ...BUTTONS };
+  const remapSec = findSection(doc, 'Remap');
+  if (remapSec) {
+    for (const k of Object.keys(BUTTONS)) {
+      const v = getValue(remapSec, k);
+      if (v === undefined) continue;
+      remap[k] = BUTTONS[v.trim()[0] ?? ''] ?? 1;
+    }
+  }
   const commands: Command[] = [];
   const slotOf = new Map<string, number>();
   let counter = 1;
@@ -86,7 +97,7 @@ export function parseCmd(text: string): CommandSet {
     const name = unquote(getValue(sec, 'name') ?? '');
     const src = getValue(sec, 'command');
     if (!name || !src) continue;
-    const elements = parseElements(src);
+    const elements = parseElements(src, remap);
     if (!elements) continue;
     // mugen.exe 0x439920: names are numbered from 1 in order of first
     // appearance (duplicates share it); every "recovery" uses 0 but still
@@ -112,7 +123,7 @@ export function parseCmd(text: string): CommandSet {
 }
 
 /** mugen.exe 0x439f20. Returns undefined if the command does not parse. */
-function parseElements(src: string): Element[] | undefined {
+function parseElements(src: string, remap: Record<string, number> = BUTTONS): Element[] | undefined {
   const out: Element[] = [];
   for (const raw of src.split(',')) {
     let s = raw.trim();
@@ -142,7 +153,7 @@ function parseElements(src: string): Element[] | undefined {
     for (let part of s.split('+')) {
       part = part.trim();
       if (!part) continue;
-      const v = DIRS[part] ?? (part.length > 1 ? DIRS[part.toUpperCase()] : undefined) ?? BUTTONS[part];
+      const v = DIRS[part] ?? (part.length > 1 ? DIRS[part.toUpperCase()] : undefined) ?? remap[part];
       if (v === undefined) return undefined;
       bits |= v;
     }
