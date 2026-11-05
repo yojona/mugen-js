@@ -119,7 +119,11 @@ for (let i = 1; i <= ticks; i++) {
     const mt = { i: 0, a: 1, h: 2 }[p1.moveType as string] ?? 0;
     const fv = Array.from(p1.fvars, (x) => x.toFixed(4));
     lines.push(`P|${i}|${[w.gameTime, w.roundState, w.seed, p1.stateNo, p1.ctrl ? 1 : 0, st, mt, p1.power, ...p1.vars, ...fv, p1.inGuardDist() ? 1 : 0, (p1.pos.y * 2).toFixed(4)].join(',')}`);
-  } else lines.push(`P|${i}|${[...row, ...pl].join(',')}`);
+  } else {
+    // CAM=1: the camera in mugen.exe units (camera_offset_x / _y) at the end of each row.
+    const cam = process.env.CAM ? [w.camera.x * (w.gameWidth / w.screenWidth), w.camera.y * (w.gameWidth / w.screenWidth)].map(f) : [];
+    lines.push(`P|${i}|${[...row, ...pl, ...cam].join(',')}`);
+  }
   if (m.finished) break;
 }
 writeFileSync(out, lines.join('\n') + '\n');
