@@ -701,18 +701,28 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     // no hittime given, sets 20).
     g.hittime = lying ? (vel[1] !== 0 ? hd.airHitTime : hd.downHitTime) : inAir || vel[1] !== 0 || willFall ? hd.airHitTime : hd.groundHitTime;
     g.slidetime = hd.groundSlideTime;
-    let [vx, vy] = vel;
-    // A killing hit throws the defender (mugen.exe 0x43f29a): ground hits
-    // with no y velocity keep 0.66 of x; x gains 2.5 outwards, y loses 2 and
-    // is at most -6 (measured: KFM's 1410 KO sends P2 at -8.44, -6).
-    // Player_KoVelocity: at most -6 up on the ground, -3 in the air.
+    const [vx, vy] = vel;
+    // HitDef_Apply keeps the velocities in game units: the attacker's
+    // converted (Player_FromLocalCoord), then a killing hit throws the
+    // defender (Player_KoVelocity, in 320-wide units: Units_From320): ground
+    // hits with no y velocity keep 0.66 of x; x gains 2.5 outwards, y loses
+    // 2 and is at most -6 up (-3 in the air). Measured: KFM's 1410 KO sends
+    // P2 at -8.44, -6; KFM720's 410 KO sends KFM up at -12 game units.
+    const kg = world.gameWidth / world.screenWidth;
+    let gx = Math.fround(vx * a.scale * kg * -dir);
+    let gy = Math.fround(vy * a.scale * kg);
     if (kills) {
-      if (!inAir && vy === 0) vx = Math.fround(vx * 0.66);
-      if (vx !== 0) vx = Math.fround(vx + Math.sign(vx) * 2.5);
-      if (vy <= 0) vy = Math.min(Math.fround(vy - 2), inAir ? -3 : -6);
+      const u = (v: number) => Math.fround((Math.trunc(world.gameWidth) * v) / 320);
+      if (!inAir && vy === 0) gx = Math.fround(gx * 0.66);
+      if (gx !== 0) gx = Math.fround(u(2.5) * Math.sign(gx) + gx);
+      if (gy <= 0) gy = Math.fround(gy - u(2));
+      if (gy <= 0) {
+        const lim = u(inAir ? -3 : -6);
+        if (lim < gy) gy = lim;
+      }
     }
-    g.xvel = vx * -dir * conv;
-    g.yvel = vy * conv;
+    g.xvel = gx / (d.scale * kg);
+    g.yvel = gy / (d.scale * kg);
     // HitDef_Apply: a falling ground hit with no y velocity gets -0.001
     // (internal units), so the hit state sends it into the air.
     if (!inAir && !lying && willFall && g.yvel === 0) g.yvel = Math.fround(-0.001) / (d.scale * (world.gameWidth / world.screenWidth));
