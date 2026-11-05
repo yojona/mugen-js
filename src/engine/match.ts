@@ -235,6 +235,9 @@ export class Match {
     this.fade = { out: false, ticks: 1, time: 12, bars: true };
     this.phase = 'fight';
     this.phaseTime = -1;
+    // round_state_time restarts with RoundState 2: this tick is not counted
+    // (measured: landing dust on mugen.exe's every-third tick after a skip).
+    w.fightTime = -1;
   }
 
   /** RoundState 4 lasts until this tick (over.time, pushed back by roundnotover). */
