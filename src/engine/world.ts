@@ -127,8 +127,6 @@ export class World {
   rightBound = 1000;
   screenLeft = 15;
   screenRight = 15;
-  /** Set by the match flow outside RoundState 2. */
-  inputLocked = false;
   /** Stage autoturn: ChangeState turns a player with control towards the enemy. */
   autoTurn = true;
   /** hits_enabled: Players_CheckHits (push, hits, projectile hits) runs. */
@@ -532,7 +530,6 @@ export class World {
           if (p.pauseMoveTime > 0) p.pauseMoveTime--;
         } else if (p.moveType === 'h') p.superMoveTime = p.pauseMoveTime = 0;
       }
-      if (this.inputLocked && !p.isHelper) p.ctrl = false;
       p.physicsStep();
       // Screen bounds apply as part of the player's movement, before the
       // camera follows it.
