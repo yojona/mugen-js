@@ -428,7 +428,8 @@ export class StageRuntime {
       e.y = f32(e.y + offY);
       e.drawScale = [f32((px * -d.scaleDelta[0] + d.scaleStart[0]) * z), f32((-d.scaleDelta[1] * py + d.scaleStart[1]) * z)];
       if (d.type === 'parallax') {
-        const v = f32(d.yscaleStart * 0.01) - f32(d.yscaleDelta * 0.01) * y;
+        // yscale_delta is stored negated too: v = start + delta * y.
+        const v = f32(d.yscaleStart * 0.01) + f32(d.yscaleDelta * 0.01) * y;
         e.yscale = v > 0 ? f32(1 / v) : 1e6;
       }
     }
