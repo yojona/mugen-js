@@ -415,6 +415,11 @@ export class World {
     return true;
   }
 
+  /** An AssertSpecial global flag (nobg, nofg, nobardisplay, globalnoshadow) asserted by any player or helper. */
+  globalFlag(flag: string): boolean {
+    return this.players.some((p) => p.special.has(flag)) || this.helpers.some((h) => h.special.has(flag));
+  }
+
   get darkened(): boolean {
     return !!this.superPause?.darken && !!this.superPause.dimming;
   }

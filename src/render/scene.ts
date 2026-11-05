@@ -53,8 +53,9 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
     r.tint = undefined;
   };
   if (!env) {
-    tinted(dimBg, () => opts.background?.());
-    drawShadows(r, w, sx, sy);
+    // Game_Draw: AssertSpecial nobg leaves the cleared screen, globalnoshadow no shadows.
+    if (!w.globalFlag('nobg')) tinted(dimBg, () => opts.background?.());
+    if (!w.globalFlag('globalnoshadow')) drawShadows(r, w, sx, sy);
   } else if (env.time > 0 && env.under) envFill();
 
   const list: Drawable[] = [];
@@ -112,7 +113,7 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
 
   list.sort((a, b) => a.priority - b.priority || b.order - a.order);
   for (const d of list) d.draw();
-  tinted(dimBg, () => opts.foreground?.());
+  if (!w.globalFlag('nofg')) tinted(dimBg, () => opts.foreground?.());
   if (env && env.time > 0 && !env.under) envFill();
   for (const d of top) d.draw();
 

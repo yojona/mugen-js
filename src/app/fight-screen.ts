@@ -278,7 +278,7 @@ export class FightScreen implements Screen {
     r.setProjection(mw, mh);
     // The HUD's palette group (0x200) darkens with the stage in a SuperPause.
     r.tint = w.darkened ? DARKEN_BG : undefined;
-    this.s.hud.draw(r, this.match, !this.s.demo || this.s.demo.bars);
+    this.s.hud.draw(r, this.match, (!this.s.demo || this.s.demo.bars) && !w.globalFlag('nobardisplay'));
     r.tint = undefined;
     const a = this.match.fadeAlpha;
     if (a > 0) r.rect(0, 0, mw, mh, [0, 0, 0, Math.round(a * 255)]);
