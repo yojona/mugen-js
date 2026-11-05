@@ -397,7 +397,7 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
   await storyboard(winner?.data?.def.arcade.ending, winner?.data?.dir ?? '');
 }
 
-async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | undefined, aiLevel?: () => number): Promise<FightScreen> {
+async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | undefined, aiLevel?: () => number, demo?: { endTime: number; bars: boolean }): Promise<FightScreen> {
   const sp = stagePath ?? vfs.resolve(p2.char.entry.stage ?? '') ?? stages[0]!.path;
   const progs: [CharacterProgram, CharacterProgram] = [await program(p1.char), await program(p2.char)];
   // Same character and palette on both sides: P2 takes the next palette.
@@ -415,6 +415,7 @@ async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | und
     human: mode === 'versus' ? [true, true] : mode === 'watch' ? [false, false] : [true, false],
     training: mode === 'training',
     aiLevel,
+    demo,
   });
 }
 
@@ -505,11 +506,46 @@ async function mainLoop(): Promise<void> {
   // Motif logo and intro storyboards play once at start-up.
   await storyboard(motif.logoStoryboard);
   await storyboard(motif.introStoryboard);
+  let demoCycles = 0;
   for (;;) {
-    const mode = await until<GameMode>(new TitleScreen(ctx, menuPos));
+    const mode = await until<GameMode | 'demo'>(new TitleScreen(ctx, menuPos));
+    if (mode === 'demo') {
+      await runDemo();
+      // Title_Init: back on Arcade after a demo; Demo_TickFight: after
+      // intro.waitcycles demos the intro storyboard plays again.
+      menuPos = 0;
+      const n = demoCycles++;
+      if (n >= (parseInt(motif.value('Demo Mode', 'intro.waitcycles') ?? '1', 10) || 0)) {
+        demoCycles = 0;
+        await storyboard(motif.introStoryboard);
+      }
+      continue;
+    }
     menuPos = ['arcade', 'versus', 'teamarcade', 'teamversus', 'teamcoop', 'survival', 'survivalcoop', 'training', 'watch'].indexOf(mode);
     await runMode(mode);
   }
+}
+
+/**
+ * A demo fight (Demo_SetupTeams, Gameflow_PickStage): a random character
+ * with a random palette (of 12) on each side and a random stage, all from
+ * the session RNG, computer against computer.
+ */
+async function runDemo(): Promise<void> {
+  const all = rosterChars.filter((c) => c.data);
+  if (!all.length) return;
+  const pick = (): Pick => {
+    const c = all[session.next() % all.length]!;
+    return { char: c, pal: (session.next() % 12) + 1 };
+  };
+  const p1 = pick();
+  const p2 = pick();
+  const sp = stages[session.next() % stages.length]!.path;
+  const v = (k: string, d: number) => {
+    const n = parseInt(motif.value('Demo Mode', k) ?? '', 10);
+    return Number.isFinite(n) ? n : d;
+  };
+  await until(await loading(() => fight('watch', p1, p2, sp, undefined, { endTime: v('fight.endtime', 1500), bars: v('fight.bars.display', 0) !== 0 })));
 }
 
 // ---------------------------------------------------------------------------

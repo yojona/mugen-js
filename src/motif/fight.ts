@@ -210,9 +210,14 @@ export class FightHud {
     return this.sideKind(m, side) === 'simul' ? [side, side + 2] : [side];
   }
 
-  draw(r: Renderer, m: Match): void {
+  /** bars false: no Fight_DrawHud (demo fights with [Demo Mode] fight.bars.display = 0), only combos and announcements. */
+  draw(r: Renderer, m: Match, bars = true): void {
     const w = m.world;
     for (let side = 0; side < 2; side++) {
+      if (!bars) {
+        this.drawCombo(r, side);
+        continue;
+      }
       const kind = this.sideKind(m, side);
       for (const i of this.sideSlots(m, side)) {
         const p = w.slot(i + 1);
@@ -239,7 +244,7 @@ export class FightHud {
       this.drawWinIcons(r, m, side);
       this.drawCombo(r, side);
     }
-    this.drawClock(r, m);
+    if (bars) this.drawClock(r, m);
     this.drawAnnounce(r, m);
   }
 

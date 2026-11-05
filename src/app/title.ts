@@ -25,13 +25,16 @@ const ITEMS: { key: GameMode; name: string }[] = [
 ];
 
 export class TitleScreen implements Screen {
-  result: GameMode | undefined;
+  /** A mode, or 'demo' after [Demo Mode] title.waittime idle ticks. */
+  result: GameMode | 'demo' | undefined;
   private bg: MotifBackground;
   private fade;
   private items: { name: string; mode: GameMode }[];
   private cursor = 0;
   private scroll = 0;
-  private chosen: GameMode | undefined;
+  private chosen: GameMode | 'demo' | undefined;
+  /** ScreenLoop.idle_ticks: ticks without a key. */
+  private idle = 0;
 
   constructor(
     private ctx: AppContext,
@@ -54,6 +57,19 @@ export class TitleScreen implements Screen {
     if (this.fade.fadingOut) return;
     const pad = this.ctx.keys.pads[0]!;
     const n = this.items.length;
+    // Title_Update: idle past [Demo Mode] title.waittime starts a demo fight.
+    // (Our screens act on a key the tick it is pressed, mugen.exe on the
+    // next one, and their fades run a tick longer to match; the demo, with
+    // no key, starts a tick sooner to land on mugen.exe's frame.)
+    if (this.ctx.keys.pressed.length > 0) this.idle = 0;
+    else this.idle++;
+    const demo = this.ctx.motif.value('Demo Mode', 'enabled') ?? '1';
+    const wait = parseInt(this.ctx.motif.value('Demo Mode', 'title.waittime') ?? '600', 10);
+    if (demo !== '0' && Number.isFinite(wait) && this.idle >= wait - 1) {
+      this.chosen = 'demo';
+      this.fade.fadeOut();
+      return;
+    }
     if (pad.pressed(IN_D)) {
       this.cursor = (this.cursor + 1) % n;
       motifSound(this.ctx, this.v('cursor.move.snd'));

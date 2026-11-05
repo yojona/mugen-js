@@ -42,6 +42,12 @@ export interface FightSetup {
    * team member (survival: the opponents fought before), else the difficulty.
    */
   aiLevel?: (member: number) => number;
+  /**
+   * Demo fight ([Demo Mode]): no time limit, full power each round, the HUD
+   * bars hidden unless bars; it ends endTime RoundState 2 ticks in (fading
+   * over the last 120) or at any key (Demo_TickFight / Match_Update).
+   */
+  demo?: { endTime: number; bars: boolean };
 }
 
 export interface FightTeam {
@@ -95,7 +101,7 @@ export class FightScreen implements Screen {
     if (s.survival) this.fade = new Fader(0, 1);
     const info = s.stage.info;
     const cfg = s.hud.roundConfig();
-    if (s.training) cfg.roundSeconds = -1;
+    if (s.training || s.demo) cfg.roundSeconds = -1;
     const starts = [info.p1, info.p2, info.p3, info.p4];
     if (s.teams) {
       // Team_CreatePlayers: each slot's character, palette and controller.
@@ -146,6 +152,12 @@ export class FightScreen implements Screen {
       return;
     }
     if (this.fade.fadingOut) return;
+    if (this.s.demo && this.ctx.keys.pressed.length > 0) {
+      // Match_Update: any key ends the demo.
+      this.pendingResult = { winner: undefined };
+      this.fade.fadeOut();
+      return;
+    }
     if (this.ctx.keys.escape) {
       this.saveRecords();
       this.pendingResult = { winner: undefined };
@@ -157,6 +169,23 @@ export class FightScreen implements Screen {
     const w = this.world;
     const inputs = w.players.map((p) => (p.pad !== undefined ? (this.ctx.keys.pads[p.pad]?.bits ?? 0) : 0));
     const simulated = m.tick(inputs);
+    if (this.s.demo) {
+      // Round_Reset: full power for everyone in a demo fight.
+      if (m.round !== this.demoRound) {
+        this.demoRound = m.round;
+        for (const p of w.players) if (!p.isHelper) p.power = p.const('data.power');
+      }
+      if (w.roundState === 2) {
+        const d = this.s.demo;
+        if (this.demoTicks === d.endTime - 120) this.demoFade = 0;
+        if (this.demoTicks >= d.endTime) {
+          this.pendingResult = { winner: undefined };
+          this.fade.fadeOut();
+        }
+        this.demoTicks++;
+      }
+      if (this.demoFade >= 0) this.demoFade++;
+    }
     if (simulated) {
       w.tick(inputs);
       if (!w.superPause && !w.pause) this.bg.tick();
@@ -173,6 +202,10 @@ export class FightScreen implements Screen {
     }
   }
   private pendingResult: FightResult | undefined;
+  /** Demo fight: RoundState 2 ticks run, the round power was last filled for, and the 120-tick fade out's progress (-1 none). */
+  private demoTicks = 0;
+  private demoRound = 0;
+  private demoFade = -1;
 
   /** Keys 1-5 cycle the dummy's stance, guard, distance, back-off distance and button. */
   private dummyKeys(): void {
@@ -247,11 +280,12 @@ export class FightScreen implements Screen {
     r.view = { s: 1, ox: 0, oy: 0 };
     const [mw, mh] = this.ctx.motif.localCoord;
     r.setProjection(mw, mh);
-    this.s.hud.draw(r, this.match);
+    this.s.hud.draw(r, this.match, !this.s.demo || this.s.demo.bars);
     const a = this.match.fadeAlpha;
     if (a > 0) r.rect(0, 0, mw, mh, [0, 0, 0, Math.round(a * 255)]);
     const bars = this.match.fadeBars;
     if (bars !== undefined) drawFadeBars(r, mw, mh, bars);
+    if (this.demoFade >= 0) r.rect(0, 0, mw, mh, [0, 0, 0, Math.round(Math.min(1, this.demoFade / 120) * 255)]);
     this.fade.draw(r, mw, mh);
   }
 }
