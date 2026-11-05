@@ -1,6 +1,6 @@
 // Development page: a CPU match played to a frame and drawn at 640x480, to
 // compare with a mugen.exe screenshot of the same frame (tools/harness SHOTS).
-// ?c1=&c2=&frame=N[&seed=16808][&stage=stages/kfm.def][&motif=data/system.def][&w=640]  -> window.__done
+// ?c1=&c2=&frame=N[&seed=16808][&stage=stages/kfm.def][&motif=data/system.def][&w=640][&cam=x,y]  -> window.__done
 import { withContentFixes } from '../engine/content-fixes';
 import { Mixer } from '../audio/mixer';
 import { loadCharacter } from '../engine/character';
@@ -50,8 +50,11 @@ const screen = new FightScreen(ctx, {
 });
 const frame = Number(q.get('frame') ?? 1);
 for (let i = 1; i <= frame; i++) screen.tick();
-screen.draw();
 const w = screen.world;
 const k = w.gameWidth / w.screenWidth;
+// cam=x,y: mugen.exe's camera_x / camera_y (the shot's), to compare backgrounds.
+const cam = q.get('cam')?.split(',').map(Number);
+if (cam) w.camera = { x: cam[0]! / k, y: cam[1]! / k };
+screen.draw();
 document.title = `cam ${(w.camera.x * k).toFixed(3)} ${(w.camera.y * k).toFixed(3)} ground ${(w.groundY * k).toFixed(1)} sw ${w.screenWidth}x${w.screenHeight}`;
 (window as unknown as { __done: boolean }).__done = true;
