@@ -95,6 +95,9 @@ export function parseAir(text: string): AnimationMap {
 
   const closeAction = () => {
     if (!cur) return;
+    // Anim_Load skips an action without elements ("must have at least 1
+    // element"); of duplicated actions the first kept one wins.
+    if (cur.elements.length && !anims.has(cur.action)) anims.set(cur.action, cur);
     // Interpolate lines before the first element apply to last -> first wrap.
     const last = cur.elements[cur.elements.length - 1];
     if (last) last.interp = { ...interpBeforeFirst };
@@ -117,8 +120,6 @@ export function parseAir(text: string): AnimationMap {
       closeAction();
       const action = parseInt(am[1]!, 10);
       cur = { action, elements: [], loopStart: 0, totalTime: 0 };
-      // MUGEN keeps the first definition of a duplicated action.
-      if (!anims.has(action)) anims.set(action, cur);
       def1 = def2 = next1 = next2 = null;
       defHere1 = defHere2 = false;
       clsnTarget = null;
