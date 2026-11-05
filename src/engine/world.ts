@@ -617,6 +617,8 @@ export class World {
     // BindToTarget/Parent/Root place before the hits (round.c: Player_UpdateBind
     // then Players_CheckHits).
     this.applyBinds();
+    // Round_Tick steps the EnvShake here: one a hit sets starts on the next tick.
+    this.tickEnvShake();
     // Projectiles_Update (before Players_CheckHits) runs for each player that ran this tick (run[i],
     // decided before the updates): a Pause started during the tick does not
     // stop its owner's projectiles until the next one.
@@ -687,7 +689,6 @@ export class World {
     }
     this.updateExplods();
     this.tickPauses();
-    this.tickEnvShake();
     // Game_Tick ends with the envcolor_time countdown: time = n shows n frames.
     if (this.envColor && this.envColor.time > 0 && --this.envColor.time === 0) this.envColor = undefined;
     this.gameTime++;
