@@ -660,10 +660,10 @@ function makeFlowHarness() {
     .split(';')
     .filter(Boolean)
     .map((p) => {
-      const [f, k, hold] = p.split(':');
+      const [f, k = '', hold] = p.split(':');
       // Upper case keys go to P2's pad.
-      const p2 = k! !== k!.toLowerCase();
-      return { from: parseInt(f!, 10), bits: parseKeys(k!.toLowerCase()), hold: parseInt(hold ?? '2', 10), pad: p2 ? 1 : 0 };
+      const p2 = k !== k.toLowerCase();
+      return { from: parseInt(f!, 10), bits: parseKeys(k.toLowerCase()), hold: parseInt(hold ?? '2', 10), pad: p2 ? 1 : 0 };
     });
   const mash = params.get('mash')?.split(':');
   const clamp = params
