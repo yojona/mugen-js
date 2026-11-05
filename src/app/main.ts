@@ -400,9 +400,33 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
     }
   }
   // After the last match: the ending of the arcade side's first character.
-  const winner = human.picks[0]?.char;
-  await storyboard(winner?.data?.def.arcade.ending, winner?.data?.dir ?? '');
+  const lastOpp = order[Math.floor((order.length - size) / size) * size];
+  await arcadeEnding(human.picks.slice(0, human.mode === 'simul' ? 2 : 1), lastOpp ? vfs.resolve(lastOpp.entry.stage ?? '') : undefined);
+}
+
+/**
+ * Match_Run after the last arcade match: the first character's ending
+ * storyboard (state 18), else the win screen (16, [Win Screen]) and the
+ * default ending (17, [Default Ending]); either way the end credits and the
+ * intro follow (arcadeEnd).
+ */
+async function arcadeEnding(picks: Pick[], stagePath: string | undefined): Promise<void> {
+  const first = picks[0]?.char;
   arcadeEnd = 'ending';
+  if (first?.data?.def.arcade.ending && vfs.resolve(first.data.def.arcade.ending, first.data.dir)) {
+    await storyboard(first.data.def.arcade.ending, first.data.dir);
+    return;
+  }
+  if ((motif.value('Win Screen', 'enabled') ?? '1') !== '0') {
+    const sp = stagePath ?? stages[0]!.path;
+    await until(
+      await loading(async () => {
+        const players = await Promise.all(picks.map(async (pk) => ({ prog: await program(pk.char), pal: pk.pal })));
+        return new SurvivalResultsScreen(ctx, { players, stage: await stage(sp), fightFx, wins: 0, seed: session.matchSeed(), kind: 'win' });
+      }),
+    );
+  }
+  if ((motif.value('Default Ending', 'enabled') ?? '0') !== '0') await storyboard(motif.value('Default Ending', 'storyboard')?.trim() || undefined, 'data');
 }
 
 async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | undefined, aiLevel?: () => number, demo?: { endTime: number; bars: boolean }): Promise<FightScreen> {
@@ -491,8 +515,9 @@ async function runMode(mode: GameMode): Promise<void> {
           await until(new VictoryScreen(ctx, sel.p1, res.quote ?? (motif.value('Victory Screen', 'winquote.text') ?? 'Winner!').replace(/^"|"$/g, '')));
         }
       }
-      await storyboard(chosen.data?.def.arcade.ending, chosen.data?.dir ?? '');
-      arcadeEnd = 'ending';
+      const last = opponents[opponents.length - 1];
+      await arcadeEnding([sel.p1], last ? vfs.resolve(last.entry.stage ?? '') : undefined);
+      void chosen;
       return;
     }
     const p2 = sel.p2 ?? randomOpponent();
