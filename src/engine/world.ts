@@ -63,6 +63,10 @@ export class World {
   winIcons: number[][] = [new Array(10).fill(-1), new Array(10).fill(-1)];
   winPerfect: number[][] = [new Array(10).fill(-1), new Array(10).fill(-1)];
   roundsWon: () => readonly number[] = () => [0, 0];
+  /** Match_CheckOver for the MatchOver trigger. */
+  matchOverNow: () => boolean = () => false;
+  /** GameVars.arcade_match (MatchNo). */
+  matchNo = 1;
 
   resetWinIcons(): void {
     for (const a of [...this.winIcons, ...this.winPerfect]) a.fill(-1);

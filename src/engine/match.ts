@@ -252,6 +252,8 @@ export class Match {
   private teams: [TeamState, TeamState];
   /** The side that won the round (null: draw), valid from the KO / time over. */
   private roundWinnerSide: number | null = null;
+  /** GameVars.round_not_counted: this round's result is in the wins. */
+  private roundCounted = false;
   /** round_ticks: fight ticks of the round (turns life recovery). */
   private roundTicks = 0;
 
@@ -264,6 +266,7 @@ export class Match {
     world.framesDriven = true;
     world.overHitTime = cfg.overHitTime;
     world.roundsWon = () => this.wins;
+    world.matchOverNow = () => this.checkOverLive() !== 0;
     world.resetWinIcons();
     this.clock = this.roundStartClock();
     const mk = (t: number): TeamState => {
@@ -478,6 +481,7 @@ export class Match {
     this.roundWinner = null;
     w.winType = 0;
     w.roundWinnerSide = 0;
+    this.roundCounted = false;
     w.roundState = 0;
     w.roundNo = this.round;
   }
@@ -825,6 +829,23 @@ export class Match {
     return sa === sb ? null : sa > sb ? 0 : 1;
   }
 
+  /**
+   * Match_CheckOver as the MatchOver trigger sees it: from over.hittime on,
+   * counting the round in progress until it is scored.
+   */
+  private checkOverLive(): number {
+    const w = this.world;
+    if (w.roundState < 3 || (w.roundState === 3 && (w.roundClock ?? 0) < w.overHitTime)) return 0;
+    const won = [this.wins[0]!, this.wins[1]!];
+    if (!this.roundCounted) {
+      const ws = this.roundWinnerSide;
+      for (const t of [0, 1]) if (ws === t || (ws === null && this.draws + 1 > this.teams[t]!.drawsMax)) won[t]!++;
+    }
+    const r = won[0]! >= this.teams[0].winsNeeded ? 1 : 0;
+    if (won[1]! < this.teams[1].winsNeeded) return r;
+    return r === 0 ? 2 : 1;
+  }
+
   /** Match_CheckOver: 0 not over, 1 / 2 the winning side (both: side 1). */
   private checkOver(): number {
     const r = this.wins[0]! >= this.teams[0].winsNeeded ? 1 : 0;
@@ -845,6 +866,7 @@ export class Match {
   }
 
   private scoreRound(): void {
+    this.roundCounted = true;
     const ws = this.roundWinnerSide;
     if (ws === null) {
       // A draw past a side's maximum draws gives it a round win.

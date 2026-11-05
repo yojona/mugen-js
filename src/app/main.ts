@@ -294,6 +294,7 @@ async function teamFight(sides: [TeamSide, TeamSide], stagePath: string | undefi
     training: false,
     teams,
     options: teamOptions(),
+    matchNo: nextMatchNo(),
     survival: survival ? { side: 0, reseed: survival } : undefined,
     aiLevel,
   });
@@ -406,6 +407,7 @@ async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
       human = { mode: re.teams[0].mode, picks: re.teams[0].picks, pads: padsOf(re.teams[0], 0) };
       n -= size;
       match--;
+      matchContinued = true;
       continue;
     }
     if (n + size < order.length && (motif.value('Victory Screen', 'enabled') ?? '1') !== '0') {
@@ -460,9 +462,19 @@ async function fight(mode: GameMode, p1: Pick, p2: Pick, stagePath: string | und
     human: mode === 'versus' ? [true, true] : mode === 'watch' ? [false, false] : [true, false],
     training: mode === 'training',
     options: { life: gameOptions.life },
+    matchNo: nextMatchNo(),
     aiLevel,
     demo,
   });
+}
+
+// GameVars.arcade_match: counts the matches of a mode, a continued one once.
+let arcadeMatch = 0;
+let matchContinued = false;
+function nextMatchNo(): number {
+  if (!matchContinued) arcadeMatch++;
+  matchContinued = false;
+  return arcadeMatch;
 }
 
 /** Match_Run's default next step: gameflow 12, the victory screen (not when quit). */
@@ -483,6 +495,7 @@ async function storyboard(path: string | undefined, ...bases: string[]): Promise
 
 /** Run one mode to completion, returning to the title. */
 async function runMode(mode: GameMode): Promise<void> {
+  arcadeMatch = 0;
   for (;;) {
     const sel = await until<SelectResult>(new SelectScreen(ctx, mode, rosterChars, stages));
     if (sel.cancelled) return;
@@ -529,6 +542,7 @@ async function runMode(mode: GameMode): Promise<void> {
           if (re.cancelled) return;
           sel.p1 = re.p1;
           n--;
+          matchContinued = true;
           continue;
         }
         // Not after the last match (system.def [Victory Screen] notes).

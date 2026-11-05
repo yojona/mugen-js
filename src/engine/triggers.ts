@@ -47,9 +47,9 @@ const NULLARY: Record<string, Fn<P>> = {
   random: int((p) => p.world.random(1000)),
   roundstate: int((p) => p.world.roundState),
   roundno: int((p) => p.world.roundNo),
-  matchno: int(() => 1),
+  matchno: int((p) => p.world.matchNo),
   roundsexisted: int((p) => p.roundsExisted),
-  matchover: int(() => 0),
+  matchover: int((p) => (p.world.matchOverNow() ? 1 : 0)),
   // Win / lose by kind (mugen.exe Trigger_Eval: win_type and round winner side).
   win: int((p) => (p.world.winType !== 0 && p.world.roundWinnerSide === p.root.side + 1 ? 1 : 0)),
   winko: int((p) => (p.world.winType === 1 && p.world.roundWinnerSide === p.root.side + 1 ? 1 : 0)),

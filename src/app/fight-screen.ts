@@ -36,6 +36,8 @@ export interface FightSetup {
   teams?: [FightTeam, FightTeam];
   /** [Options] Life, Team.1VS2Life, Team.LoseOnKO. */
   options?: { life?: number; team1vs2Life?: number; loseOnKo?: boolean };
+  /** GameVars.arcade_match: MatchNo. */
+  matchNo?: number;
   /** Survival: the human side (its opponents come one after the other from their team's list) and the per-round seeds. */
   survival?: { side: number; reseed: () => number };
   /**
@@ -94,6 +96,7 @@ export class FightScreen implements Screen {
     w.screenHeight = Math.floor((mh * w.screenWidth) / mw + 0.5);
     w.updateCrop(s.stage.info.localCoord[1], s.stage.info.camera.cutHigh, s.stage.info.camera.cutLow, s.stage.info.camera.overdrawLow);
     w.fightFx = s.fightFx;
+    w.matchNo = s.matchNo ?? 1;
     w.training = s.training;
     if (s.seed !== undefined) w.seed = s.seed;
     // The survival result screen continues the match's scene (Result_Setup
