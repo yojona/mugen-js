@@ -50,6 +50,8 @@ export interface Projectile {
   endVel?: [number, number];
   /** The hit / remove / cancel animation to take on the next update. */
   endAnim?: Animation;
+  /** Ticks the end animation's time runs behind the reference's. */
+  endBehind: number;
   age: number;
   hitPause: number;
   superMoveTime: number;
@@ -151,6 +153,7 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
       heightBound: [(int(p, 'projheightbound', 0) ?? Math.trunc(-240 * local)) * k, (int(p, 'projheightbound', 1) ?? Math.trunc(1 * local)) * k],
       hd: projHitDef(hdBuild(p), p),
       phase: 'active',
+      endBehind: 0,
       fresh: true,
       age: 0,
       hitPause: 0,
@@ -194,10 +197,14 @@ export function endProjectile(pr: Projectile, anim: number, vel?: [number, numbe
 }
 
 /** Anim_SetAction keeps the time when the action does not change (projhitanim = projanim: the end counts from where it is). */
-function takeEndAnim(pr: Projectile): void {
+function takeEndAnim(pr: Projectile): boolean {
   const a = pr.endAnim;
   pr.endAnim = undefined;
-  if (a && a !== pr.anim.anim) pr.anim.set(a);
+  if (a && a !== pr.anim.anim) {
+    pr.anim.set(a);
+    return true;
+  }
+  return false;
 }
 
 /** Move, age and bound-check one projectile. */
@@ -222,11 +229,18 @@ export function updateProjectile(pr: Projectile): void {
       pr.vel = pr.endVel;
       pr.endVel = undefined;
     }
-    takeEndAnim(pr);
+    // Anim_Step shows the element of the time before it moves on: a new
+    // animation shows its first element now, and its time here runs a tick
+    // behind the reference's from then on.
+    if (takeEndAnim(pr)) {
+      pr.endBehind = 1;
+      if (pr.anim.totalTime <= 0) pr.phase = 'dead';
+      return;
+    }
     // Projectiles_Update: an end animation with no length (or endless:
     // total_time <= 0) removes the projectile at once; otherwise it goes
     // when the animation time reached its length before this tick's step.
-    if (pr.anim.totalTime <= 0 || pr.anim.animTime() >= 0) pr.phase = 'dead';
+    if (pr.anim.totalTime <= 0 || pr.anim.animTime() >= -pr.endBehind) pr.phase = 'dead';
     else if (!fresh) stepAnim(pr);
     return;
   }
