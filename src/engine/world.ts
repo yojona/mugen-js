@@ -591,6 +591,11 @@ export class World {
     // decided before the updates): a Pause started during the tick does not
     // stop its owner's projectiles until the next one.
     for (const pr of this.projectiles) if (active.includes(pr.owner)) updateProjectile(pr);
+    // AfterImage_Update (round.c) runs before Players_CheckHits: on the tick a
+    // hit lands its clock still counts, so with time 2 the frames recorded
+    // during the hit pause are blank (measured: no bright stack of paused
+    // copies after a rush's hits).
+    for (const p of active) recordAfterImage(p.afterImage, p.drawFrame(), p.hitPause === 0);
     // Players_CheckHits pushes the players apart before the hits (and once
     // more after them), clamping to the screen each time.
     const hitsOn = this.hitsEnabled;
@@ -637,7 +642,6 @@ export class World {
     this.updateCamera();
     this.updateZoom();
     for (const p of active) {
-      recordAfterImage(p.afterImage, p.drawFrame(), p.hitPause === 0);
       tickPalFx(p.palFx);
       p.advance();
       p.pruneTargets();
