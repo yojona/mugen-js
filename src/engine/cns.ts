@@ -222,6 +222,7 @@ const SCALAR_VELOCITY = new Set(['walk.fwd', 'walk.back', 'jump.back', 'jump.fwd
 
 export function parseConstants(docs: IniDoc[], defaults = DEFAULTS): Constants {
   const c: Constants = new Map(Object.entries(defaults));
+  c.set('engine.ko.echo', 1);
   const vel = new Map<string, number[]>();
   for (const doc of docs) {
     for (const sec of doc.sections) {
@@ -230,6 +231,8 @@ export function parseConstants(docs: IniDoc[], defaults = DEFAULTS): Constants {
       for (const e of sec.entries) {
         const parts = e.value.split(',').map((s) => parseFloat(s.trim()));
         const base = `${group}.${e.key}`;
+        // The engine's K.O. echo defaults to on, the data.ko.echo trigger to 0.
+        if (base === 'data.ko.echo') c.set('engine.ko.echo', parseInt(e.value, 10) || 0);
         if (group === 'velocity') vel.set(e.key, parts);
         if (group === 'velocity' && (e.key === 'jump.neu' || e.key === 'airjump.neu')) {
           const stem = e.key === 'jump.neu' ? 'jump' : 'airjump';

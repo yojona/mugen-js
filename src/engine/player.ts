@@ -19,7 +19,7 @@ import { newAfterImage, newPalFx, type AfterImageState, type PalFxState } from '
 import type { Blend } from '../formats/air';
 import { playerEnv } from './triggers';
 import type { Vfs } from './vfs';
-import { WIN_ICON, type World } from './world';
+import { soundPan, WIN_ICON, type World } from './world';
 
 export type StateType = 's' | 'c' | 'a' | 'l' | 'u';
 export type MoveType = 'i' | 'a' | 'h' | 'u';
@@ -411,6 +411,8 @@ export class Player {
   /** Events for the audio/visual layers (PlaySnd etc.), drained by the host. */
   /** Sound commands from this player's controllers, flushed in order at the end of the tick. */
   events: import('./world').SoundCmd[] = [];
+  /** Ticks since this player was KOed (Player.ko_time). */
+  koTime = 0;
   warnings: string[] = [];
 
   /** Persistence counters for controllers of the current state. */
@@ -885,6 +887,19 @@ export class Player {
     }
   }
 
+  /** Player_Update's K.O. scream: the character's sound 11,0 on no channel, panned to the player. */
+  private koScream(volume: number): void {
+    const w = this.world;
+    const k = w.gameWidth / w.screenWidth;
+    this.events.push({
+      owner: this,
+      group: 11,
+      number: 0,
+      volume: (this.prog.consts.get('data.volumescale') ?? 100) * volume,
+      pan: soundPan(w, Math.trunc(this.wx * k - w.camera.x * k)),
+    });
+  }
+
   /** Reset effects that last a single tick unless re-asserted. */
   private resetTickFlags(): void {
     this.special.clear();
@@ -1337,7 +1352,12 @@ export class Player {
     // life ran out is KO now (unless AssertSpecial noko); the round sees it
     // on its next tick. KO outside a hit falls through 5030.
     if (this.life <= 0 && this.alive && !this.isHelper && !this.world.globalFlag('noko')) {
+      if (!this.world.globalFlag('nokosnd')) {
+        this.events.push({ kind: 'stop', key: `${this.id}:0` });
+        this.koScream(1);
+      }
       this.alive = false;
+      this.koTime = 0;
       this.ctrl = false;
       if (this.moveType !== 'h') {
         const w = this.world;
@@ -1354,6 +1374,12 @@ export class Player {
     // not push, and from 5150 time 10 on leaves the screen bounds and the
     // camera alone.
     if (!this.alive && !this.isHelper) {
+      this.koTime++;
+      // [Data] ko.echo (on unless a character says otherwise): twice more, fading.
+      if (this.prog.consts.get('engine.ko.echo') && !this.world.globalFlag('nokosnd')) {
+        if (this.koTime === 20) this.koScream(0.5);
+        if (this.koTime === 50) this.koScream(0.25);
+      }
       const partner = this.slotNo > 0 ? this.world.slot(this.slotNo > 2 ? this.slotNo - 2 : this.slotNo + 2) : undefined;
       if (partner) {
         this.pushEnabled = false;
