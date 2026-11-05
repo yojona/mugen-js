@@ -485,7 +485,6 @@ export class Match {
     this.world.frames = this.frameNo++;
     this.sounds = [];
     if (this.announce) this.announce.age++;
-    this.checkIntroSkip(inputs);
     if (this.introSkipped && !this.fade && (this.phase === 'wait' || this.phase === 'intro' || this.phase === 'announce')) this.skipIntro();
     else if (this.phase !== 'wait' && this.phase !== 'intro' && this.phase !== 'announce') this.introSkipped = false;
     const simulate = this.step();
@@ -495,6 +494,10 @@ export class Match {
       this.fade.ticks++;
       if ((!this.fade.out || this.fade.bars) && this.fade.ticks >= this.fade.time) this.fade = undefined;
     }
+    // The skip button is read with the players' input (Player_UpdateInput),
+    // after Round_RunState and the fade: its bars start closing next tick
+    // (measured in team versus).
+    this.checkIntroSkip(inputs);
     this.phaseTime++;
     // Round_RunState's end: camera_mode++ every tick.
     this.world.cameraMode++;
