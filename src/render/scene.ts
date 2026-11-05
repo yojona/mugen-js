@@ -140,56 +140,60 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
 
 /** Floor shadows: each player's sprite flattened onto the ground (stage [Shadow]). */
 function drawShadows(r: Renderer, w: World, sx: (x: number) => number, sy: (y: number) => number): void {
-  // Shadow_Draw's reflection: the sprite mirrored about the floor line,
-  // blended with alpha intensity / 256 (drawn before the shadow).
+  // Shadow_Draw: the floor line ("top") includes the character's
+  // [Size] shadowoffset; ty is the sprite position's height above it (the
+  // player's height plus the AIR element offset, both scaled).
   const refl = Math.max(0, Math.min(256, w.reflection));
-  if (refl > 0) {
-    for (const p of w.allPlayers()) {
-      if (p.special.has('invisible')) continue;
-      const v = p.anim.view();
-      if (!v || v.element.group < 0) continue;
-      const s = p.prog.data.sff.get(v.element.group, v.element.number);
-      if (!s) continue;
-      const k = p.scale;
-      const floor = sy(0);
-      const y = sy((p.pos.y + v.y + p.drawOffset[1]) * k);
-      r.draw({
-        sprite: s,
-        palette: p.prog.data.paletteFor(s, p.palRemap ?? p.palNo),
-        x: sx((p.pos.x + p.facing * (v.x + p.drawOffset[0])) * k),
-        y: floor + (floor - y),
-        scaleX: p.facing * (v.element.flipH ? -1 : 1) * v.scaleX * p.drawScale[0] * p.const('size.xscale') * k,
-        scaleY: -(v.element.flipV ? -1 : 1) * v.scaleY * p.drawScale[1] * p.const('size.yscale') * k,
-        palfx: palFxUniforms(p.palFx),
-        blend: { kind: 'add', src: refl, dst: 256 - refl },
-      });
-    }
-  }
   const sh = w.shadow;
-  if (!sh || sh.intensity <= 0) return;
   for (const p of w.allPlayers()) {
-    if (p.special.has('noshadow') || p.special.has('invisible')) continue;
-    // Fade out as the player rises (fade.range: high, middle).
-    let k = 1;
-    const [hi, mid] = sh.fadeRange;
-    if (hi < mid && p.pos.y < mid) k = p.pos.y <= hi ? 0 : (p.pos.y - hi) / (mid - hi);
-    if (k <= 0) continue;
+    if (p.special.has('invisible')) continue;
     const v = p.anim.view();
     if (!v || v.element.group < 0) continue;
     const s = p.prog.data.sff.get(v.element.group, v.element.number);
     if (!s) continue;
-    const a = (sh.intensity / 256) * k;
+    const k = p.scale;
+    const top = sy(p.const('size.shadowoffset') * k);
+    const ty = top - sy((p.pos.y + v.y + p.drawOffset[1]) * k);
+    const x = sx((p.pos.x + p.facing * (v.x + p.drawOffset[0])) * k);
+    const scaleX = p.facing * (v.element.flipH ? -1 : 1) * v.scaleX * p.drawScale[0] * p.const('size.xscale') * k;
+    const scaleY = (v.element.flipV ? -1 : 1) * v.scaleY * p.drawScale[1] * p.const('size.yscale') * k;
+    // The reflection: mirrored about the floor line, blended with alpha
+    // intensity / 256 (drawn before the shadow).
+    if (refl > 0) {
+      r.draw({
+        sprite: s,
+        palette: p.prog.data.paletteFor(s, p.palRemap ?? p.palNo),
+        x,
+        y: top + ty,
+        scaleX,
+        scaleY: -scaleY,
+        palfx: palFxUniforms(p.palFx),
+        blend: { kind: 'add', src: refl, dst: 256 - refl },
+      });
+    }
+    // The shadow: the sprite squashed by -yscale (a positive yscale falls
+    // towards the screen) at top + ty * yscale, fading out between the
+    // fade.range heights. ([Shadow] xshear is not supported: no stage in
+    // the reference tree uses it.)
+    if (!sh || sh.intensity <= 0 || p.special.has('noshadow')) continue;
+    let fade = 1;
+    const [lo, hi] = sh.fadeRange;
+    if (lo < hi) {
+      if (lo >= p.pos.y) continue;
+      if (hi > p.pos.y) fade = (p.pos.y - lo) / (hi - lo);
+    }
+    const a = Math.round((sh.intensity / 256) * fade * 256);
+    if (a <= 0) continue;
     r.draw({
       sprite: s,
       palette: p.prog.data.paletteFor(s, p.palNo),
-      x: sx(p.wx + p.facing * v.x * p.scale),
-      // Shadows stay on the floor; the sprite offset is squashed by yscale.
-      y: sy(0) + v.y * sh.yscale * p.scale,
-      scaleX: p.facing * (v.element.flipH ? -1 : 1) * p.scale,
-      scaleY: sh.yscale * p.scale,
+      x,
+      y: top + ty * sh.yscale,
+      scaleX,
+      scaleY: -sh.yscale * scaleY,
       // Shadow color with partial opacity: multiply to black, blend by alpha.
       palfx: { add: [sh.color[0] / 255, sh.color[1] / 255, sh.color[2] / 255], mul: [0, 0, 0], color: 1, invertAll: false },
-      blend: { kind: 'add', src: Math.round(a * 256), dst: 256 - Math.round(a * 256) },
+      blend: { kind: 'add', src: a, dst: 256 - a },
     });
   }
 }
