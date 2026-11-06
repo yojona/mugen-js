@@ -62,8 +62,7 @@ variable on the leaving screen's last frame). Comparisons use `?pristine=1` on t
 | Chizuru&Maki vs Akuma (KOF pack), CPU vs CPU, level 4 (`tests/community.test.ts`) | All 9000 frames identical at full precision (helper binds move the camera, float helper origins and bind anchors, AnimExist in custom states, the element shown through an attacker's hit pause) |
 
 The parser, the parameter readers and several rules now come from the
-decompilation of the same mugen.exe (`ref/mugen-unleashed`, used only as a
-reference): expressions and triggers (Expr_Parse, Trigger_Parse), every
+decompilation of the same mugen.exe (`ref/mugen-unleashed`): expressions and triggers (Expr_Parse, Trigger_Parse), every
 controller's parameters (`src/engine/sctrl-spec.ts`), INI key matching,
 statedef sections, command labels, missing states, helper updates, hit
 direction and damage rounding, bottom handling in Expr_Eval, world-space
