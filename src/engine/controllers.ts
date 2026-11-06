@@ -1,6 +1,7 @@
 // State controllers (sctrls.html). Parameters are compiled once and evaluated
 // when the controller fires, left to right, as MUGEN does.
 
+import { formatClipboard } from './clipboard';
 import { checkControllerParams, specKeys } from './sctrl-params';
 import { soundPan } from './world';
 import { varTarget } from './var-line';
@@ -82,6 +83,17 @@ const GLOBAL_ASSERTS = new Set(['intro', 'roundnotover', 'noko', 'nokosnd', 'nok
 
 const IMPLS: Record<string, Impl> = {
   null: () => () => {},
+
+  displaytoclipboard: (_c, prm) => (p) => {
+    p.clipboard = [clipboardText(p, prm)];
+  },
+  appendtoclipboard: (_c, prm) => (p) => {
+    // TextRing_Create(0x9D, 3): the last three lines.
+    p.clipboard = [...p.clipboard, clipboardText(p, prm)].slice(-3);
+  },
+  clearclipboard: () => (p) => {
+    p.clipboard = [];
+  },
 
   changestate: (_c, prm) => (p) => {
     let v = prm.int(p, 'value');
@@ -833,6 +845,13 @@ export function compileController(c: ControllerDef, env: TriggerEnv<P>, mugenVer
   const impl = IMPLS[c.type];
   const run: (p: P) => void = impl ? impl(c, prm, env) : () => {};
   return { def: c, triggerAll, triggers, persistent, ignoreHitPause, run };
+}
+
+/** run_clipboard: the quoted text with the params printed into it (they run, whoever looks). */
+function clipboardText(p: P, prm: Params): string {
+  const count = prm.list('params')?.length ?? 0;
+  const values = Array.from({ length: count }, (_, i) => prm.num(p, 'params', i));
+  return formatClipboard((prm.raw('text') ?? '').trim().replace(/^"|"$/g, ''), values);
 }
 
 /** run_ctrl_anim: ctrl and anim of ChangeState/SelfState, -1 = unchanged, other negative anims 0. */

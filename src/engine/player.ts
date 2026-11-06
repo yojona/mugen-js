@@ -242,6 +242,8 @@ export class Player {
   // Attacking
   hitDef: HitDefData | undefined;
   hitDefActive = false;
+  /** Player.warnings: DisplayToClipboard and AppendToClipboard's lines. */
+  clipboard: string[] = [];
   /**
    * A HitDef was set in this state and not reset by a state change; unlike
    * hitDefActive it survives the hit (the AI recorder's p+0x1230).
