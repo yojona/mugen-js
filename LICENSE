@@ -31,8 +31,9 @@ data is included.
 M.U.G.E.N is a name of Elecbyte. This project is not affiliated with or endorsed
 by Elecbyte.
 
-Development started from Elecbyte's documentation. Parts of this software were
-then ported from mugen-unleashed (https://github.com/zxmarcos/mugen-unleashed), a
-C reconstruction of mugen.exe that grants no license for its code. The authors
+Development started from Elecbyte's documentation. Parts of this software are
+based on the work of zxmarcos in mugen-unleashed
+(https://github.com/zxmarcos/mugen-unleashed), a C reconstruction of mugen.exe
+that grants no license for its code. The authors
 make no claim over those works, and this license does not grant any rights that
 their owners may hold over those parts.
