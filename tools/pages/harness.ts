@@ -1,11 +1,11 @@
 // The page's headless controls: scripted keys and the flow harness
 // (tools/harness/flow-ours.ts), set from the URL. Not part of the engine.
 
-import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../src/engine/cmd';
-import { World } from '../src/engine/world';
-import type { Engine, EngineHooks } from '../src/app/engine';
-import { FightScreen } from '../src/app/fight-screen';
-import type { Screen } from '../src/app/screen';
+import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../../src/engine/cmd';
+import { World } from '../../src/engine/world';
+import type { Engine, EngineHooks } from '../../src/app/engine';
+import { FightScreen } from '../../src/app/fight-screen';
+import type { Screen } from '../../src/app/screen';
 
 const KEYMAP: Record<string, number> = { u: IN_U, d: IN_D, l: IN_L, r: IN_R, x: IN_X, y: IN_Y, z: IN_Z, a: IN_A, b: IN_B, c: IN_C, s: IN_S };
 
@@ -86,7 +86,7 @@ function makeFlowHarness(engine: Engine, params: URLSearchParams) {
       // ?dumpcmds=from:to logs each player's active commands and the AI's injected indices.
       if (s instanceof FightScreen && frame >= cmFrom && frame <= cmTo) {
         console.log(`DBG|${frame}|env ${JSON.stringify(s.world.envColor ?? null)} flags ${[...s.world.assertFlags].join(',')} helpers ${s.world.helpers.map((h) => `${h.root.slotNo}:${h.helperId}:${h.stateNo}/${h.time}@${h.wx.toFixed(1)},${h.wy.toFixed(1)},f${h.facing},a${h.animNo},e${h.anim.view()?.element.group},${h.anim.view()?.element.number}${h.anim.view()?.element.flipH ? 'H' : ''}`).join(' ')}`);
-        for (const p of s.world.players) console.log(`DBG|${frame}|cmds P${p.slotNo} state=${p.stateNo} ai=${p.ai?.cmds.join(',') ?? ''} active=${[...(p.cmdInput?.active() ?? [])].map((n) => commandLabel(n)).join(' ')} write=${p.cmdInput?.debugWrite} queue=${(p.cmdInput?.debugQueue(14) ?? []).map(([k, t, h]) => `${k.toString(16)}@${t}/${h}`).join(' ')}`);
+        for (const p of s.world.players) console.log(`DBG|${frame}|cmds P${p.slotNo} state=${p.stateNo} ai=${p.ai?.cmds.join(',') ?? ''} active=${[...(p.cmdInput?.active() ?? [])].map((n) => commandLabel(n)).join(' ')}`);
       }
       if (s instanceof FightScreen && frame >= exFrom && frame <= exTo) {
         for (const pr of s.world.projectiles) console.log(`DBG|${frame}|proj owner=${pr.owner.slotNo} phase=${pr.phase} x=${pr.x.toFixed(1)} y=${pr.y.toFixed(1)} f=${pr.facing} scale=${pr.scale} elem=${pr.anim.view()?.element.group},${pr.anim.view()?.element.number} ${pr.anim.view()?.element.flipH ? 'H' : ''} off=${pr.anim.view()?.x},${pr.anim.view()?.y} ang=${pr.anim.view()?.angle}`);

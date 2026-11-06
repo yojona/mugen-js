@@ -1,5 +1,5 @@
 // Run mugen-web's whole game flow in headless Chrome (CDP over WebSocket) and
-// collect the flow harness output of examples/main.ts: FLOW lines and canvas
+// collect the flow harness output of tools/pages/harness-main.ts: FLOW lines and canvas
 // shots. The page runs with ?ticks=N (as fast as possible, deterministic).
 //
 // Usage: tsx tools/harness/flow-ours.ts <outDir> <ticks> '<query string>'
@@ -55,7 +55,7 @@ try {
   send('Page.enable');
   // SELECT=path: that select.def instead of ref's (the flow harness's roster).
   const sel = process.env.SELECT ? `&selectb64=${encodeURIComponent(readFileSync(process.env.SELECT).toString('base64'))}` : '';
-  send('Page.navigate', { url: `http://localhost:8120/?flowlog=1&ticks=${ticks}${sel}&${query ?? ''}` });
+  send('Page.navigate', { url: `http://localhost:8120/harness.html?flowlog=1&ticks=${ticks}${sel}&${query ?? ''}` });
   const deadline = Date.now() + 30 * 60_000;
   while (!done && Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 500));

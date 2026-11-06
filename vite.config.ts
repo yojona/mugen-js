@@ -1,9 +1,10 @@
-import { createReadStream, existsSync, readdirSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 
 const REF = join(import.meta.dirname, 'ref', 'mugen-1.1b1');
+const PAGES = join(import.meta.dirname, 'tools', 'pages');
 
 /** Dev-only: expose a listing of the reference MUGEN tree for the VFS. */
 function refListing(): Plugin {
@@ -18,6 +19,14 @@ function refListing(): Plugin {
   return {
     name: 'ref-listing',
     configureServer(server) {
+      // The development pages (tools/pages): not part of the example site.
+      server.middlewares.use(async (req, res, next) => {
+        const name = /^\/(harness|viewer|training|frame)\.html(\?|$)/.exec(req.url ?? '')?.[1];
+        if (!name) return next();
+        const source = readFileSync(join(PAGES, `${name}.html`), 'utf8').replace(/src="\.\//g, `src="/@fs${PAGES}/`);
+        res.setHeader('content-type', 'text/html');
+        res.end(await server.transformIndexHtml(req.url!, source));
+      });
       server.middlewares.use('/__ref.json', (_req, res) => {
         res.setHeader('content-type', 'application/json');
         res.end(JSON.stringify(walk(REF, [])));
@@ -54,7 +63,7 @@ export default defineConfig({
   build: {
     outDir: '../dist-examples',
     emptyOutDir: true,
-    rollupOptions: { input: ['examples/index.html', 'examples/viewer.html', 'examples/training.html', 'examples/frame.html'].map((p) => join(import.meta.dirname, p)) },
+    rollupOptions: { input: join(import.meta.dirname, 'examples/index.html') },
   },
   server: { port: 8120, fs: { allow: ['..'] } },
   test: { root: import.meta.dirname, include: ['tests/**/*.test.ts'] },

@@ -1,10 +1,10 @@
 // Character viewer: plays AIR actions with the real palette pipeline.
 
-import { withContentFixes } from '../../src/engine/content-fixes';
-import { AnimPlayer } from '../../src/engine/anim';
-import { loadCharacter, type CharacterData } from '../../src/engine/character';
-import { httpSource, Vfs } from '../../src/engine/vfs';
-import { Renderer } from '../../src/render/renderer';
+import { withContentFixes } from '../../../src/engine/content-fixes';
+import { AnimPlayer } from '../../../src/engine/anim';
+import { loadCharacter, type CharacterData } from '../../../src/engine/character';
+import { httpSource, Vfs } from '../../../src/engine/vfs';
+import { Renderer } from '../../../src/render/renderer';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const ui = {
