@@ -19,3 +19,19 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+--------------------------------------------------------------------------------
+NOTICES
+
+This license applies only to the code written for this project. It grants no
+rights over M.U.G.E.N, its data files, or any characters, stages, motifs or other
+content used with this software, which belong to their respective owners. No game
+data is included.
+
+M.U.G.E.N is a name of Elecbyte. This project is not affiliated with or endorsed
+by Elecbyte.
+
+Development started from Elecbyte's documentation. Parts of this software were
+then ported from a decompilation of mugen.exe, used as a reference for its
+behavior. The authors make no claim over the original work, and this license does
+not grant any rights that its owners may hold over those parts.
