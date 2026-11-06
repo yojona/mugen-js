@@ -1,0 +1,9 @@
+ref/
+dist/
+dist-examples/
+tools/harness/work/
+tools/harness/overlay/
+tests/reference/
+.vitest/
+*.md
+*.html

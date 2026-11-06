@@ -22,10 +22,12 @@
     "build:example": "vite build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "check": "tsc --noEmit && vitest run"
+    "check": "prettier --check \"{src,examples,tests,tools}/**/*.ts\" \"*.config.ts\" && tsc --noEmit && vitest run",
+    "format": "prettier --write \"{src,examples,tests,tools}/**/*.ts\" \"*.config.ts\""
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
