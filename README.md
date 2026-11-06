@@ -10,7 +10,8 @@ The package renders the engine and nothing else. It draws on the canvas you give
 it, reads files through a source you give it, and reports loading through a
 callback. The page around it is yours: `examples/` is only an example.
 
-No game data is included. You supply a MUGEN tree.
+No game data or music is included. You supply a MUGEN tree. Music plays from wherever your
+`.def` files point, such as `title.bgm` in a motif or `bgmusic` in a stage.
 
 ## Install
 
@@ -182,11 +183,11 @@ are in `ref/`.
 | Engine | Expressions and triggers, state controllers, HitDef and guard, helpers, projectiles, explods, CPU AI with levels, ramps and learning |
 | Stages | Layers, camera, zoom, parallax and shadows |
 | Input | Keyboard and gamepad (played on a real one), configurable |
-| Output | Palette effects and blend modes in WebGL2, sound effects in Web Audio |
+| Output | Palette effects and blend modes in WebGL2, sound effects and music in Web Audio |
 
 ### Known gaps
 
-- **No music.** Stage and menu music do not play. Only sound effects do.
+- **No MIDI or tracker music.** MP3, Ogg and WAV play; MIDI and modules such as `.mod` stay silent.
 - **No Lua.** Features of `mugen.exe` that rely on Lua are absent.
 - **Coverage is a sample.** Controllers and triggers that the tested characters do
   not use come from the decompilation, without a comparison. Most of the 295
@@ -238,7 +239,7 @@ npm run build       # dist/: the ES module, mugen.min.js and the type declaratio
 
 ### Compatibility
 
-4. Stage and menu music.
+4. MIDI and tracker music.
 5. More character pairs against the original, focused on controllers no test covers.
 6. Resolve the open differences listed above.
 7. The rest of debug mode: console and toggle player.
