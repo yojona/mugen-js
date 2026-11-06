@@ -148,7 +148,7 @@ export class TitleScreen implements Screen {
     if (Math.abs(target - this.scroll) <= 2 || this.ticks === 0) this.scroll = target;
     if (!this.boxMoving) return;
     const [, height] = this.targetSize();
-    const shown = Math.trunc((height - BOX_H) / 2);
+    const shown = Math.trunc((height - this.boxSize()[1]) / 2);
     const to = this.boxShown ? shown : BOX_Y_HIDDEN;
     if (this.boxY !== to) {
       const dir = to > this.boxY ? 1 : -1;
@@ -173,6 +173,15 @@ export class TitleScreen implements Screen {
   private get scale(): number {
     const r = this.ctx.renderer;
     return r.toDevice(1, 0)[0] - r.toDevice(0, 0)[0];
+  }
+
+  /**
+   * The info box: 600x400 in mugen.exe, at any game size. Below 640x480 that leaves
+   * its text off the screen, so here it shrinks to fit.
+   */
+  private boxSize(): [number, number] {
+    const [width, height] = this.targetSize();
+    return [Math.min(BOX_W, width - 8), Math.min(BOX_H, height - 8)];
   }
 
   /** g_targetWidth, g_targetHeight. */
@@ -268,10 +277,11 @@ export class TitleScreen implements Screen {
   /** Title_DrawInfoBox: a framed panel with the version text. */
   private drawInfoBox(width: number, _height: number): void {
     const r = this.ctx.renderer;
-    const x1 = Math.trunc((width - BOX_W) / 2);
+    const [boxW, boxH] = this.boxSize();
+    const x1 = Math.trunc((width - boxW) / 2);
     const y1 = this.boxY;
-    const x2 = x1 + BOX_W;
-    const y2 = y1 + BOX_H;
+    const x2 = x1 + boxW;
+    const y2 = y1 + boxH;
     const light: Rgba = [0x56, 0x76, 0xa8, 255];
     const mid: Rgba = [0x40, 0x60, 0x94, 255];
     r.rect(x1 + 2, y1 + 2, x2 - 1, y2 - 1, [0, 0, 0x40, 128]);
@@ -283,15 +293,16 @@ export class TitleScreen implements Screen {
     r.rect(x2, y1 + 1, x2 + 1, y2, mid);
     const font = this.ctx.mediumFont;
     if (!font) return;
-    // Quirk kept: the text is centered on its left edge, and the box cuts it.
+    // Quirk kept at mugen.exe's size: the text is centered on its left edge, and the box cuts it.
+    const align = boxW === BOX_W ? 0 : 1;
     r.setClip([x1, y1, x2, y2]);
     const left = x1 + 10;
     let y = y1 + 6 + font.height;
-    for (const line of wrapText(font, INFO_TEXT, BOX_W - 20)) {
-      drawText(r, font, line, left, y, 0, 0);
+    for (const line of wrapText(font, INFO_TEXT, boxW - 20)) {
+      drawText(r, font, line, left, y, 0, align);
       y += font.height + font.spacing[1];
     }
-    drawText(r, font, 'Press F1 to continue.', left, y1 - 21 + BOX_H + font.height, 0, 0);
+    drawText(r, font, 'Press F1 to continue.', left, y1 - 21 + boxH + font.height, 0, align);
     r.setClip(undefined);
   }
 }
