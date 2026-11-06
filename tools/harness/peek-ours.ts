@@ -19,8 +19,7 @@ import { Vfs } from '../../src/engine/vfs';
 import { World } from '../../src/engine/world';
 import { compileExpr } from '../../src/expr/compile';
 import { playerEnv } from '../../src/engine/triggers';
-import { MugenAI, setAiDebug } from '../../src/engine/ai';
-import * as aiMod from '../../src/engine/ai';
+import { MugenAI } from '../../src/engine/ai';
 import { parseAir } from '../../src/formats/air';
 import { parseSff } from '../../src/formats/sff';
 import { FightHud } from '../../src/motif/fight';
@@ -72,12 +71,6 @@ for (let i = 1; i <= ticks; i++) {
     w.seed = Number(seedArg);
     seeded = true;
   }
-  const tr = process.env.TRACE?.split(',').map(Number);
-  // Frames, like the mugen.exe capture's frame counter.
-  if (tr && i >= tr[0]! && i <= tr[1]!) w.randomTrace = [];
-  const ad = process.env.AIDBG?.split(',').map(Number);
-  const dbgOn = ad && i >= ad[0]! && i <= ad[1]!;
-  if (dbgOn) setAiDebug([]);
   const evalAt = process.env.EVALAT?.split('-').map(Number);
   if (process.env.EVAL && evalAt && i >= evalAt[0]! && i <= (evalAt[1] ?? evalAt[0]!)) {
     // Evaluate expressions on P1 right before this tick (EVAL='a;b;c').
@@ -89,18 +82,6 @@ for (let i = 1; i <= ticks; i++) {
     }
   }
   if (go) w.tick([0, 0]);
-  if (dbgOn) {
-    console.log(`AI frame ${i}: ${aiMod.DEBUG!.join(" ")}`);
-    setAiDebug(null);
-  }
-  if (w.randomTrace) {
-    const counts = new Map<string, number>();
-    if (process.env.TRACERAW) console.log(w.randomTrace.map((k) => `  ${k || '(outside states)'}`).join('\n'));
-    for (const k of w.randomTrace) counts.set(k, (counts.get(k) ?? 0) + 1);
-    console.log(`TRACE gt ${i}: ${w.randomTrace.length} draws`);
-    for (const [k, n] of counts) console.log(`  ${n}x ${k || '(outside states)'}`);
-    w.randomTrace = undefined;
-  }
   if (seedAt && !seeded && w.gameTime === seedAt[0]) {
     w.seed = seedAt[1];
     seeded = true;

@@ -820,9 +820,7 @@ export class Player {
       }
       // mugen.exe 0x45c209: the command= triggers seen by this controller.
       rec?.beforeController();
-      if (this.world.randomTrace) this.world.traceCtx = `${this.name}${this.isHelper ? ' helper' : ''} ${no} ${c.def.file}:${c.def.line}`;
       if (!this.triggered(c)) {
-        this.world.traceCtx = '';
         tick();
         continue;
       }
@@ -832,10 +830,6 @@ export class Player {
       c.run(this);
       // DestroySelf stops the rest of the state (STATECTRL_STOP).
       if (this.destroyed) return false;
-      if (this.world.randomTrace) {
-        if (this.stateChanged) this.world.randomTrace.push(`=> ${this.stateNo} by ${this.world.traceCtx}`);
-        this.world.traceCtx = '';
-      }
       if (this.stateChanged) {
         // 0x448f50: a command-triggered state change starts a move record
         // and tells the CPU players (not from or into custom states).
@@ -848,26 +842,20 @@ export class Player {
   }
 
   private triggered(c: CompiledController): boolean {
-    const w = this.world;
-    const tr = w.randomTrace !== undefined;
-    const base = tr ? w.traceCtx : '';
     for (let i = 0; i < c.triggerAll.length; i++) {
-      if (tr) w.traceCtx = `${base} ta${i}`;
       if (!truthy(c.triggerAll[i]!, this)) return false;
     }
     for (let g = 0; g < c.triggers.length; g++) {
       const group = c.triggers[g]!;
       let ok = true;
       for (let j = 0; j < group.length; j++) {
-        if (tr) w.traceCtx = `${base} t${g + 1}.${j}`;
-        if (!truthy(group[j]!, this)) {
+          if (!truthy(group[j]!, this)) {
           ok = false;
           break;
         }
       }
       if (ok) {
-        if (tr) w.traceCtx = `${base} run`;
-        return true;
+          return true;
       }
     }
     return false;

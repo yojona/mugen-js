@@ -42,11 +42,6 @@ class DelayRing {
 
 /** Truncation toward zero, like mugen.exe's float-to-int (0x4dc850). */
 const ftoi = (x: number): number => Math.trunc(x);
-// Temporary draw log for harness debugging (AIDEBUG=1).
-export let DEBUG: string[] | null = null;
-export function setAiDebug(v: string[] | null): void {
-  DEBUG = v;
-}
 
 /** Training menu settings for the dummy (mugen.exe p+0x1d00..0x1d10). */
 export interface DummySettings {
@@ -104,13 +99,11 @@ export class MugenAI {
   }
 
   private push(code: number): void {
-    if (DEBUG) DEBUG.push(`key:${code.toString(16)}`);
     this.p.cmdInput?.pushKey(code);
   }
 
   private rand(n: number): number {
     const v = this.p.world.random(n);
-    if (DEBUG) DEBUG.push(n === this.p.cmdInput?.commandCount ? `%${n}=${v}(raw ${this.p.world.seed})` : `%${n}=${v}`);
     return v;
   }
 
@@ -402,7 +395,6 @@ export class MugenAI {
     if (m0) {
       const r = this.rand(12);
       const cur = opp.recorder?.curAttack;
-      if (DEBUG) DEBUG.push(`m0:${m0.stateNo} cur:${cur?.stateNo} tbl:${[...(opp.recorder?.tblSC.keys() ?? [])]}`);
       if (r < level + 3 && m0.hasTable && cur) {
         this.watchRec = cloneRecord(cur);
         this.watching = true;
@@ -418,7 +410,6 @@ export class MugenAI {
       const mt = rec.hit[0].time.mean;
       if (mt > t || mt === 0) {
         const hit = attackWouldHit(p, opp, rec);
-        if (DEBUG) DEBUG.push(`would:${hit}`);
         if (hit) {
           this.cooldown = 5;
           if (level >= 1 && level <= 3) this.cooldown += this.rand(4 - level);
@@ -464,7 +455,6 @@ export class MugenAI {
   }
 
   private pickAttack(): true {
-    if (DEBUG) DEBUG.push(`list:${this.attackList.map((r) => r.stateNo).join('/')}`);
     this.attack = this.attackList[this.rand(this.attackList.length)]!;
     this.attackWant = '';
     this.attackSent = false;
@@ -511,7 +501,6 @@ export class MugenAI {
         if (haveT && y & 7 && y & ~7) score -= 100;
       }
       if (!p.ctrl) score -= 100;
-      if (DEBUG) DEBUG.push(`r${r.stateNo}:tt${tt}:tot${r.total.mean}:sc${score}`);
       if (score > 0) this.attackList.push(r);
     }
     return this.attackList.length;

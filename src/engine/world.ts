@@ -260,11 +260,7 @@ export class World {
    * seed = seed * 16807 mod (2^31 - 1), value = seed % n. 16807 * seed stays
    * below 2^46, so doubles are exact.
    */
-  /** Debugging: where each RNG draw comes from (set randomTrace to collect). */
-  randomTrace: string[] | undefined;
-  traceCtx = '';
   random(n: number): number {
-    if (this.randomTrace) this.randomTrace.push(this.traceCtx);
     this.seed = (this.seed * 16807) % 2147483647;
     return n > 0 ? this.seed % n : 0;
   }

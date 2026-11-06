@@ -27,6 +27,5 @@ describe('CommandInput.reset', () => {
     run(cleared, IN_X, t++);
     run(cleared, IN_X, t++);
     expect(cleared.active().has('tap')).toBe(false);
-    expect(cleared.debugWrite).toBeLessThan(3);
   });
 });

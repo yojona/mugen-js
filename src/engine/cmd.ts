@@ -350,26 +350,6 @@ export class CommandInput {
     return out;
   }
 
-  /** Debug: [read, write, ring x30, held 1..11] in MUGEN's layout. */
-  debugState(): number[] {
-    return [this.ringR, this.ringW, ...this.ring, ...Array.from(this.held.slice(1, 12))];
-  }
-
-  /** Debug: the queue's write index. */
-  get debugWrite(): number {
-    return this.qWrite;
-  }
-
-  /** Debug: the newest queue entries as [bits, time, hold], oldest first. */
-  debugQueue(n: number): [number, number, number][] {
-    const out: [number, number, number][] = [];
-    for (let i = n; i >= 1; i--) {
-      const j = (this.qWrite - i + QUEUE * 2) % QUEUE;
-      out.push([this.qBits[j]!, this.qTime[j]!, this.qHold[j]!]);
-    }
-    return out;
-  }
-
   /** held[k] as MUGEN reads it (k = 13 is the ring's read index). */
   heldAt(k: number): number {
     if (k === 13) return this.ringR;
