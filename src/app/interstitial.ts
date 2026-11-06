@@ -1,10 +1,11 @@
 // VS screen ([VS Screen]) and victory screen ([Victory Screen]).
 
+import type { BgmInfo } from '../audio/music';
 import { IN_S } from '../engine/cmd';
 import { drawText, parseElement } from '../motif/element';
 import type { Pick } from './select';
 import { BUTTONS } from './input';
-import { fader, MotifBackground, type AppContext, type Screen } from './screen';
+import { fader, MotifBackground, type AppContext, type Screen, motifBgm } from './screen';
 
 function pair(v: string | undefined, d: [number, number] = [0, 0]): [number, number] {
   const p = (v ?? '').split(',').map((x) => parseFloat(x));
@@ -38,6 +39,7 @@ function drawLabel(ctx: AppContext, sec: string, key: string, text: string): voi
 
 export class VersusScreen implements Screen {
   result: true | undefined;
+  bgm: BgmInfo | null;
   private bg: MotifBackground;
   private fade;
   private t = 0;
@@ -49,6 +51,7 @@ export class VersusScreen implements Screen {
     private p2: Pick,
     private matchNo: number,
   ) {
+    this.bgm = motifBgm(ctx, 'vs.bgm');
     this.bg = new MotifBackground(ctx, 'versus');
     this.fade = fader(ctx, 'VS Screen');
     this.time = parseInt(ctx.motif.value('VS Screen', 'time') ?? '150', 10) || 150;
@@ -83,6 +86,7 @@ export class VersusScreen implements Screen {
 
 export class VictoryScreen implements Screen {
   result: true | undefined;
+  bgm: BgmInfo | null;
   private bg: MotifBackground;
   private fade;
   private t = 0;
@@ -94,6 +98,7 @@ export class VictoryScreen implements Screen {
     private winner: Pick | undefined,
     private quote: string,
   ) {
+    this.bgm = motifBgm(ctx, 'victory.bgm');
     this.bg = new MotifBackground(ctx, 'victory');
     this.fade = fader(ctx, 'Victory Screen');
     this.time = parseInt(ctx.motif.value('Victory Screen', 'time') ?? '300', 10) || 300;

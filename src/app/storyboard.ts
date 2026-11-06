@@ -1,5 +1,6 @@
 // Storyboards (storyboard.html): logo/intro, character intros and endings.
 
+import { readBgm, type BgmInfo } from '../audio/music';
 import { AnimPlayer } from '../engine/anim';
 import { IN_S } from '../engine/cmd';
 import { dirname, type Vfs } from '../engine/vfs';
@@ -35,6 +36,9 @@ interface Scene {
   pos: [number, number];
   layers: Layer[];
   sounds: { value: [number, number]; start: number }[];
+  /** The scene has a "bgm": the music stops, then this track (a path next to the storyboard) starts. */
+  bgmChange: boolean;
+  bgm: BgmInfo | undefined;
   bg?: string;
 }
 
@@ -75,6 +79,10 @@ export async function loadStoryboard(vfs: Vfs, path: string): Promise<Storyboard
   for (const sec of doc.sections) {
     if (!/^scene\s+\d+/i.test(sec.name)) continue;
     const g = (k: string) => getValue(sec, k);
+    const bgmOf = (get: typeof g) => {
+      const b = readBgm(get, 'bgm');
+      return b && { ...b, path: `${dir}/${b.path}` };
+    };
     const col = (k: string): [number, number, number] => {
       const v = nums(g(k)) ?? [0, 0, 0];
       return [v[0] ?? 0, v[1] ?? 0, v[2] ?? 0];
@@ -113,6 +121,8 @@ export async function loadStoryboard(vfs: Vfs, path: string): Promise<Storyboard
       layers,
       sounds,
       bg: g('bg.name') ? unquote(g('bg.name')!) : undefined,
+      bgmChange: g('bgm') !== undefined,
+      bgm: bgmOf(g),
     });
   }
   const start = parseInt(getValue(sd, 'startscene') ?? '0', 10) || 0;
@@ -121,6 +131,9 @@ export async function loadStoryboard(vfs: Vfs, path: string): Promise<Storyboard
 
 export class StoryboardScreen implements Screen {
   result: true | undefined;
+  /** Storyboard_Free stops the music; Storyboard_Start too (bgm). */
+  bgm = null;
+  stopsBgm = true;
   private scene = 0;
   private t = 0;
   /** Storyboard_Update: ticks of the 5-tick palette fade out a button started, -1 none. */
@@ -140,6 +153,9 @@ export class StoryboardScreen implements Screen {
   }
 
   private enterScene(): void {
+    const scene = this.cur;
+    if (scene?.bgmChange) this.ctx.music.stop();
+    if (scene?.bgm) this.ctx.music.play(scene.bgm);
     this.t = 0;
     this.anims.clear();
     const s = this.cur;

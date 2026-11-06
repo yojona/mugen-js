@@ -3,12 +3,13 @@
 // side runs a script of steps (team menu, characters, computer team, stage,
 // done) and both scripts advance in the same tick.
 
+import type { BgmInfo } from '../audio/music';
 import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../engine/cmd';
 import type { CharacterData } from '../engine/character';
 import { drawText, ElementInstance, parseElement, type ElementDef } from '../motif/element';
 import type { RosterEntry } from '../motif/system';
 import { BUTTONS, type Pad } from './input';
-import { fader, MotifBackground, motifSound, type AppContext, type Screen } from './screen';
+import { fader, MotifBackground, motifSound, type AppContext, type Screen, motifBgm } from './screen';
 import type { GameMode } from './title';
 
 export interface RosterChar {
@@ -259,6 +260,7 @@ function pressedBits(pad: Pad): number {
 
 export class SelectScreen implements Screen {
   result: SelectResult | undefined;
+  bgm: BgmInfo | null;
   private bg: MotifBackground;
   private fade;
   private rows: number;
@@ -287,6 +289,7 @@ export class SelectScreen implements Screen {
     private roster: RosterChar[],
     stages: { path: string; name: string }[],
   ) {
+    this.bgm = motifBgm(ctx, 'select.bgm');
     this.bg = new MotifBackground(ctx, 'select');
     this.fade = fader(ctx, 'Select Info');
     this.rows = this.int('rows', 2);

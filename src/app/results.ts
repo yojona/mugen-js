@@ -33,6 +33,8 @@ export interface ResultsSetup {
 
 export class SurvivalResultsScreen implements Screen {
   result: true | undefined;
+  /** Gameflow states 15 and 16 stop the music. */
+  bgm = null;
   private world = new World();
   private bg: StageRuntime;
   private fade: Fader;

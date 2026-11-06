@@ -1,5 +1,6 @@
 // Shared screen plumbing: fades, backgrounds and motif sounds.
 
+import { readBgm, type BgmInfo, type Music } from '../audio/music';
 import type { DebugMode } from './debug';
 import type { Mixer } from '../audio/mixer';
 import type { DummySettings } from '../engine/ai';
@@ -24,8 +25,14 @@ export interface AppContext {
   frames?: number;
   /** The options screen's settings (mugen.cfg [Options], [Sound]). */
   options?: GameOptions;
+  music: Music;
   /** The debug mode, when the host asks for it. */
   debug?: DebugMode;
+}
+
+/** A motif's [Music] track (Motif_Load), null without one. */
+export function motifBgm(ctx: AppContext, key: string): BgmInfo | null {
+  return readBgm((k) => ctx.motif.value('Music', k), key) ?? null;
 }
 
 export interface Screen {
@@ -33,6 +40,10 @@ export interface Screen {
   draw(): void;
   /** Set when the screen has finished (after its fade-out). */
   result?: unknown;
+  /** ScreenLoop.bgm: the music it starts with, null for none; undefined leaves what plays. */
+  bgm?: BgmInfo | null;
+  /** The music stops with the screen (Screen_Finish, Storyboard_Free). */
+  stopsBgm?: boolean;
 }
 
 /** Fade in at start, fade out on request; alpha of the black overlay. */

@@ -1,6 +1,7 @@
 // Stage .def files (bgs.html): stage settings, background elements and
 // background controllers.
 
+import { readBgm, type BgmInfo } from '../audio/music';
 import { AnimPlayer } from '../engine/anim';
 import { dirname, type Vfs } from '../engine/vfs';
 import { parseAir, parseBlend, type AnimationMap, type Blend } from '../formats/air';
@@ -54,7 +55,7 @@ export interface StageInfo {
   scale: [number, number];
   shadow: { intensity: number; color: [number, number, number]; yscale: number; fadeRange: [number, number] };
   reflection: number;
-  music: { file: string; volume: number };
+  music: BgmInfo | undefined;
   debugBg: boolean;
 }
 
@@ -177,7 +178,7 @@ export async function loadStage(vfs: Vfs, defPath: string): Promise<Stage> {
       fadeRange: nums(g(sh, 'fade.range'), [0, 0]) as [number, number],
     },
     reflection: num(g(refl, 'intensity'), 0),
-    music: { file: g(music, 'bgmusic') ?? '', volume: num(g(music, 'bgmvolume'), 0) },
+    music: readBgm((k) => g(music, k), 'bgmusic', { volume: 'bgmvolume', loop: 'bgmloop', start: 'bgmloopstart', end: 'bgmloopend' }),
     debugBg: num(g(bgdef, 'debugbg'), 0) !== 0,
   };
 

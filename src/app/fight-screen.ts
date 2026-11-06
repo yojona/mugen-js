@@ -4,6 +4,7 @@
 // widened to the display aspect (a 4:3 stage shows more width on 16:9); the
 // HUD is drawn in the motif's (fight.def's) coordinate space.
 
+import type { BgmInfo } from '../audio/music';
 import { MugenAI, type DummySettings } from '../engine/ai';
 import { Match, type TeamMode, type TeamPlan } from '../engine/match';
 import { palFxUniforms } from '../engine/fx';
@@ -21,6 +22,8 @@ import { Fader } from './screen';
 import type { Pick } from './select';
 
 export interface FightSetup {
+  /** select.def's music= of the arcade opponent, in place of the stage's. */
+  music?: string;
   p1: Pick;
   p2: Pick;
   progs: [CharacterProgram, CharacterProgram];
@@ -74,6 +77,8 @@ export interface FightResult {
 
 export class FightScreen implements Screen {
   result: FightResult | undefined;
+  bgm: BgmInfo | null | undefined;
+  stopsBgm = true;
   readonly world = new World();
   readonly match: Match;
   private bg: StageRuntime;
@@ -154,7 +159,20 @@ export class FightScreen implements Screen {
     if (ctx.frames !== undefined) this.match.frameClock = () => (ctx.frames ?? 0) + 1;
     this.bg = new StageRuntime(s.stage);
     if (s.training) this.showDummy();
+    this.setMusic(s);
     ctx.debug?.matchLoaded();
+  }
+
+  /** Stage_Load: select.def's music or the stage's; in a demo, [Demo Mode] fight.playbgm and stopbgm decide. */
+  private setMusic(s: FightSetup): void {
+    const demo = (k: string, d: number) => parseInt(this.ctx.motif.value('Demo Mode', k) ?? '', 10) || d;
+    if (s.demo && !demo('fight.playbgm', 0)) {
+      const stops = this.ctx.motif.value('Demo Mode', 'fight.stopbgm')?.trim() !== '0';
+      this.bgm = stops ? null : undefined;
+      this.stopsBgm = stops;
+      return;
+    }
+    this.bgm = s.music ? { path: s.music, volume: 100, loop: true, loopStart: 0, loopEnd: -1 } : (s.stage.info.music ?? null);
   }
 
   tick(): void {
@@ -176,7 +194,11 @@ export class FightScreen implements Screen {
       this.fade.fadeOut();
       return;
     }
-    if (this.ctx.debug && !this.ctx.debug.update(this)) return;
+    if (this.ctx.debug && !this.ctx.debug.update(this)) {
+      this.ctx.music.hold(true);
+      return;
+    }
+    this.ctx.music.hold(this.world.globalFlag('nomusic'));
     if (this.s.training) this.dummyKeys();
     const m = this.match;
     const w = this.world;

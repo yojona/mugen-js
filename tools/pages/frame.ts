@@ -3,6 +3,7 @@
 // ?c1=&c2=&frame=N[&seed=16808][&stage=stages/kfm.def][&motif=data/system.def][&w=640][&cam=x,y]  -> window.__done
 import { withContentFixes } from '../../src/engine/content-fixes';
 import { Mixer } from '../../src/audio/mixer';
+import { Music } from '../../src/audio/music';
 import { loadCharacter } from '../../src/engine/character';
 import { loadProgram } from '../../src/engine/player';
 import { httpSource, Vfs } from '../../src/engine/vfs';
@@ -24,7 +25,8 @@ const motif = await loadMotif(vfs, q.get('motif') ?? 'data/system.def');
 const renderer = new Renderer(document.getElementById('screen') as HTMLCanvasElement);
 const [mw, mh] = motif.localCoord;
 renderer.resize(mw, mh, Number(q.get('w') ?? 640) / mw);
-const ctx = { renderer, mixer: new Mixer(), keys: new Keyboard(), motif, aiLevel: 4 };
+const mixer = new Mixer();
+const ctx = { renderer, mixer, music: new Music(mixer, (path) => vfs.read(path)), keys: new Keyboard(), motif, aiLevel: 4 };
 const c1 = q.get('c1') ?? 'kfm';
 const c2 = q.get('c2') ?? 'kfm';
 const load = async (c: string) => {

@@ -117,6 +117,11 @@ export class GameOptions {
     return Math.max(10, this.gameSpeed * 5 + this.baseFps);
   }
   /** Sound_SetVolume / the PlaySnd volumes: master / 100 * wav / 100. */
+  /** Bgm_Init / Options_Save: MasterVolume * BGMVolume. */
+  get bgmGain(): number {
+    return (this.masterVolume / 100) * (this.bgmVolume / 100);
+  }
+
   get wavGain(): number {
     return (this.masterVolume / 100) * (this.wavVolume / 100);
   }

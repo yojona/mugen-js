@@ -8,10 +8,19 @@ export class Mixer {
   volume = 0.7;
 
   private paused = false;
+  /** The context now exists: what was waiting for a user gesture can start. */
+  onUnlock?: () => void;
+
+  get context(): AudioContext | undefined {
+    return this.ctx;
+  }
 
   /** Must be called from a user gesture (browser autoplay policy). */
   unlock(): void {
-    if (!this.ctx) this.ctx = new AudioContext();
+    if (!this.ctx) {
+      this.ctx = new AudioContext();
+      this.onUnlock?.();
+    }
     if (!this.paused && this.ctx.state === 'suspended') void this.ctx.resume();
   }
 

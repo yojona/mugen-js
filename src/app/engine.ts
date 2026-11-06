@@ -2,6 +2,7 @@
 // host (canvas, files, storage) and touches nothing else of the page.
 
 import { Mixer } from '../audio/mixer';
+import { Music } from '../audio/music';
 import type { DummySettings } from '../engine/ai';
 import { withContentFixes } from '../engine/content-fixes';
 import { Vfs, type FileSource } from '../engine/vfs';
@@ -154,11 +155,14 @@ export async function createEngine(options: EngineOptions): Promise<Engine> {
   keys.onPadsChanged = () => gameOptions.initPads();
   // The sounds play at MasterVolume * WavVolume (Sound_SetVolume).
   mixer.volume = gameOptions.wavGain;
+  const music = new Music(mixer, (path) => vfs.read(path));
+  music.volume = gameOptions.bgmGain;
 
   // [Options] Difficulty: the CPU's AILevel (clamped 1..8).
   const ctx: AppContext = {
     renderer,
     mixer,
+    music,
     keys,
     motif,
     aiLevel: Math.max(1, Math.min(8, gameOptions.difficulty)),
@@ -270,6 +274,7 @@ export async function createEngine(options: EngineOptions): Promise<Engine> {
       engine.pause();
       destroyed = true;
       keys.dispose();
+      music.stop();
       mixer.close();
       renderer.dispose();
     },

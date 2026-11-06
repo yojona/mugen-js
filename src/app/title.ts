@@ -1,9 +1,10 @@
 // Title screen: [Title Info] menu over the TitleBG background.
 
+import type { BgmInfo } from '../audio/music';
 import { IN_D, IN_S, IN_U } from '../engine/cmd';
 import { ElementInstance, parseElement, drawText } from '../motif/element';
 import { BUTTONS } from './input';
-import { fader, MotifBackground, motifSound, type AppContext, type Screen } from './screen';
+import { fader, MotifBackground, motifSound, type AppContext, type Screen, motifBgm } from './screen';
 
 export type GameMode = 'arcade' | 'versus' | 'teamarcade' | 'teamversus' | 'teamcoop' | 'survival' | 'survivalcoop' | 'training' | 'watch';
 /** An item of the title menu: a mode, or the options screen / exit (Title_Run: GAMEFLOW_OPTIONS, GAMEFLOW_EXIT). */
@@ -30,6 +31,7 @@ export const TITLE_ITEMS: { key: TitleChoice; name: string }[] = [
 export class TitleScreen implements Screen {
   /** A mode, or 'demo' after [Demo Mode] title.waittime idle ticks. */
   result: TitleChoice | 'demo' | undefined;
+  bgm: BgmInfo | null;
   private bg: MotifBackground;
   private fade;
   private items: { name: string; mode: TitleChoice }[];
@@ -43,6 +45,7 @@ export class TitleScreen implements Screen {
     private ctx: AppContext,
     start = 0,
   ) {
+    this.bgm = motifBgm(ctx, 'title.bgm');
     this.bg = new MotifBackground(ctx, 'title');
     this.fade = fader(ctx, 'Title Info');
     this.items = TITLE_ITEMS.map((i) => ({ name: this.v(`menu.itemname.${i.key}`)?.replace(/^"|"$/g, '') ?? i.name, mode: i.key })).filter(

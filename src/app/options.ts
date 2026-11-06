@@ -777,6 +777,7 @@ export class OptionsScreen implements Screen {
               o.save();
               // Options_Save: the sounds play at the new volumes.
               this.ctx.mixer.volume = o.wavGain;
+              this.ctx.music.volume = o.bgmGain;
             }
             this.prompt = true; // shows "Options Loaded/Saved"
             this.lockFrames = 1;

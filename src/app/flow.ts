@@ -78,6 +78,9 @@ export function createGameFlow(
   }
 
   /** survival: the reseed of each new round (the next opponent's draws, then the match seed). */
+  /** GameVars.arcade_side: the next team's select.def music plays in place of the stage's. */
+  let arcadeMode = false;
+
   async function teamFight(
     sides: [TeamSide, TeamSide],
     stagePath: string | undefined,
@@ -95,6 +98,7 @@ export function createGameFlow(
       })),
     )) as [FightTeam, FightTeam];
     return new FightScreen(ctx, {
+      music: arcadeMode ? lead.char.entry.music : undefined,
       seed: session.matchSeed(),
       p1: sides[0].picks[0]!,
       p2: sides[1].picks[0]!,
@@ -120,6 +124,7 @@ export function createGameFlow(
 
   /** Team arcade, team co-op and team versus / watch with teams. */
   async function runTeamMode(mode: GameMode, sel: SelectResult): Promise<void> {
+    arcadeMode = mode === 'teamarcade';
     const [mine, theirs] = sel.teams!;
     // Pads: a human pick uses pad 0, the co-op partner pad 1 (TeamPick.ai false); P2's side in versus uses pad 1.
     const padsOf = (t: TeamPick, side: number) =>
@@ -310,6 +315,7 @@ export function createGameFlow(
     if (p1.char === p2.char && p1.pal === p2.pal) p2 = { ...p2, pal: (p2.pal % 6) + 1 };
     const matchSeed = session.matchSeed();
     return new FightScreen(ctx, {
+      music: mode === 'arcade' ? p2.char.entry.music : undefined,
       seed: matchSeed,
       p1,
       p2,
@@ -443,6 +449,7 @@ export function createGameFlow(
   let resolver: ((v: unknown) => void) | undefined;
   function until<T>(s: Screen): Promise<T> {
     screen = s;
+    if (s.bgm !== undefined) ctx.music.play(s.bgm);
     return new Promise<T>((res) => (resolver = res as (v: unknown) => void));
   }
   async function loading<T>(f: () => Promise<T>): Promise<T> {
@@ -540,6 +547,7 @@ export function createGameFlow(
     ctx.frames = (ctx.frames ?? 0) + 1;
     hooks()?.after?.(screen);
     if (screen.result !== undefined && resolver) {
+      if (screen.stopsBgm) ctx.music.stop();
       const r = resolver;
       resolver = undefined;
       const v = screen.result;
