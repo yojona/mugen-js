@@ -37,8 +37,7 @@ export class Mixer {
       const cur = this.channels.get(o.key);
       if (cur && !cur.ended) {
         if (o.lowPriority) return;
-        cur.ended = true;
-        cur.src.stop();
+        stopEntry(cur);
       }
     }
     let buf = this.cache.get(sound);
@@ -70,23 +69,14 @@ export class Mixer {
 
   /** StopSnd: one channel, or every sound (undefined). */
   stop(key?: string): void {
-    const stopOne = (e: { src: AudioBufferSourceNode; ended: boolean }) => {
-      if (e.ended) return;
-      e.ended = true;
-      try {
-        e.src.stop();
-      } catch {
-        /* not started yet */
-      }
-    };
     if (key === undefined) {
-      for (const e of this.channels.values()) stopOne(e);
-      for (const src of this.live) stopOne({ src, ended: false });
+      for (const e of this.channels.values()) stopEntry(e);
+      for (const src of this.live) stopEntry({ src, ended: false });
       this.live.clear();
       return;
     }
     const e = this.channels.get(key);
-    if (e) stopOne(e);
+    if (e) stopEntry(e);
   }
 
   /** SndPan: re-pan the sound on a channel. */
@@ -102,5 +92,16 @@ export class Mixer {
       else if (c.kind === 'pan') this.setPan(c.key, c.pan);
       else this.play(resolve(c.owner, c.group, c.number), c);
     }
+  }
+}
+
+/** Stops a sound; one still decoding never starts (it sees `ended`). */
+function stopEntry(e: { src: AudioBufferSourceNode; ended: boolean }): void {
+  if (e.ended) return;
+  e.ended = true;
+  try {
+    e.src.stop();
+  } catch {
+    /* not started yet */
   }
 }
