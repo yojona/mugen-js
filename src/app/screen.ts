@@ -5,6 +5,7 @@ import type { DebugMode } from './debug';
 import type { Mixer } from '../audio/mixer';
 import type { DummySettings } from '../engine/ai';
 import type { GameOptions } from './game-options';
+import type { Font } from '../motif/font';
 import type { Renderer } from '../render/renderer';
 import { drawStageLayer } from '../render/stage-draw';
 import type { Background } from '../stage/stage';
@@ -26,6 +27,9 @@ export interface AppContext {
   /** The options screen's settings (mugen.cfg [Options], [Sound]). */
   options?: GameOptions;
   music: Music;
+  /** font/f-4x6.def (GameVars.font_small), font/f-6x9.def (font_medium). */
+  smallFont?: Font;
+  mediumFont?: Font;
   /** The debug mode, when the host asks for it. */
   debug?: DebugMode;
 }

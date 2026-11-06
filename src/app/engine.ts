@@ -13,6 +13,7 @@ import { loadFont } from '../motif/font';
 import { loadAssets, type LoadProgress } from './assets';
 import { DebugMode, readDebugConfig } from './debug';
 import { FightScreen } from './fight-screen';
+import { TitleScreen } from './title';
 import { createGameFlow } from './flow';
 import { GameOptions, type OptionsStorage } from './game-options';
 import { Keyboard } from './input';
@@ -172,6 +173,8 @@ export async function createEngine(options: EngineOptions): Promise<Engine> {
   };
 
   const assets = await loadAssets(vfs, motif, { noTtf: options.noTtf, onProgress: report });
+  ctx.smallFont = await loadFont(vfs, 'font/f-4x6.def').catch(() => undefined);
+  ctx.mediumFont = assets.systemFont;
   let debug: DebugMode | undefined;
   if (options.debug !== false) {
     const config = readDebugConfig(
@@ -181,8 +184,7 @@ export async function createEngine(options: EngineOptions): Promise<Engine> {
         .catch(() => undefined),
     );
     if (options.debug) config.allowDebugMode = config.allowDebugKeys = true;
-    const font = await loadFont(vfs, 'font/f-4x6.def').catch(() => undefined);
-    ctx.debug = debug = new DebugMode(config, font, assets.systemFont, ctx.aiLevel);
+    ctx.debug = debug = new DebugMode(config, ctx.smallFont, assets.systemFont, ctx.aiLevel);
   }
   report(undefined);
   const flow = createGameFlow(
@@ -196,7 +198,11 @@ export async function createEngine(options: EngineOptions): Promise<Engine> {
   );
 
   // Only in a fight: on the other screens these keys stay the page's.
-  if (debug) keys.onKeyDown = (e) => flow.screen instanceof FightScreen && debug.keyDown(e);
+  keys.onKeyDown = (e) => {
+    // F1 opens the title's info box, not the browser's help.
+    if (flow.screen instanceof TitleScreen) return e.code === 'F1';
+    return debug !== undefined && flow.screen instanceof FightScreen && debug.keyDown(e);
+  };
 
   let started = false;
   let destroyed = false;
