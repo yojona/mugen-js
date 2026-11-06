@@ -22,6 +22,13 @@ function makeFlowHarness(engine: Engine, params: URLSearchParams) {
       const p2 = k !== k.toLowerCase();
       return { from: parseInt(f!, 10), bits: parseKeys(k.toLowerCase()), hold: parseInt(hold ?? '2', 10), pad: p2 ? 1 : 0 };
     });
+  const ctrlKeys = (params.get('ctrlkeys') ?? '')
+    .split(';')
+    .filter(Boolean)
+    .map((p) => {
+      const [f, code = ''] = p.split(':');
+      return { from: parseInt(f!, 10), code };
+    });
   const mash = params.get('mash')?.split(':');
   const clamp = params
     .get('clamp')
@@ -67,6 +74,10 @@ function makeFlowHarness(engine: Engine, params: URLSearchParams) {
         if (kf < k.from || kf >= k.from + k.hold) continue;
         if (k.pad === 0) bits |= k.bits;
         else keys.pads[k.pad]!.bits |= k.bits;
+      }
+      // ?ctrlkeys=frame:code;...: a key with Ctrl (the debug mode's).
+      for (const k of ctrlKeys) {
+        if (kf === k.from) window.dispatchEvent(new KeyboardEvent('keydown', { code: k.code, ctrlKey: true }));
       }
       const fighting = !(s instanceof FightScreen) || s.world.roundState === 2;
       if (mash && fighting && s.constructor.name === mash[0] && (((kf - mashDelay + keyDelay) % parseInt(mash[2]!, 10)) + parseInt(mash[2]!, 10)) % parseInt(mash[2]!, 10) < parseInt(mash[3]!, 10)) bits |= parseKeys(mash[1]!);

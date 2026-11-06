@@ -9,7 +9,7 @@ import { DEFAULT_ROUND, type Match, type RoundConfig } from '../engine/match';
 import type { Player } from '../engine/player';
 import { dirname, type Vfs } from '../engine/vfs';
 import type { Renderer } from '../render/renderer';
-import { ElementInstance, parseElement, type ElementAssets } from './element';
+import { drawText, ElementInstance, fontColor, parseElement, type ElementAssets } from './element';
 import { loadFont, textWidth, type Font } from './font';
 
 const pair = (v: string | undefined, d: [number, number] = [0, 0]): [number, number] => {
@@ -219,6 +219,9 @@ export class FightHud {
    * the elements of that layerno. Layer 0 is drawn before Lifebars_Tick and
    * so shows the bars' previous values.
    */
+  /** Set while the debug display is on: the bars show the numbers in this font. */
+  debugFont: Font | undefined;
+
   drawLayer(r: Renderer, m: Match, layer: number): void {
     ElementInstance.layerFilter = layer;
     this.layer = layer;
@@ -271,7 +274,7 @@ export class FightHud {
     for (const sd of sides) {
       for (const i of sd.slots) {
         const v = this.barValues(m, i);
-        if (w.slot(i + 1) && v) this.drawGauge(r, this.lifeSets[sd.kind][i]!, v.life, v.max, v.red);
+        if (w.slot(i + 1) && v) this.drawGauge(r, this.lifeSets[sd.kind][i]!, v.life, v.max, v.red, w.slot(i + 1)!.life);
       }
     }
     for (const k of ['bg0', 'bg1'] as const) for (const sd of sides) this.power[sd.side]![k]?.draw(r, this.power[sd.side]!.pos[0], this.power[sd.side]!.pos[1]);
@@ -383,7 +386,7 @@ export class FightHud {
    * front clipped to `shown` of `max`, mid (the red part) from there to
    * `red`. A range going right to left empties from the left.
    */
-  private drawGauge(r: Renderer, b: Bar, shown: number, max: number, red: number | undefined): void {
+  private drawGauge(r: Renderer, b: Bar, shown: number, max: number, red: number | undefined, life?: number): void {
     const [x, y] = b.pos;
     const sc = (v: number) => Math.floor(r.toDevice(v, 0)[0] + 0.5);
     let x1 = sc(b.range[0] + x);
@@ -421,6 +424,18 @@ export class FightHud {
       b.front?.draw(r, x, y);
     }
     r.setClip(undefined);
+    if (this.debugFont && life !== undefined && b.front?.def.layer === this.layer) {
+      // Lifebar_Draw with GameVars.debug: the life at the bar's end and what's still red.
+      const font = this.debugFont;
+      const k = r.toDevice(1, 0)[0] - r.toDevice(0, 0)[0];
+      const text = (s: string, px: number, align: number, color: [number, number, number] | undefined) => drawText(r, font, s, px / k, y + 5 / k, 0, align, [1 / k, 1 / k], color);
+      const left = rtl ? x2 - showLen + 1 : showLen + x1 - 1;
+      text(String(life), left, rtl ? 1 : -1, fontColor(0x80, 0x80, 0));
+      if (red - life > 0) {
+        if (rtl) text(String(red - life).padStart(3), x2 - len - 11, 1, fontColor(0x80, 0, 0));
+        else text(String(red - life), len + x1 + 1, 1, fontColor(0x80, 0, 0));
+      }
+    }
   }
 
   /** A face: its backgrounds (bg0..bg2) at pos, then the character's face sprite. */

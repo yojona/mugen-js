@@ -11,6 +11,7 @@ import { pickVictoryQuote, Player, type CharacterProgram } from '../engine/playe
 import { World, type FightFx } from '../engine/world';
 import type { FightHud } from '../motif/fight';
 import type { Renderer } from '../render/renderer';
+import { drawCollisionDebug } from '../render/debug-draw';
 import { DARKEN_BG, drawScene } from '../render/scene';
 import { drawOverdrawBars, drawStageLayer } from '../render/stage-draw';
 import { StageRuntime, type Stage } from '../stage/stage';
@@ -153,6 +154,7 @@ export class FightScreen implements Screen {
     if (ctx.frames !== undefined) this.match.frameClock = () => (ctx.frames ?? 0) + 1;
     this.bg = new StageRuntime(s.stage);
     if (s.training) this.showDummy();
+    ctx.debug?.matchLoaded();
   }
 
   tick(): void {
@@ -174,6 +176,7 @@ export class FightScreen implements Screen {
       this.fade.fadeOut();
       return;
     }
+    if (this.ctx.debug && !this.ctx.debug.update(this)) return;
     if (this.s.training) this.dummyKeys();
     const m = this.match;
     const w = this.world;
@@ -257,7 +260,8 @@ export class FightScreen implements Screen {
       r.view = { s: zv.scale, ox: (W / 2) * (1 - zv.scale) - (zv.shakeX / k) * zv.scale, oy: top * (1 - zv.scale) - (zv.shakeY / k) * zv.scale };
     }
     const [mw, mh] = this.ctx.motif.localCoord;
-    const showBars = (!this.s.demo || this.s.demo.bars) && !w.globalFlag('nobardisplay');
+    const debug = this.ctx.debug;
+    const showBars = (!this.s.demo || this.s.demo.bars) && !w.globalFlag('nobardisplay') && debug?.hud !== false;
     // The HUD draws in motif coordinates between the stage's sprites.
     const inMotif = (f: () => void) => {
       const view = r.view;
@@ -269,6 +273,7 @@ export class FightScreen implements Screen {
     };
     // The global PalFX reaches everything drawn with sprites, the HUD included.
     r.allFx = palFxUniforms(w.allPalFx);
+    this.s.hud.debugFont = debug?.lifeFont;
     drawScene(r, w, {
       background: () => {
         drawStageLayer(r, this.bg, w.camera, 0, W, H, -(w.shakeBase + w.cropTop));
@@ -289,10 +294,12 @@ export class FightScreen implements Screen {
         r.tint = undefined;
       }),
     });
+    // Game_Draw: the collision display goes under the combos.
+    if (debug?.clsnMode) drawCollisionDebug(r, w, debug.clsnMode, debug.font);
     r.view = { s: 1, ox: 0, oy: 0 };
     r.setProjection(mw, mh);
     r.tint = w.darkened ? DARKEN_BG : undefined;
-    this.s.hud.drawCombos(r);
+    if (debug?.hud !== false) this.s.hud.drawCombos(r);
     r.tint = undefined;
     r.allFx = undefined;
     const a = this.match.fadeAlpha;
@@ -301,6 +308,11 @@ export class FightScreen implements Screen {
     if (bars !== undefined) drawFadeBars(r, mw, mh, bars);
     if (this.demoFade >= 0) r.rect(0, 0, mw, mh, [0, 0, 0, Math.round(Math.min(1, this.demoFade / 120) * 255)]);
     this.fade.draw(r, mw, mh);
+    if (debug && !this.s.demo) {
+      const height = w.screenHeight * (w.gameWidth / W);
+      r.setProjection(w.gameWidth, height);
+      debug.draw(r, this, this.ctx.frames ?? 0, w.gameWidth, height);
+    }
   }
 }
 

@@ -393,6 +393,40 @@ export class Match {
     return this.clock < 0 ? -1 : Math.floor(this.clock / this.cfg.framesPerCount);
   }
 
+  /** Debug_ResetLifePowerTime: the round's time back at its start. */
+  resetClock(): void {
+    this.clock = this.roundStartClock();
+  }
+
+  /** "setroundtime": clamped to the round's start time. */
+  setClock(ticks: number): void {
+    this.clock = Math.min(Math.max(ticks, 0), this.roundStartClock());
+  }
+
+  /** "roundreset": this round again from its start. */
+  resetRound(): void {
+    this.fade = undefined;
+    this.matchOver = false;
+    this.startRound();
+    this.phaseTime = -1;
+  }
+
+  /** "matchreset": back to round 1 with no wins and the first turns members. */
+  resetMatch(): void {
+    this.round = 1;
+    this.wins = [0, 0];
+    this.world.resetWinIcons();
+    this.draws = 0;
+    this.roundWinnerSide = null;
+    this.teams.forEach((ts, t) => {
+      if (ts.mode === 'turns' && ts.plan) {
+        ts.cur = 0;
+        this.loadMember(t);
+      }
+    });
+    this.resetRound();
+  }
+
   private startRound(): void {
     const w = this.world;
     this.pendingKo = undefined;

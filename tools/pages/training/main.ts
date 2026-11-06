@@ -11,6 +11,7 @@ import { parseAir } from '../../../src/formats/air';
 import { parseSff } from '../../../src/formats/sff';
 import { parseSnd } from '../../../src/formats/snd';
 import { Renderer } from '../../../src/render/renderer';
+import { drawCollisionDebug } from '../../../src/render/debug-draw';
 import { drawScene } from '../../../src/render/scene';
 import { drawStageLayer } from '../../../src/render/stage-draw';
 import { loadStage, StageRuntime } from '../../../src/stage/stage';
@@ -99,6 +100,7 @@ function step(in1: number, in2: number): void {
     world.tick([in1, in2]);
     if (!world.superPause && !world.pause) bg.tick();
   }
+  if (clsn.checked) drawCollisionDebug(renderer, world, 1);
   if (match && hud) {
     hud.tick(match);
     for (const [g, n] of match.sounds) mixer.play(hud.snd?.get(g, n));
@@ -128,7 +130,6 @@ function draw(): void {
   const W = world.screenWidth;
   const H = world.screenHeight;
   drawScene(renderer, world, {
-    clsn: clsn.checked,
     background: () => drawStageLayer(renderer, bg, world.camera, 0, W, H),
     foreground: () => drawStageLayer(renderer, bg, world.camera, 1, W, H),
   });

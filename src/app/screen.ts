@@ -1,5 +1,6 @@
 // Shared screen plumbing: fades, backgrounds and motif sounds.
 
+import type { DebugMode } from './debug';
 import type { Mixer } from '../audio/mixer';
 import type { DummySettings } from '../engine/ai';
 import type { GameOptions } from './game-options';
@@ -23,6 +24,8 @@ export interface AppContext {
   frames?: number;
   /** The options screen's settings (mugen.cfg [Options], [Sound]). */
   options?: GameOptions;
+  /** The debug mode, when the host asks for it. */
+  debug?: DebugMode;
 }
 
 export interface Screen {

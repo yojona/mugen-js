@@ -127,6 +127,11 @@ export class ElementInstance {
   }
 }
 
+/** Font_DrawText's colour: 0x100 is the glyph's own. */
+export function fontColor(r: number, g: number, b: number): [number, number, number] | undefined {
+  return r === 0x100 && g === 0x100 && b === 0x100 ? undefined : [(r * 255) / 256, (g * 255) / 256, (b * 255) / 256];
+}
+
 /**
  * Draw a string; (x, y) is the baseline anchor. align: 1 = left edge at x,
  * 0 = centered on x, -1 = right edge at x.

@@ -106,6 +106,8 @@ export class Keyboard {
   private pressQueue: string[] = [];
   private escapeDown = false;
   private escapePrev = false;
+  /** Sees every key going down; true keeps the browser's shortcut for that key away. */
+  onKeyDown?: (e: KeyboardEvent) => boolean;
   /** Called on the first key press (audio unlock). */
   onFirstInput?: () => void;
   /**
@@ -138,7 +140,8 @@ export class Keyboard {
       }
       this.held.add(e.code);
       this.tapped.add(e.code);
-      if (this.keyMap.has(e.code) || (this.capture && !e.metaKey && !e.ctrlKey)) e.preventDefault();
+      const shortcut = !this.capture && this.onKeyDown?.(e);
+      if (shortcut || this.keyMap.has(e.code) || (this.capture && !e.metaKey && !e.ctrlKey)) e.preventDefault();
     }, { signal });
     target.addEventListener('keyup', (ev) => {
       const e = ev as KeyboardEvent;

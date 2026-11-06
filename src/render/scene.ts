@@ -1,4 +1,4 @@
-// Draws a World: players, afterimages, explods and debug boxes, in MUGEN order.
+// Draws a World: players, afterimages, and explods, in MUGEN order.
 
 import type { Blend } from '../formats/air';
 import type { Sprite } from '../formats/sff';
@@ -16,7 +16,6 @@ interface Drawable {
 }
 
 export interface SceneOptions {
-  clsn?: boolean;
   /** Called after the background, before any sprite (stage layer 0). */
   background?: () => void;
   /** Called after all sprites (stage layer 1). */
@@ -31,14 +30,21 @@ export interface SceneOptions {
 export const DARKEN_BG: [number, number, number] = [80 / 256, 80 / 256, 128 / 256];
 const DARKEN_PLAYER: [number, number, number] = [128 / 256, 128 / 256, 192 / 256];
 
-export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void {
+/** Stage coordinates to the screen's, in stage units. */
+export function stageToScreen(w: World): { sx: (x: number) => number; sy: (y: number) => number } {
   const camLeft = w.camera.x - w.screenWidth / 2;
   // EnvShake: the camera moves by whole stage units (camera_y_base); a
   // screen of another height shows the stage from crop_top down.
   const shakeY = -(w.shakeBase + w.cropTop);
-  const sx = (x: number) => x - camLeft;
-  // Stage-space y to screen: ground line, minus the camera's vertical follow.
-  const sy = (y: number) => w.groundY + y - w.camera.y + shakeY;
+  return {
+    sx: (x) => x - camLeft,
+    // The ground line, minus the camera's vertical follow.
+    sy: (y) => w.groundY + y - w.camera.y + shakeY,
+  };
+}
+
+export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void {
+  const { sx, sy } = stageToScreen(w);
 
   // Game_Draw: with an EnvColor running neither the stage background nor
   // the shadows are drawn; the colour goes under the sprites (under = 1) or
@@ -154,16 +160,6 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
       p.trans ?? v.blend,
       fx,
     );
-    if (opts.clsn) {
-      const x0 = sx(p.wx);
-      const y0 = sy(p.wy);
-      for (const [boxes, color] of [
-        [v.element.clsn2, [60, 120, 255, 90]],
-        [v.element.clsn1, [255, 60, 60, 110]],
-      ] as const) {
-        for (const b of boxes ?? []) r.rect(x0 + p.facing * b.x1 * k, y0 + b.y1 * k, x0 + p.facing * b.x2 * k, y0 + b.y2 * k, [...color]);
-      }
-    }
   }
 
   function drawExplod(e: Explod): void {
