@@ -2,6 +2,8 @@
   <img width="320" height="240" alt="mugen-js title screen" src="https://github.com/user-attachments/assets/a2903d42-f163-4d8c-972d-330737ae3abd" />
 </p>
 
+By Jonathan Ayala.
+
 M.U.G.E.N 1.1 rebuilt from scratch for the browser, in TypeScript and WebGL2. It
 plays existing MUGEN content (characters, stages, motifs) and is checked frame by
 frame against the original `mugen.exe`.

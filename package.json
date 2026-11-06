@@ -5,6 +5,7 @@
   "type": "module",
   "description": "M.U.G.E.N 1.1 rebuilt for the browser, in TypeScript and WebGL2",
   "license": "MIT",
+  "author": "Jonathan Ayala",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/yojona/mugen-js.git"

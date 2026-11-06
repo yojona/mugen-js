@@ -35,7 +35,7 @@ const BOX_H = 400;
 const BOX_Y_HIDDEN = -405;
 // mugen.h: MUGEN_VERSION_*.
 const VERSION = '1.1.0 Beta 1 P1';
-const INFO_TEXT = `This game is powered by M.U.G.E.N version ${VERSION} (2013.08.11)  (c) Elecbyte 1999-2013\n\nThis version of M.U.G.E.N is a development build, but free for non-commercial use only.\nPlease read the license in readme.txt before using this software.`;
+const INFO_TEXT = `M.U.G.E.N.js by Jonathan Ayala\n\nThis game is powered by M.U.G.E.N version ${VERSION} (2013.08.11)  (c) Elecbyte 1999-2013\n\nThis version of M.U.G.E.N is a development build, but free for non-commercial use only.\nPlease read the license in readme.txt before using this software.`;
 
 type Rgba = [number, number, number, number];
 
