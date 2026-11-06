@@ -33,7 +33,9 @@ by Elecbyte.
 
 Development started from Elecbyte's documentation. Parts of this software are
 based on the work of zxmarcos in mugen-unleashed
-(https://github.com/zxmarcos/mugen-unleashed), a C reconstruction of mugen.exe
-that grants no license for its code. The authors
-make no claim over those works, and this license does not grant any rights that
-their owners may hold over those parts.
+(https://github.com/zxmarcos/mugen-unleashed), a C reconstruction of mugen.exe,
+whose author agreed to this use under the MIT license:
+https://github.com/zxmarcos/mugen-unleashed/issues/2#issuecomment-6675658999
+
+That agreement covers mugen-unleashed's author's own work. This license grants no
+rights that Elecbyte or others may hold over the original M.U.G.E.N.

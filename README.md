@@ -253,8 +253,8 @@ npm run build       # dist/: the ES module, mugen.min.js and the type declaratio
 
 ## License
 
-[MIT](LICENSE), for the code written for this project. It does not cover MUGEN itself,
-its data files, or any characters, stages and motifs you load, which belong to their
-owners. It also grants no rights over the parts based on mugen-unleashed, whose code carries
-no license, or that the owners of the original work may hold. M.U.G.E.N is a name of Elecbyte, and this
-project is not affiliated with or endorsed by them.
+[MIT](LICENSE), for the code written for this project. The parts based on mugen-unleashed
+are used with [its author's agreement](https://github.com/zxmarcos/mugen-unleashed/issues/2#issuecomment-6675658999), also under MIT. The license does not cover MUGEN
+itself, its data files, or any characters, stages and motifs you load, which belong to their
+owners, and it grants no rights Elecbyte or others may hold over the original M.U.G.E.N.
+M.U.G.E.N is a name of Elecbyte, and this project is not affiliated with or endorsed by them.
