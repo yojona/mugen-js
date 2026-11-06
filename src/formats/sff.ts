@@ -476,7 +476,10 @@ async function partialV1(head: Reader, read: RangeReader, want: Set<number>): Pr
     const linked = r.u16();
     const samePalette = r.u8() !== 0 && i > 0;
     const k = group * 65536 + number;
-    const src = length === 0 ? info[linked] : { data: start + 32, len: length, pal: samePalette && lastPal >= 0 ? lastPal : start + 32 + length - 768 };
+    const src =
+      length === 0
+        ? info[linked]
+        : { data: start + 32, len: length, pal: samePalette && lastPal >= 0 ? lastPal : start + 32 + length - 768 };
     if (!src) break;
     info.push(src);
     lastPal = src.pal;

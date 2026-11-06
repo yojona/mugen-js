@@ -67,7 +67,12 @@ export function readDebugConfig(cfg: IniDoc | undefined): DebugConfig {
     return Number.isFinite(n) ? n !== 0 : d;
   };
   const debug = flag('debug', false);
-  return { debug, allowDebugMode: debug || flag('allowdebugmode', false), allowDebugKeys: flag('allowdebugkeys', false), speedup: flag('speedup', false) };
+  return {
+    debug,
+    allowDebugMode: debug || flag('allowdebugmode', false),
+    allowDebugKeys: flag('allowdebugkeys', false),
+    speedup: flag('speedup', false),
+  };
 }
 
 /** AnimState.time as the display shows it: from 1 up to the action's length, again from 1 in a loop. */
@@ -144,22 +149,36 @@ export class DebugMode {
     }
     if (ctrl) {
       switch (e.code) {
-        case 'KeyS': return () => (this.speedup = !this.speedup);
-        case 'KeyC': return () => (this.clsnMode = (this.clsnMode + 1) % 3);
-        case 'KeyL': return () => (this.hud = !this.hud);
-        case 'F1': return (f) => setLife(f, 1, 0);
-        case 'F2': return (f) => setLife(f, 1, 1);
+        case 'KeyS':
+          return () => (this.speedup = !this.speedup);
+        case 'KeyC':
+          return () => (this.clsnMode = (this.clsnMode + 1) % 3);
+        case 'KeyL':
+          return () => (this.hud = !this.hud);
+        case 'F1':
+          return (f) => setLife(f, 1, 0);
+        case 'F2':
+          return (f) => setLife(f, 1, 1);
       }
       return undefined;
     }
     if (none) {
       switch (e.code) {
-        case 'Space': return lifeReset;
-        case 'F1': return (f) => setLife(f, 2, 0);
-        case 'F2': return (f) => setLife(f, 2, 1);
-        case 'F3': return (f) => fighters(f).filter((p) => p.slotNo <= 2).forEach(fillPower);
-        case 'F4': return (f) => f.match.resetRound();
-        case 'F5': return (f) => f.match.setClock(1);
+        case 'Space':
+          return lifeReset;
+        case 'F1':
+          return (f) => setLife(f, 2, 0);
+        case 'F2':
+          return (f) => setLife(f, 2, 1);
+        case 'F3':
+          return (f) =>
+            fighters(f)
+              .filter((p) => p.slotNo <= 2)
+              .forEach(fillPower);
+        case 'F4':
+          return (f) => f.match.resetRound();
+        case 'F5':
+          return (f) => f.match.setClock(1);
       }
       return undefined;
     }
@@ -220,7 +239,8 @@ export class DebugMode {
     const font = this.font;
     if (this.player === 0 || !font) return;
     const y = height - 39;
-    const text = (s: string, x: number, line: number, color?: [number, number, number]) => drawText(r, font, s, x, y + line, 0, 1, [1, 1], color);
+    const text = (s: string, x: number, line: number, color?: [number, number, number]) =>
+      drawText(r, font, s, x, y + line, 0, 1, [1, 1], color);
     text(`Frames: ${frames} (${this.fps.toFixed(1)} FPS)`, 10, 0);
     text(`VRet: 1, Speed: ${this.speedup ? 1 : 0}, Skip: a`, 110, 0);
     const nameColor = fontColor(0xc8, 0xc8, 0xdc);

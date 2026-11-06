@@ -95,7 +95,8 @@ export async function createEngine(options: EngineOptions): Promise<Engine> {
     if (q && vfs.resolve(q)) return vfs.resolve(q)!;
     try {
       const cfg = parseIni(await vfs.text('data/mugen.cfg'));
-      const m = getValue(findSection(cfg, 'Options'), 'motif') ?? cfg.sections.flatMap((s) => s.entries).find((e) => e.key === 'motif')?.value;
+      const m =
+        getValue(findSection(cfg, 'Options'), 'motif') ?? cfg.sections.flatMap((s) => s.entries).find((e) => e.key === 'motif')?.value;
       if (m && vfs.resolve(m)) return vfs.resolve(m)!;
     } catch {
       /* fall through */
@@ -137,25 +138,51 @@ export async function createEngine(options: EngineOptions): Promise<Engine> {
       }
     }
     fullScreen = (getValue(cfg && findSection(cfg, 'Video'), 'fullscreen') ?? '').trim() === '1';
-    return new GameOptions(cfg, storage, { keysFromCfg: options.keysFromCfg, onRemap: (k, j, active) => keys.setMaps(k, j, active), padCount: () => keys.padCount() }).init();
+    return new GameOptions(cfg, storage, {
+      keysFromCfg: options.keysFromCfg,
+      onRemap: (k, j, active) => keys.setMaps(k, j, active),
+      padCount: () => keys.padCount(),
+    }).init();
   })();
   keys.onPadsChanged = () => gameOptions.initPads();
   // The sounds play at MasterVolume * WavVolume (Sound_SetVolume).
   mixer.volume = gameOptions.wavGain;
 
   // [Options] Difficulty: the CPU's AILevel (clamped 1..8).
-  const ctx: AppContext = { renderer, mixer, keys, motif, aiLevel: Math.max(1, Math.min(8, gameOptions.difficulty)), frames: 0, options: gameOptions, onTrainingDummy: options.onTrainingDummy };
+  const ctx: AppContext = {
+    renderer,
+    mixer,
+    keys,
+    motif,
+    aiLevel: Math.max(1, Math.min(8, gameOptions.difficulty)),
+    frames: 0,
+    options: gameOptions,
+    onTrainingDummy: options.onTrainingDummy,
+  };
 
   const assets = await loadAssets(vfs, motif, { noTtf: options.noTtf, onProgress: report });
   let debug: DebugMode | undefined;
   if (options.debug !== false) {
-    const config = readDebugConfig(await vfs.text('data/mugen.cfg').then(parseIni).catch(() => undefined));
+    const config = readDebugConfig(
+      await vfs
+        .text('data/mugen.cfg')
+        .then(parseIni)
+        .catch(() => undefined),
+    );
     if (options.debug) config.allowDebugMode = config.allowDebugKeys = true;
     const font = await loadFont(vfs, 'font/f-4x6.def').catch(() => undefined);
     ctx.debug = debug = new DebugMode(config, font, assets.systemFont, ctx.aiLevel);
   }
   report(undefined);
-  const flow = createGameFlow(ctx, vfs, motif, gameOptions, assets, { sessionSeed: options.sessionSeed, onExit: options.onExit, onProgress: report }, () => engine.hooks);
+  const flow = createGameFlow(
+    ctx,
+    vfs,
+    motif,
+    gameOptions,
+    assets,
+    { sessionSeed: options.sessionSeed, onExit: options.onExit, onProgress: report },
+    () => engine.hooks,
+  );
 
   // Only in a fight: on the other screens these keys stay the page's.
   if (debug) keys.onKeyDown = (e) => flow.screen instanceof FightScreen && debug.keyDown(e);
@@ -194,7 +221,7 @@ export async function createEngine(options: EngineOptions): Promise<Engine> {
     get screen() {
       return flow.screen;
     },
-  get loading() {
+    get loading() {
       return loading;
     },
     get busy() {
@@ -220,8 +247,8 @@ export async function createEngine(options: EngineOptions): Promise<Engine> {
       raf = requestAnimationFrame(frame);
     },
     step() {
-        if (!destroyed) flow.step();
-      },
+      if (!destroyed) flow.step();
+    },
     setZoom(zoom) {
       renderer.resize(mw, mh, zoom || defaultZoom);
     },

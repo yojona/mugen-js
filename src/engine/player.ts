@@ -712,7 +712,10 @@ export class Player {
     // that are not are dropped, those after it stay listed (FindEnemy still
     // picks among them).
     for (const [t] of this.targets) {
-      if (t.world === this.world && ((t.moveType === 'h' && (t.stateNo !== 5150 || t.time === 0)) || (this.reversal && this.hitDefActive))) {
+      if (
+        t.world === this.world &&
+        ((t.moveType === 'h' && (t.stateNo !== 5150 || t.time === 0)) || (this.reversal && this.hitDefActive))
+      ) {
         this.world.comboOngoing[this.side] = true;
         break;
       }
@@ -810,7 +813,7 @@ export class Player {
       // Player_RunState: a controller of the current state waits out its
       // persistence timer (frames, not firings) without testing its
       // triggers; the special states (-1/-2/-3) have no timers.
-      const wait = isCurrent && c.persistent !== 1 ? this.persist.get(c) ?? 0 : 0;
+      const wait = isCurrent && c.persistent !== 1 ? (this.persist.get(c) ?? 0) : 0;
       const tick = () => {
         if (!isCurrent || c.persistent <= 0) return;
         const t = ((this.persist.get(c) ?? 0) - 1) & 0xff;
@@ -851,13 +854,13 @@ export class Player {
       const group = c.triggers[g]!;
       let ok = true;
       for (let j = 0; j < group.length; j++) {
-          if (!truthy(group[j]!, this)) {
+        if (!truthy(group[j]!, this)) {
           ok = false;
           break;
         }
       }
       if (ok) {
-          return true;
+        return true;
       }
     }
     return false;
@@ -1111,7 +1114,8 @@ export class Player {
     const st = this.stateType;
     // Held keys (p+0x390..0x39c), not commands: an AI.Cheat "holdup" does
     // not jump (measured).
-    const held = (k: number) => (this.cmdInput ? this.cmdInput.heldAt(k) !== 0 : cmd.has(['', 'holdup', 'holdfwd', 'holddown', 'holdback'][k]!));
+    const held = (k: number) =>
+      this.cmdInput ? this.cmdInput.heldAt(k) !== 0 : cmd.has(['', 'holdup', 'holdfwd', 'holddown', 'holdback'][k]!);
     // no_input_states: no action, and nothing keeps a crouch (the default
     // branch still runs: 20 stops, a crouch with control stands up).
     const noIn = this.noInputStates;
@@ -1127,7 +1131,13 @@ export class Player {
     } else if (st === 'a' && !noIn && this.cmdInput?.upPressed) action = 'airjump';
     // Guard: holding back (not up) with an attacker in range.
     const guardOk = !this.special.has(st === 'a' ? 'noairguard' : st === 'c' ? 'nocrouchguard' : 'nostandguard');
-    if (back && !up && guardOk && ((this.moveType === 'i' && this.ctrl) || no === 52 || no === 151 || no === 153 || no === 155) && this.inGuardDist()) {
+    if (
+      back &&
+      !up &&
+      guardOk &&
+      ((this.moveType === 'i' && this.ctrl) || no === 52 || no === 151 || no === 153 || no === 155) &&
+      this.inGuardDist()
+    ) {
       action = 'guard';
     }
     if (fwd && back) action = 'none';

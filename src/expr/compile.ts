@@ -214,7 +214,7 @@ function binary<C>(op: string, a: Fn<C>, b: Fn<C>): Fn<C> {
       return (c) => {
         if (!both(a, b, c, o)) return 0;
         if (o.y === 0) return bottom();
-        if (o.float) return (R.t = FLOAT), f32(o.x / o.y);
+        if (o.float) return ((R.t = FLOAT), f32(o.x / o.y));
         R.t = INT;
         return Math.trunc(o.x / o.y) | 0;
       };
@@ -223,7 +223,7 @@ function binary<C>(op: string, a: Fn<C>, b: Fn<C>): Fn<C> {
         if (!both(a, b, c, o)) return 0;
         if (o.float || o.y === 0) return bottom();
         R.t = INT;
-        return o.x % o.y | 0;
+        return (o.x % o.y) | 0;
       };
     case '**':
       return (c) => {

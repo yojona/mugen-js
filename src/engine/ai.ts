@@ -303,21 +303,21 @@ export class MugenAI {
     };
     switch (d.stance) {
       case 0: // stand
-        rel(K_U), rel(K_D), rel(K_B), rel(K_F);
+        (rel(K_U), rel(K_D), rel(K_B), rel(K_F));
         break;
       case 1: // crouch
         rel(K_U);
         if (!this.held(K_D)) this.push(K_D);
-        rel(K_B), rel(K_F);
+        (rel(K_B), rel(K_F));
         break;
       case 2: // jump
-        rel(K_D), rel(K_B), rel(K_F);
+        (rel(K_D), rel(K_B), rel(K_F));
         if (p.wy === 0) {
           if (!this.held(K_U)) this.push(K_U);
         } else rel(K_U);
         break;
       case 3: // jump repeatedly (hold up while falling)
-        rel(K_D), rel(K_B), rel(K_F);
+        (rel(K_D), rel(K_B), rel(K_F));
         if (p.wy === 0 || p.vel.y > 0) {
           if (!this.held(K_U)) this.push(K_U);
         } else rel(K_U);
@@ -622,14 +622,34 @@ export class MugenAI {
         const r19 = this.rand(19);
         const TAB = [0, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 6, 6, 7];
         switch (TAB[r19]) {
-          case 0: this.push(K_U); this.push(K_B); break;
-          case 1: this.push(K_U); break;
-          case 2: this.push(K_U); this.push(K_F); break;
-          case 3: this.push(K_F); break;
-          case 4: this.push(K_B); break;
-          case 5: this.push(K_D); this.push(K_B); break;
-          case 6: this.push(K_D); break;
-          case 7: this.push(K_D); this.push(K_F); break;
+          case 0:
+            this.push(K_U);
+            this.push(K_B);
+            break;
+          case 1:
+            this.push(K_U);
+            break;
+          case 2:
+            this.push(K_U);
+            this.push(K_F);
+            break;
+          case 3:
+            this.push(K_F);
+            break;
+          case 4:
+            this.push(K_B);
+            break;
+          case 5:
+            this.push(K_D);
+            this.push(K_B);
+            break;
+          case 6:
+            this.push(K_D);
+            break;
+          case 7:
+            this.push(K_D);
+            this.push(K_F);
+            break;
         }
       }
       let base: number;

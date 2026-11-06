@@ -280,7 +280,14 @@ function reversalGetHitVars(r: Player, a: Player, hd: HitDefData): void {
   else if (hd.forceNoFall) g.fall = 0;
   g.animtype = g.fall ? hd.fallAnimType : hd.animType;
   g.yaccel = hd.yaccel * conv;
-  if (hd.envShake) r.world.envShake = makeEnvShake(hd.envShake.time, hd.envShake.freq, hd.envShake.ampl, hd.envShake.phase, r.scale * (r.world.gameWidth / r.world.screenWidth));
+  if (hd.envShake)
+    r.world.envShake = makeEnvShake(
+      hd.envShake.time,
+      hd.envShake.freq,
+      hd.envShake.ampl,
+      hd.envShake.phase,
+      r.scale * (r.world.gameWidth / r.world.screenWidth),
+    );
   g['fall.xvel'] = hd.fallXVel === undefined ? Number.NaN : hd.fallXVel * conv;
   g['fall.yvel'] = hd.fallYVel * conv;
   g['fall.recover'] = hd.fallRecover ? 1 : 0;
@@ -352,7 +359,8 @@ function intCollide(
     });
   const dx = Math.trunc((t.x - a.x) * k);
   const dy = Math.trunc((t.y - a.y) * k);
-  for (const p of rel(a)) for (const q of rel(t)) if (q.x2 + dx >= p.x1 && q.x1 + dx <= p.x2 && q.y2 + dy >= p.y1 && q.y1 + dy <= p.y2) return true;
+  for (const p of rel(a))
+    for (const q of rel(t)) if (q.x2 + dx >= p.x1 && q.x1 + dx <= p.x2 && q.y2 + dy >= p.y1 && q.y1 + dy <= p.y2) return true;
   return false;
 }
 
@@ -379,7 +387,14 @@ export function detectProjectileHits(projs: Projectile[], players: Player[]): Pe
       const k = d.world.gameWidth / d.world.screenWidth;
       const hitBox = intCollide(
         { x: pr.x, y: pr.y, facing: pr.facing, sx: pr.clsnScale[0], sy: pr.clsnScale[1], boxes: pr.anim.current?.clsn1 },
-        { x: d.clsnX, y: d.clsnY, facing: d.facing, sx: d.const('size.xscale') * d.scale, sy: d.const('size.yscale') * d.scale, boxes: d.anim.current?.clsn2 },
+        {
+          x: d.clsnX,
+          y: d.clsnY,
+          facing: d.facing,
+          sx: d.const('size.xscale') * d.scale,
+          sy: d.const('size.yscale') * d.scale,
+          boxes: d.anim.current?.clsn2,
+        },
         k,
       );
       if (!hitBox) continue;
@@ -428,7 +443,14 @@ export function hitProjectilesByHitDefs(projs: Projectile[], order: Player[]): v
       const k = p.world.gameWidth / p.world.screenWidth;
       const touch = intCollide(
         { x: pr.x, y: pr.y, facing: pr.facing, sx: pr.clsnScale[0], sy: pr.clsnScale[1], boxes: pr.anim.current?.clsn2 },
-        { x: p.clsnX, y: p.clsnY, facing: p.facing, sx: p.const('size.xscale') * p.scale, sy: p.const('size.yscale') * p.scale, boxes: p.anim.current?.clsn1 },
+        {
+          x: p.clsnX,
+          y: p.clsnY,
+          facing: p.facing,
+          sx: p.const('size.xscale') * p.scale,
+          sy: p.const('size.yscale') * p.scale,
+          boxes: p.anim.current?.clsn1,
+        },
         k,
       );
       if (!touch) continue;
@@ -703,7 +725,13 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
     else if (!world.superPause && world.pause && !world.pause.fresh) d.pauseMoveTime = Math.max(d.pauseMoveTime, hd.pause[1]);
     // Falling hits use air.hittime too (measured: KFM's throw, fall = 1 and
     // no hittime given, sets 20).
-    g.hittime = lying ? (vel[1] !== 0 ? hd.airHitTime : hd.downHitTime) : inAir || vel[1] !== 0 || willFall ? hd.airHitTime : hd.groundHitTime;
+    g.hittime = lying
+      ? vel[1] !== 0
+        ? hd.airHitTime
+        : hd.downHitTime
+      : inAir || vel[1] !== 0 || willFall
+        ? hd.airHitTime
+        : hd.groundHitTime;
     g.slidetime = hd.groundSlideTime;
     const [vx, vy] = vel;
     // HitDef_Apply keeps the velocities in game units: the attacker's
@@ -739,7 +767,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
         hd.airJuggle = 0;
       }
       d.projHitBlock = true;
-    }    d.airJumpsLeft = 0;
+    }
+    d.airJumpsLeft = 0;
     d.recoverFresh = true;
     g['fall.damage'] = hd.fallDamage;
     g['fall.xvel'] = hd.fallXVel === undefined ? Number.NaN : hd.fallXVel * conv;
@@ -759,8 +788,25 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
       g['fall.envshake.ampl'] = hd.fallEnvShake.ampl;
       g['fall.envshake.phase'] = hd.fallEnvShake.phase;
     }
-    if (hd.envShake) world.envShake = makeEnvShake(hd.envShake.time, hd.envShake.freq, hd.envShake.ampl, hd.envShake.phase, a.scale * (world.gameWidth / world.screenWidth));
-    if (hd.palFx) d.palFx = { time: hd.palFx.time, elapsed: 0, add: hd.palFx.add, mul: hd.palFx.mul, sinAdd: hd.palFx.sinAdd, sinPeriod: hd.palFx.sinPeriod, invertAll: hd.palFx.invertAll, color: hd.palFx.color };
+    if (hd.envShake)
+      world.envShake = makeEnvShake(
+        hd.envShake.time,
+        hd.envShake.freq,
+        hd.envShake.ampl,
+        hd.envShake.phase,
+        a.scale * (world.gameWidth / world.screenWidth),
+      );
+    if (hd.palFx)
+      d.palFx = {
+        time: hd.palFx.time,
+        elapsed: 0,
+        add: hd.palFx.add,
+        mul: hd.palFx.mul,
+        sinAdd: hd.palFx.sinAdd,
+        sinPeriod: hd.palFx.sinPeriod,
+        invertAll: hd.palFx.invertAll,
+        color: hd.palFx.color,
+      };
     g.chainid = hd.id;
     d.ghvAttacker = a;
     d.ghvAttr = hitDefAttrBits(hd.attrState, hd.attrType);

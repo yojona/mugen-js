@@ -6,7 +6,10 @@ import { nodeSource } from '../src/engine/node-source';
 import { Vfs } from '../src/engine/vfs';
 
 const REF = join(__dirname, '..', 'ref', 'mugen-1.1b1');
-const PORTRAITS = [[9000, 0], [9000, 1]] as const;
+const PORTRAITS = [
+  [9000, 0],
+  [9000, 1],
+] as const;
 
 describe('select-screen preview', () => {
   it('portraits and their palettes equal the full load, for every character', async () => {

@@ -16,12 +16,63 @@ const isAlnum = (c: string | undefined) => isDigit(c) || isAlpha(c);
 const isSpace = (c: string | undefined) => c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\v' || c === '\f';
 
 // Operators: '-' read as 'neg' where an operand is expected.
-type Op = '||' | '^^' | '&&' | '|' | '^' | '&' | ':=' | '=' | '!=' | '>' | '<' | '>=' | '<=' | '+' | '-' | '*' | '/' | '%' | '**' | '!' | '~' | 'neg' | '(' | 'in_oo' | 'in_oc' | 'in_co' | 'in_cc';
+type Op =
+  | '||'
+  | '^^'
+  | '&&'
+  | '|'
+  | '^'
+  | '&'
+  | ':='
+  | '='
+  | '!='
+  | '>'
+  | '<'
+  | '>='
+  | '<='
+  | '+'
+  | '-'
+  | '*'
+  | '/'
+  | '%'
+  | '**'
+  | '!'
+  | '~'
+  | 'neg'
+  | '('
+  | 'in_oo'
+  | 'in_oc'
+  | 'in_co'
+  | 'in_cc';
 
 const PREC: Record<string, number> = {
-  '||': 1, '^^': 2, '&&': 3, '|': 4, '^': 5, '&': 6, ':=': 7, '=': 8, '!=': 8,
-  in_oo: 9, in_oc: 9, in_co: 9, in_cc: 9, '>': 10, '<': 10, '>=': 10, '<=': 10,
-  '+': 11, '-': 11, '*': 12, '/': 12, '%': 12, '**': 13, '!': 14, neg: 14, '~': 14, '(': 15,
+  '||': 1,
+  '^^': 2,
+  '&&': 3,
+  '|': 4,
+  '^': 5,
+  '&': 6,
+  ':=': 7,
+  '=': 8,
+  '!=': 8,
+  in_oo: 9,
+  in_oc: 9,
+  in_co: 9,
+  in_cc: 9,
+  '>': 10,
+  '<': 10,
+  '>=': 10,
+  '<=': 10,
+  '+': 11,
+  '-': 11,
+  '*': 12,
+  '/': 12,
+  '%': 12,
+  '**': 13,
+  '!': 14,
+  neg: 14,
+  '~': 14,
+  '(': 15,
 };
 const RIGHT = new Set<string>([':=', '!', '~', 'neg']);
 const UNARY = new Set<string>(['!', '~', 'neg']);
@@ -31,20 +82,34 @@ function readOp(s: string, i: number): [Op, number] | undefined {
   const c = s[i];
   const n = s[i + 1];
   switch (c) {
-    case '!': return n === '=' ? ['!=', 2] : ['!', 1];
-    case '%': return ['%', 1];
-    case '&': return n === '&' ? ['&&', 2] : ['&', 1];
-    case '*': return n === '*' ? ['**', 2] : ['*', 1];
-    case '+': return ['+', 1];
-    case '-': return ['-', 1];
-    case '/': return ['/', 1];
-    case ':': return n === '=' ? [':=', 2] : undefined;
-    case '<': return n === '=' ? ['<=', 2] : ['<', 1];
-    case '=': return ['=', 1];
-    case '>': return n === '=' ? ['>=', 2] : ['>', 1];
-    case '^': return n === '^' ? ['^^', 2] : ['^', 1];
-    case '|': return n === '|' ? ['||', 2] : ['|', 1];
-    case '~': return ['~', 1];
+    case '!':
+      return n === '=' ? ['!=', 2] : ['!', 1];
+    case '%':
+      return ['%', 1];
+    case '&':
+      return n === '&' ? ['&&', 2] : ['&', 1];
+    case '*':
+      return n === '*' ? ['**', 2] : ['*', 1];
+    case '+':
+      return ['+', 1];
+    case '-':
+      return ['-', 1];
+    case '/':
+      return ['/', 1];
+    case ':':
+      return n === '=' ? [':=', 2] : undefined;
+    case '<':
+      return n === '=' ? ['<=', 2] : ['<', 1];
+    case '=':
+      return ['=', 1];
+    case '>':
+      return n === '=' ? ['>=', 2] : ['>', 1];
+    case '^':
+      return n === '^' ? ['^^', 2] : ['^', 1];
+    case '|':
+      return n === '|' ? ['||', 2] : ['|', 1];
+    case '~':
+      return ['~', 1];
   }
   return undefined;
 }
@@ -83,7 +148,8 @@ export function parseAt(s: string, start: number, stop: boolean): { node: Node; 
     if (stop && s[cur] === ',') break;
     const c = s[cur];
     const c1 = s[cur + 1];
-    const startsNumber = isDigit(c) || (c === '-' && isDigit(c1)) || (c === '.' && isDigit(c1)) || (c === '-' && c1 === '.' && isDigit(s[cur + 2]));
+    const startsNumber =
+      isDigit(c) || (c === '-' && isDigit(c1)) || (c === '.' && isDigit(c1)) || (c === '-' && c1 === '.' && isDigit(s[cur + 2]));
     if (startsNumber && last !== 'number' && last !== 'trigger' && last !== 'group') {
       last = 'number';
       const m = /^-?\d*/.exec(s.slice(cur))![0];
@@ -106,7 +172,11 @@ export function parseAt(s: string, start: number, stop: boolean): { node: Node; 
         if (op === ':=') {
           // var(n) := x / fvar(n) := x: the left side must be an unredirected var/fvar.
           const prev = out[out.length - 1];
-          const ok = last === 'trigger' && prev?.kind === 'node' && prev.node.kind === 'call' && (prev.node.name === 'var' || prev.node.name === 'fvar');
+          const ok =
+            last === 'trigger' &&
+            prev?.kind === 'node' &&
+            prev.node.kind === 'call' &&
+            (prev.node.name === 'var' || prev.node.name === 'fvar');
           if (!ok) fail('El lado izquierdo de := debe ser var/fvar');
           if (PREC[':=']! < topPrec) {
             const top = ops[ops.length - 1];
@@ -239,42 +309,169 @@ function build(items: Item[]): Node {
 type NameKind = 'exact' | 'prefix' | 'body';
 /** mugen.exe's trigger name table, in the order it is searched (first match wins). */
 const NAMES: [string, NameKind, string][] = [
-  ['time', 'exact', 'time'], ['statetime', 'exact', 'time'], ['animtime', 'exact', 'animtime'], ['animelem', 'exact', 'animelem'],
-  ['anim', 'exact', 'anim'], ['vel', 'exact', 'vel'], ['pos', 'exact', 'pos'], ['screenpos', 'exact', 'screenpos'],
-  ['camerapos', 'exact', 'camerapos'], ['camerazoom', 'exact', 'camerazoom'], ['timemod', 'exact', 'timemod'], ['p2dist', 'exact', 'p2dist'],
-  ['p2bodydist', 'exact', 'p2bodydist'], ['p2life', 'exact', 'p2life'], ['winperfect', 'exact', 'winperfect'], ['win', 'prefix', 'win'],
-  ['lose', 'prefix', 'lose'], ['drawgame', 'exact', 'drawgame'], ['matchover', 'exact', 'matchover'], ['gametime', 'exact', 'gametime'],
-  ['roundno', 'exact', 'roundno'], ['roundstate', 'exact', 'roundstate'], ['matchno', 'exact', 'matchno'], ['roundsexisted', 'exact', 'roundsexisted'],
-  ['teamside', 'exact', 'teamside'], ['teammode', 'exact', 'teammode'], ['ishometeam', 'exact', 'ishometeam'], ['frontedgedist', 'exact', 'frontedgedist'],
-  ['backedgedist', 'exact', 'backedgedist'], ['frontedgebodydist', 'body', 'frontedgebodydist'], ['backedgebodydist', 'body', 'backedgebodydist'],
-  ['life', 'exact', 'life'], ['lifemax', 'exact', 'lifemax'], ['power', 'exact', 'power'], ['powermax', 'exact', 'powermax'], ['alive', 'exact', 'alive'],
-  ['command', 'exact', 'command'], ['ailevel', 'exact', 'ailevel'], ['hitcount', 'exact', 'hitcount'], ['uniqhitcount', 'exact', 'uniqhitcount'],
-  ['movehit', 'exact', 'movehit'], ['moveguarded', 'exact', 'moveguarded'], ['movecontact', 'exact', 'movecontact'], ['movereversed', 'exact', 'movereversed'],
-  ['inguarddist', 'exact', 'inguarddist'], ['stateno', 'exact', 'stateno'], ['prevstateno', 'exact', 'prevstateno'], ['p2stateno', 'exact', 'p2stateno'],
-  ['statetype', 'exact', 'statetype'], ['p2statetype', 'exact', 'p2statetype'], ['movetype', 'exact', 'movetype'], ['p2movetype', 'exact', 'p2movetype'],
-  ['ctrl', 'exact', 'ctrl'], ['hitdefattr', 'exact', 'hitdefattr'], ['var', 'exact', 'var'], ['fvar', 'exact', 'fvar'], ['sysvar', 'exact', 'sysvar'],
-  ['sysfvar', 'exact', 'sysfvar'], ['random', 'exact', 'random'], ['numproj', 'exact', 'numproj'], ['numprojid', 'exact', 'numprojid'],
-  ['projcanceltime', 'exact', 'projcanceltime'], ['projhittime', 'exact', 'projhittime'], ['projhit', 'prefix', 'projhit'],
-  ['projguardedtime', 'exact', 'projguardedtime'], ['projguarded', 'prefix', 'projguarded'], ['projcontacttime', 'exact', 'projcontacttime'],
-  ['projcontact', 'prefix', 'projcontact'], ['p1name', 'exact', 'p1name'], ['name', 'exact', 'p1name'], ['p2name', 'exact', 'p2name'],
-  ['p3name', 'exact', 'p3name'], ['p4name', 'exact', 'p4name'], ['authorname', 'exact', 'authorname'], ['numpartner', 'exact', 'numpartner'],
-  ['numenemy', 'exact', 'numenemy'], ['id', 'exact', 'id'], ['facing', 'exact', 'facing'], ['hitfall', 'exact', 'hitfall'],
-  ['hitshakeover', 'exact', 'hitshakeover'], ['hitover', 'exact', 'hitover'], ['hitvel', 'exact', 'hitvel'], ['hitpausetime', 'exact', 'hitpausetime'],
-  ['canrecover', 'exact', 'canrecover'], ['animelemno', 'exact', 'animelemno'], ['animexist', 'exact', 'animexist'], ['selfanimexist', 'exact', 'selfanimexist'],
-  ['playeridexist', 'exact', 'playeridexist'], ['palno', 'exact', 'palno'], ['numexplod', 'exact', 'numexplod'], ['numtarget', 'exact', 'numtarget'],
-  ['gethitvar', 'exact', 'gethitvar'], ['const', 'exact', 'const'], ['const240p', 'exact', 'const240p'], ['const480p', 'exact', 'const480p'],
-  ['const720p', 'exact', 'const720p'], ['stagevar', 'exact', 'stagevar'], ['tickspersecond', 'exact', 'tickspersecond'], ['ishelper', 'exact', 'ishelper'],
-  ['numhelper', 'exact', 'numhelper'], ['parentdist', 'exact', 'parentdist'], ['rootdist', 'exact', 'rootdist'], ['standby', 'exact', 'standby'],
-  ['gamewidth', 'exact', 'gamewidth'], ['gameheight', 'exact', 'gameheight'], ['screenwidth', 'exact', 'screenwidth'], ['screenheight', 'exact', 'screenheight'],
-  ['backedge', 'exact', 'backedge'], ['frontedge', 'exact', 'frontedge'], ['leftedge', 'exact', 'leftedge'], ['rightedge', 'exact', 'rightedge'],
-  ['topedge', 'exact', 'topedge'], ['bottomedge', 'exact', 'bottomedge'], ['pi', 'exact', 'pi'], ['e', 'exact', 'e'], ['ifelse', 'exact', 'ifelse'],
-  ['log', 'exact', 'log'], ['sin', 'exact', 'sin'], ['cos', 'exact', 'cos'], ['tan', 'exact', 'tan'], ['asin', 'exact', 'asin'], ['acos', 'exact', 'acos'],
-  ['atan', 'exact', 'atan'], ['exp', 'exact', 'exp'], ['ln', 'exact', 'ln'], ['abs', 'exact', 'abs'], ['floor', 'exact', 'floor'], ['ceil', 'exact', 'ceil'],
-  ['animelemtime', 'exact', 'animelemtime'], ['cond', 'exact', 'cond'],
+  ['time', 'exact', 'time'],
+  ['statetime', 'exact', 'time'],
+  ['animtime', 'exact', 'animtime'],
+  ['animelem', 'exact', 'animelem'],
+  ['anim', 'exact', 'anim'],
+  ['vel', 'exact', 'vel'],
+  ['pos', 'exact', 'pos'],
+  ['screenpos', 'exact', 'screenpos'],
+  ['camerapos', 'exact', 'camerapos'],
+  ['camerazoom', 'exact', 'camerazoom'],
+  ['timemod', 'exact', 'timemod'],
+  ['p2dist', 'exact', 'p2dist'],
+  ['p2bodydist', 'exact', 'p2bodydist'],
+  ['p2life', 'exact', 'p2life'],
+  ['winperfect', 'exact', 'winperfect'],
+  ['win', 'prefix', 'win'],
+  ['lose', 'prefix', 'lose'],
+  ['drawgame', 'exact', 'drawgame'],
+  ['matchover', 'exact', 'matchover'],
+  ['gametime', 'exact', 'gametime'],
+  ['roundno', 'exact', 'roundno'],
+  ['roundstate', 'exact', 'roundstate'],
+  ['matchno', 'exact', 'matchno'],
+  ['roundsexisted', 'exact', 'roundsexisted'],
+  ['teamside', 'exact', 'teamside'],
+  ['teammode', 'exact', 'teammode'],
+  ['ishometeam', 'exact', 'ishometeam'],
+  ['frontedgedist', 'exact', 'frontedgedist'],
+  ['backedgedist', 'exact', 'backedgedist'],
+  ['frontedgebodydist', 'body', 'frontedgebodydist'],
+  ['backedgebodydist', 'body', 'backedgebodydist'],
+  ['life', 'exact', 'life'],
+  ['lifemax', 'exact', 'lifemax'],
+  ['power', 'exact', 'power'],
+  ['powermax', 'exact', 'powermax'],
+  ['alive', 'exact', 'alive'],
+  ['command', 'exact', 'command'],
+  ['ailevel', 'exact', 'ailevel'],
+  ['hitcount', 'exact', 'hitcount'],
+  ['uniqhitcount', 'exact', 'uniqhitcount'],
+  ['movehit', 'exact', 'movehit'],
+  ['moveguarded', 'exact', 'moveguarded'],
+  ['movecontact', 'exact', 'movecontact'],
+  ['movereversed', 'exact', 'movereversed'],
+  ['inguarddist', 'exact', 'inguarddist'],
+  ['stateno', 'exact', 'stateno'],
+  ['prevstateno', 'exact', 'prevstateno'],
+  ['p2stateno', 'exact', 'p2stateno'],
+  ['statetype', 'exact', 'statetype'],
+  ['p2statetype', 'exact', 'p2statetype'],
+  ['movetype', 'exact', 'movetype'],
+  ['p2movetype', 'exact', 'p2movetype'],
+  ['ctrl', 'exact', 'ctrl'],
+  ['hitdefattr', 'exact', 'hitdefattr'],
+  ['var', 'exact', 'var'],
+  ['fvar', 'exact', 'fvar'],
+  ['sysvar', 'exact', 'sysvar'],
+  ['sysfvar', 'exact', 'sysfvar'],
+  ['random', 'exact', 'random'],
+  ['numproj', 'exact', 'numproj'],
+  ['numprojid', 'exact', 'numprojid'],
+  ['projcanceltime', 'exact', 'projcanceltime'],
+  ['projhittime', 'exact', 'projhittime'],
+  ['projhit', 'prefix', 'projhit'],
+  ['projguardedtime', 'exact', 'projguardedtime'],
+  ['projguarded', 'prefix', 'projguarded'],
+  ['projcontacttime', 'exact', 'projcontacttime'],
+  ['projcontact', 'prefix', 'projcontact'],
+  ['p1name', 'exact', 'p1name'],
+  ['name', 'exact', 'p1name'],
+  ['p2name', 'exact', 'p2name'],
+  ['p3name', 'exact', 'p3name'],
+  ['p4name', 'exact', 'p4name'],
+  ['authorname', 'exact', 'authorname'],
+  ['numpartner', 'exact', 'numpartner'],
+  ['numenemy', 'exact', 'numenemy'],
+  ['id', 'exact', 'id'],
+  ['facing', 'exact', 'facing'],
+  ['hitfall', 'exact', 'hitfall'],
+  ['hitshakeover', 'exact', 'hitshakeover'],
+  ['hitover', 'exact', 'hitover'],
+  ['hitvel', 'exact', 'hitvel'],
+  ['hitpausetime', 'exact', 'hitpausetime'],
+  ['canrecover', 'exact', 'canrecover'],
+  ['animelemno', 'exact', 'animelemno'],
+  ['animexist', 'exact', 'animexist'],
+  ['selfanimexist', 'exact', 'selfanimexist'],
+  ['playeridexist', 'exact', 'playeridexist'],
+  ['palno', 'exact', 'palno'],
+  ['numexplod', 'exact', 'numexplod'],
+  ['numtarget', 'exact', 'numtarget'],
+  ['gethitvar', 'exact', 'gethitvar'],
+  ['const', 'exact', 'const'],
+  ['const240p', 'exact', 'const240p'],
+  ['const480p', 'exact', 'const480p'],
+  ['const720p', 'exact', 'const720p'],
+  ['stagevar', 'exact', 'stagevar'],
+  ['tickspersecond', 'exact', 'tickspersecond'],
+  ['ishelper', 'exact', 'ishelper'],
+  ['numhelper', 'exact', 'numhelper'],
+  ['parentdist', 'exact', 'parentdist'],
+  ['rootdist', 'exact', 'rootdist'],
+  ['standby', 'exact', 'standby'],
+  ['gamewidth', 'exact', 'gamewidth'],
+  ['gameheight', 'exact', 'gameheight'],
+  ['screenwidth', 'exact', 'screenwidth'],
+  ['screenheight', 'exact', 'screenheight'],
+  ['backedge', 'exact', 'backedge'],
+  ['frontedge', 'exact', 'frontedge'],
+  ['leftedge', 'exact', 'leftedge'],
+  ['rightedge', 'exact', 'rightedge'],
+  ['topedge', 'exact', 'topedge'],
+  ['bottomedge', 'exact', 'bottomedge'],
+  ['pi', 'exact', 'pi'],
+  ['e', 'exact', 'e'],
+  ['ifelse', 'exact', 'ifelse'],
+  ['log', 'exact', 'log'],
+  ['sin', 'exact', 'sin'],
+  ['cos', 'exact', 'cos'],
+  ['tan', 'exact', 'tan'],
+  ['asin', 'exact', 'asin'],
+  ['acos', 'exact', 'acos'],
+  ['atan', 'exact', 'atan'],
+  ['exp', 'exact', 'exp'],
+  ['ln', 'exact', 'ln'],
+  ['abs', 'exact', 'abs'],
+  ['floor', 'exact', 'floor'],
+  ['ceil', 'exact', 'ceil'],
+  ['animelemtime', 'exact', 'animelemtime'],
+  ['cond', 'exact', 'cond'],
 ];
 
 /** One-argument function triggers (ids 0x140-0x15F). */
-const ONE_ARG = new Set(['sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'exp', 'ln', 'abs', 'floor', 'ceil', 'animelemtime', 'animexist', 'selfanimexist', 'playeridexist', 'projhittime', 'projguardedtime', 'projcontacttime', 'numprojid', 'var', 'fvar', 'sysvar', 'sysfvar', 'projcanceltime', 'animelemno', 'const240p', 'const480p', 'const720p']);
+const ONE_ARG = new Set([
+  'sin',
+  'cos',
+  'tan',
+  'asin',
+  'acos',
+  'atan',
+  'exp',
+  'ln',
+  'abs',
+  'floor',
+  'ceil',
+  'animelemtime',
+  'animexist',
+  'selfanimexist',
+  'playeridexist',
+  'projhittime',
+  'projguardedtime',
+  'projcontacttime',
+  'numprojid',
+  'var',
+  'fvar',
+  'sysvar',
+  'sysfvar',
+  'projcanceltime',
+  'animelemno',
+  'const240p',
+  'const480p',
+  'const720p',
+]);
 /** Triggers whose (ID) is optional. */
 const OPT_ARG = new Set(['ishelper', 'numhelper', 'numexplod', 'numtarget']);
 const AXIS = new Set(['pos', 'screenpos', 'vel', 'p2dist', 'p2bodydist', 'camerapos', 'hitvel', 'parentdist', 'rootdist']);
@@ -349,10 +546,19 @@ function parseCompare(s: string, i: number): { second: NonNullable<ClauseNode['s
   };
   let op: RelOp;
   switch (kind) {
-    case '=': op = '='; break;
-    case '!': if (next !== '=') return undefined; op = '!='; break;
-    case '>': op = next === '=' ? '>=' : '>'; break;
-    case '<': op = next === '=' ? '<=' : '<'; break;
+    case '=':
+      op = '=';
+      break;
+    case '!':
+      if (next !== '=') return undefined;
+      op = '!=';
+      break;
+    case '>':
+      op = next === '=' ? '>=' : '>';
+      break;
+    case '<':
+      op = next === '=' ? '<=' : '<';
+      break;
     case '(':
     case '[': {
       const [lo] = num(j);
@@ -364,11 +570,18 @@ function parseCompare(s: string, i: number): { second: NonNullable<ClauseNode['s
       const close = s[k];
       if (close !== ')' && close !== ']') return undefined;
       return {
-        second: { op: '=', value: { kind: 'num', value: lo, isFloat: false }, value2: { kind: 'num', value: hi, isFloat: false }, loOpen: kind === '(', hiOpen: close === ')' },
+        second: {
+          op: '=',
+          value: { kind: 'num', value: lo, isFloat: false },
+          value2: { kind: 'num', value: hi, isFloat: false },
+          loOpen: kind === '(',
+          hiOpen: close === ')',
+        },
         end: k + 1,
       };
     }
-    default: return undefined;
+    default:
+      return undefined;
   }
   const [v, end] = num(j);
   return { second: { op, value: { kind: 'num', value: v, isFloat: false } }, end };
@@ -404,12 +617,21 @@ export function parseHitDefAttr(s: string, i: number): { bits: number; end: numb
     state = 0;
     let all: number, a: number, t: number, p: number;
     switch (s[k]?.toLowerCase()) {
-      case 'n': [all, a, t, p] = [0x248, 0x008, 0x040, 0x200]; break;
-      case 's': [all, a, t, p] = [0x490, 0x010, 0x080, 0x400]; break;
-      case 'h': [all, a, t, p] = [0x920, 0x020, 0x100, 0x800]; break;
+      case 'n':
+        [all, a, t, p] = [0x248, 0x008, 0x040, 0x200];
+        break;
+      case 's':
+        [all, a, t, p] = [0x490, 0x010, 0x080, 0x400];
+        break;
+      case 'h':
+        [all, a, t, p] = [0x920, 0x020, 0x100, 0x800];
+        break;
       // Original bug: a lone "A" gives the value of "H".
-      case 'a': [all, a, t, p] = [0x920, 0x038, 0x1c0, 0xe00]; break;
-      default: return finish();
+      case 'a':
+        [all, a, t, p] = [0x920, 0x038, 0x1c0, 0xe00];
+        break;
+      default:
+        return finish();
     }
     const n2 = s[k + 1];
     if (n2 === undefined || n2 === '\t' || n2 === ' ' || n2 === ',') state = all;
@@ -460,7 +682,10 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
   }
   const id = lookup(name);
   if (!id) throw new Fail(`Unknown trigger: ${name.toLowerCase()}`);
-  const wrap = (node: Node, end: number) => ({ node: redirect ? ({ kind: 'redirect', to: redirect.to, id: redirect.id, expr: node } as Node) : node, end });
+  const wrap = (node: Node, end: number) => ({
+    node: redirect ? ({ kind: 'redirect', to: redirect.to, id: redirect.id, expr: node } as Node) : node,
+    end,
+  });
   const call = (extra: Partial<CallNode> = {}): CallNode => ({ kind: 'call', name: id, args: [], ...extra });
 
   // Function forms.
@@ -491,7 +716,10 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
       if (s[v.at] !== '"') throw new Fail('stagevar takes = "text"');
       const close = s.indexOf('"', v.at + 1);
       if (close < 0) throw new Fail('Falta "');
-      return wrap({ kind: 'clause', name: 'stagevar', op: v.op, words: [word.toLowerCase(), s.slice(v.at + 1, close)], nums: [] }, close + 1);
+      return wrap(
+        { kind: 'clause', name: 'stagevar', op: v.op, words: [word.toLowerCase(), s.slice(v.at + 1, close)], nums: [] },
+        close + 1,
+      );
     }
     return wrap(call({ word: word.toLowerCase() }), skip(s, p + 1));
   }
@@ -524,10 +752,22 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
     const cmp = parseCompare(s, p);
     if (id === 'timemod') {
       if (!cmp) throw new Fail('TimeMod takes a value');
-      return wrap({ kind: 'clause', name: 'timemod', op: cmp.second.op, words: [], nums: [{ kind: 'num', value: n, isFloat: false }, cmp.second.value] }, skip(s, cmp.end));
+      return wrap(
+        {
+          kind: 'clause',
+          name: 'timemod',
+          op: cmp.second.op,
+          words: [],
+          nums: [{ kind: 'num', value: n, isFloat: false }, cmp.second.value],
+        },
+        skip(s, cmp.end),
+      );
     }
     void n;
-    return wrap({ kind: 'clause', name: 'animelem', op: '=', words: [], nums: [{ kind: 'num', value: n, isFloat: false }], second: cmp?.second }, skip(s, cmp ? cmp.end : end0));
+    return wrap(
+      { kind: 'clause', name: 'animelem', op: '=', words: [], nums: [{ kind: 'num', value: n, isFloat: false }], second: cmp?.second },
+      skip(s, cmp ? cmp.end : end0),
+    );
   }
   if (id === 'projhit' || id === 'projguarded' || id === 'projcontact') {
     const idNum = parseInt(name.slice(id.length), 10) || 0;
@@ -540,7 +780,18 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
     while (isSpace(s[p])) p++;
     const end0 = p;
     const cmp = parseCompare(s, p);
-    return wrap({ kind: 'clause', name: id, op: '=', words: [], nums: [{ kind: 'num', value: want, isFloat: false }], second: cmp?.second, id: idNum }, skip(s, cmp ? cmp.end : end0));
+    return wrap(
+      {
+        kind: 'clause',
+        name: id,
+        op: '=',
+        words: [],
+        nums: [{ kind: 'num', value: want, isFloat: false }],
+        second: cmp?.second,
+        id: idNum,
+      },
+      skip(s, cmp ? cmp.end : end0),
+    );
   }
   if (id === 'command' || STRINGS.has(id)) {
     const v = scanToValue(s, pos);

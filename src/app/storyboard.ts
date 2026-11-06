@@ -57,7 +57,12 @@ export async function loadStoryboard(vfs: Vfs, path: string): Promise<Storyboard
   const lc = nums(getValue(info, 'localcoord')) ?? [320, 240];
   const sff = await parseSff(await vfs.read(getValue(sd, 'spr') ?? '', dir, 'data'));
   const sndFile = getValue(sd, 'snd');
-  const snd = sndFile ? await vfs.read(sndFile, dir, 'data').then(parseSnd).catch(() => undefined) : undefined;
+  const snd = sndFile
+    ? await vfs
+        .read(sndFile, dir, 'data')
+        .then(parseSnd)
+        .catch(() => undefined)
+    : undefined;
   const fonts: (Font | undefined)[] = [];
   for (let i = 0; i <= 9; i++) {
     const f = getValue(sd, `font${i}`);
@@ -196,11 +201,23 @@ export class StoryboardScreen implements Screen {
       const v = ap?.view();
       if (v && v.element.group >= 0) {
         const spr = this.sb.sff.get(v.element.group, v.element.number);
-        if (spr) r.draw({ sprite: spr, palette: this.sb.sff.palettes[spr.palette], x: x + v.x, y: y + v.y, scaleX: (v.element.flipH ? -1 : 1) * v.scaleX, scaleY: (v.element.flipV ? -1 : 1) * v.scaleY, blend: v.blend });
+        if (spr)
+          r.draw({
+            sprite: spr,
+            palette: this.sb.sff.palettes[spr.palette],
+            x: x + v.x,
+            y: y + v.y,
+            scaleX: (v.element.flipH ? -1 : 1) * v.scaleX,
+            scaleY: (v.element.flipV ? -1 : 1) * v.scaleY,
+            blend: v.blend,
+          });
       }
       if (L.text !== undefined && L.font) {
         const font = this.sb.fonts[L.font[0]];
-        if (font) L.text.split('\\n').forEach((line, i) => drawText(r, font, line, x, y + i * (font.height + font.spacing[1]), L.font![1], L.font![2]));
+        if (font)
+          L.text
+            .split('\\n')
+            .forEach((line, i) => drawText(r, font, line, x, y + i * (font.height + font.spacing[1]), L.font![1], L.font![2]));
       }
     }
     if (this.bg) drawStageLayer(r, this.bg, { x: 0, y: 0 }, 1, w, h);

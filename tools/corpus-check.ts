@@ -62,7 +62,15 @@ for (const name of readdirSync(dir).sort()) {
     const defPath = `${name}/${defFile}`;
     const def = parseCharDef(new TextDecoder('latin1').decode(readFileSync(join(cdir, defFile))));
     const anims = def.files.anim ? parseAir(await vfs.text(def.files.anim, name)) : new Map();
-    const data = { defPath, dir: name, def, sff: { sprites: [], palettes: [], paletteIds: [], version: 1 } as never, anims, palettes: [], paletteFor: () => undefined } as CharacterData;
+    const data = {
+      defPath,
+      dir: name,
+      def,
+      sff: { sprites: [], palettes: [], paletteIds: [], version: 1 } as never,
+      anims,
+      palettes: [],
+      paletteFor: () => undefined,
+    } as CharacterData;
     const prog = await loadProgram(vfs, data);
     const w = new World();
     const p = new Player(prog, w, 0);
@@ -96,4 +104,12 @@ for (const [k, e] of rows) {
   console.log(`\n[${e.chars.size} chars, ${e.count}x] ${k}`);
   for (const ex of e.examples) console.log(`    ${ex.slice(0, 220)}`);
 }
-if (jsonOut) writeFileSync(jsonOut, JSON.stringify(rows.map(([k, e]) => ({ kind: k, chars: e.chars.size, count: e.count, examples: e.examples })), null, 1));
+if (jsonOut)
+  writeFileSync(
+    jsonOut,
+    JSON.stringify(
+      rows.map(([k, e]) => ({ kind: k, chars: e.chars.size, count: e.count, examples: e.examples })),
+      null,
+      1,
+    ),
+  );

@@ -30,7 +30,9 @@ export function tickPalFx(f: PalFxState): void {
 }
 
 /** Shader parameters (normalized) for the current PalFX state. */
-export function palFxUniforms(f: PalFxState | undefined): { add: [number, number, number]; mul: [number, number, number]; color: number; invertAll: boolean } | undefined {
+export function palFxUniforms(
+  f: PalFxState | undefined,
+): { add: [number, number, number]; mul: [number, number, number]; color: number; invertAll: boolean } | undefined {
   if (!f || f.time === 0) return undefined;
   const s = f.sinPeriod > 0 ? Math.sin((2 * Math.PI * f.elapsed) / f.sinPeriod) : 0;
   return {
@@ -79,9 +81,23 @@ export interface AfterImageState {
 
 export function newAfterImage(): AfterImageState {
   return {
-    time: 0, length: 20, timeGap: 1, frameGap: 4, blend: { kind: 'none' }, palColor: 256, palInvertAll: false,
-    palBright: [30, 30, 30], palContrast: [120, 120, 220], palPostBright: [0, 0, 0], palAdd: [10, 10, 25], palMul: [0.65, 0.65, 0.75],
-    frames: [], next: 0, oldest: 0, ticks: 0, running: false,
+    time: 0,
+    length: 20,
+    timeGap: 1,
+    frameGap: 4,
+    blend: { kind: 'none' },
+    palColor: 256,
+    palInvertAll: false,
+    palBright: [30, 30, 30],
+    palContrast: [120, 120, 220],
+    palPostBright: [0, 0, 0],
+    palAdd: [10, 10, 25],
+    palMul: [0.65, 0.65, 0.75],
+    frames: [],
+    next: 0,
+    oldest: 0,
+    ticks: 0,
+    running: false,
   };
 }
 
@@ -118,7 +134,16 @@ export function recordAfterImage(a: AfterImageState, frame: AfterImageFrame | un
  * palcontrast; the k-th one drawn (from 0) also paladd * k and palmul to
  * the k-th power. Returned oldest first (drawing order).
  */
-export function afterImageDraws(a: AfterImageState): { frame: AfterImageFrame; add: [number, number, number]; mul: [number, number, number]; color: number; invertAll: boolean; k: number }[] {
+export function afterImageDraws(
+  a: AfterImageState,
+): {
+  frame: AfterImageFrame;
+  add: [number, number, number];
+  mul: [number, number, number];
+  color: number;
+  invertAll: boolean;
+  k: number;
+}[] {
   const out: ReturnType<typeof afterImageDraws> = [];
   if (!a.running || a.next === a.oldest) return out;
   let idx = a.next;

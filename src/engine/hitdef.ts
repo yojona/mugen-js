@@ -98,7 +98,17 @@ export interface HitDefData {
   getPower: [number, number];
   givePower: [number, number];
   /** PalFX applied to P2 on hit. */
-  palFx: { time: number; mul: [number, number, number]; add: [number, number, number]; sinAdd: [number, number, number]; sinPeriod: number; color: number; invertAll: boolean } | undefined;
+  palFx:
+    | {
+        time: number;
+        mul: [number, number, number];
+        add: [number, number, number];
+        sinAdd: [number, number, number];
+        sinPeriod: number;
+        color: number;
+        invertAll: boolean;
+      }
+    | undefined;
   envShake: { time: number; freq: number; ampl: number; phase: number } | undefined;
   fallEnvShake: { time: number; freq: number; ampl: number; phase: number } | undefined;
   /** Juggle points this hit costs on an airborne opponent (statedef juggle + air.juggle). */
@@ -119,11 +129,14 @@ export function attrMatches(list: string[], state: string, type: string): boolea
   if (states !== '' && !states.includes(state)) return false;
   const types = list.slice(1).filter(Boolean);
   if (types.length === 0) return true;
-  return types.some((t) => (t[0] === 'a' || t[0] === type[0]) && (t[1] === type[1]));
+  return types.some((t) => (t[0] === 'a' || t[0] === type[0]) && t[1] === type[1]);
 }
 
 export function parseAttrList(raw: string | undefined): string[] {
-  return (raw ?? '').toLowerCase().split(',').map((x) => x.trim());
+  return (raw ?? '')
+    .toLowerCase()
+    .split(',')
+    .map((x) => x.trim());
 }
 
 /** Values exposed through GetHitVar() on the player that was hit. */
@@ -168,15 +181,55 @@ export interface GetHitVars {
 
 export function emptyGetHitVars(): GetHitVars {
   return {
-    type: 0, animtype: 0, airtype: 0, groundtype: 0, damage: 0, hitcount: 0, fallcount: 0, hitshaketime: 0, hittime: 0, slidetime: 0, ctrltime: 0, recovertime: 0,
-    xvel: 0, yvel: 0, yaccel: 0, chainid: 0, guarded: 0, fall: 0, 'fall.damage': 0, 'fall.xvel': 0, 'fall.yvel': 0, 'fall.recover': 1, 'fall.recovertime': 4, 'fall.time': 0, 'fall.kill': 1,
-    xveladd: 0, yveladd: 0, xoff: 0, yoff: 0, isbound: 0,
-    'fall.envshake.time': 0, 'fall.envshake.freq': 60, 'fall.envshake.ampl': -4, 'fall.envshake.phase': 0,
+    type: 0,
+    animtype: 0,
+    airtype: 0,
+    groundtype: 0,
+    damage: 0,
+    hitcount: 0,
+    fallcount: 0,
+    hitshaketime: 0,
+    hittime: 0,
+    slidetime: 0,
+    ctrltime: 0,
+    recovertime: 0,
+    xvel: 0,
+    yvel: 0,
+    yaccel: 0,
+    chainid: 0,
+    guarded: 0,
+    fall: 0,
+    'fall.damage': 0,
+    'fall.xvel': 0,
+    'fall.yvel': 0,
+    'fall.recover': 1,
+    'fall.recovertime': 4,
+    'fall.time': 0,
+    'fall.kill': 1,
+    xveladd: 0,
+    yveladd: 0,
+    xoff: 0,
+    yoff: 0,
+    isbound: 0,
+    'fall.envshake.time': 0,
+    'fall.envshake.freq': 60,
+    'fall.envshake.ampl': -4,
+    'fall.envshake.phase': 0,
   };
 }
 
 /** Floats among GetHitVar names (trigger.html). */
-export const GETHITVAR_FLOATS = new Set(['xvel', 'yvel', 'yaccel', 'fall.xvel', 'fall.yvel', 'xveladd', 'yveladd', 'fall.envshake.freq', 'fall.envshake.phase']);
+export const GETHITVAR_FLOATS = new Set([
+  'xvel',
+  'yvel',
+  'yaccel',
+  'fall.xvel',
+  'fall.yvel',
+  'xveladd',
+  'yveladd',
+  'fall.envshake.freq',
+  'fall.envshake.phase',
+]);
 
 // ---------------------------------------------------------------------------
 // Compilation of the HitDef controller
@@ -240,9 +293,10 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
   const raw = (k: string) => c.params.get(k)?.trim();
   const has = (k: string) => c.params.has(k);
 
-
-
-  const attr = (raw('attr') ?? 's, na').toLowerCase().split(',').map((s) => s.trim());
+  const attr = (raw('attr') ?? 's, na')
+    .toLowerCase()
+    .split(',')
+    .map((s) => s.trim());
   const attrState = attr[0] ?? 's';
   const attrType = attr[1] ?? 'na';
   const animType = enumIndex(ANIM_TYPES, raw('animtype'), 0);
@@ -308,7 +362,11 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
     const hs = ref('hitsound');
     const gs = ref('guardsound');
 
-    const local3 = (k: string, def: [number, number, number]): [number, number, number] => [n(k, 0) ?? def[0], n(k, 1) ?? def[1], n(k, 2) ?? def[2]];
+    const local3 = (k: string, def: [number, number, number]): [number, number, number] => [
+      n(k, 0) ?? def[0],
+      n(k, 1) ?? def[1],
+      n(k, 2) ?? def[2],
+    ];
     const shake = (prefix: string) => {
       const time = ni(`${prefix}.time`) ?? 0;
       if (time <= 0) return undefined;
@@ -321,7 +379,18 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
     const guardCornerPush = n('guard.cornerpush.veloff') ?? groundCornerPush;
 
     return {
-      palFx: palTime !== 0 ? { time: palTime, mul: local3('palfx.mul', [256, 256, 256]), add: local3('palfx.add', [0, 0, 0]), sinAdd: local3('palfx.sinadd', [0, 0, 0]), sinPeriod: ni('palfx.sinadd', 3) ?? 0, color: n('palfx.color') ?? 256, invertAll: (ni('palfx.invertall') ?? 0) !== 0 } : undefined,
+      palFx:
+        palTime !== 0
+          ? {
+              time: palTime,
+              mul: local3('palfx.mul', [256, 256, 256]),
+              add: local3('palfx.add', [0, 0, 0]),
+              sinAdd: local3('palfx.sinadd', [0, 0, 0]),
+              sinPeriod: ni('palfx.sinadd', 3) ?? 0,
+              color: n('palfx.color') ?? 256,
+              invertAll: (ni('palfx.invertall') ?? 0) !== 0,
+            }
+          : undefined,
       envShake: shake('envshake'),
       fallEnvShake: shake('fall.envshake'),
       // A projectile's juggle cost (players use their statedef juggle).
@@ -346,15 +415,14 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
       // Pre-1.0 characters pause the attacker one tick less (HitDef_Set:
       // p1 pausetime - 1, not for a ReversalDef; guard p1 pausetime too).
       pause: [pre10 && pause[0] > 0 && c.type !== 'reversaldef' ? pause[0] - 1 : pause[0], pause[1]],
-      guardPause: [
-        ((g) => (pre10 && g > 0 ? g - 1 : g))(ni('guard.pausetime', 0) ?? pause[0]),
-        ni('guard.pausetime', 1) ?? pause[1],
-      ],
+      guardPause: [((g) => (pre10 && g > 0 ? g - 1 : g))(ni('guard.pausetime', 0) ?? pause[0]), ni('guard.pausetime', 1) ?? pause[1]],
       spark: { own: !!ref('sparkno')?.own, action: spark ?? p.const('data.sparkno') },
       guardSpark: { own: !!ref('guard.sparkno')?.own, action: gspark ?? p.const('data.guard.sparkno') },
       sparkXY: [n('sparkxy', 0) ?? 0, n('sparkxy', 1) ?? 0],
       hitSound: hs ? { own: hs.own, group: rv('hitsound', 0) ?? 5, number: rv('hitsound', 1) ?? 0 } : { own: false, group: 5, number: 0 },
-      guardSound: gs ? { own: gs.own, group: rv('guardsound', 0) ?? 6, number: rv('guardsound', 1) ?? 0 } : { own: false, group: 6, number: 0 },
+      guardSound: gs
+        ? { own: gs.own, group: rv('guardsound', 0) ?? 6, number: rv('guardsound', 1) ?? 0 }
+        : { own: false, group: 6, number: 0 },
       groundType,
       airType,
       groundSlideTime,
@@ -422,7 +490,14 @@ export function compileHitDef(c: ControllerDef, env: TriggerEnv<P>): (p: P) => H
  */
 export function hitAttrTypeBits(type: string): number {
   const t = type.toLowerCase();
-  const row = ({ n: [0x248, 0x008, 0x040, 0x200], s: [0x490, 0x010, 0x080, 0x400], h: [0x920, 0x020, 0x100, 0x800], a: [0x920, 0x038, 0x1c0, 0xe00] } as Record<string, number[]>)[t[0] ?? ''];
+  const row = (
+    {
+      n: [0x248, 0x008, 0x040, 0x200],
+      s: [0x490, 0x010, 0x080, 0x400],
+      h: [0x920, 0x020, 0x100, 0x800],
+      a: [0x920, 0x038, 0x1c0, 0xe00],
+    } as Record<string, number[]>
+  )[t[0] ?? ''];
   if (!row) return 0;
   const k = t[1];
   if (k === undefined) return row[0]!;
@@ -437,16 +512,73 @@ export function hitDefAttrBits(state: string, type: string): number {
 
 /** HitDef_SetFromParams' evaluation order (sctrl.c 0x450300): key and value index. */
 const EVAL_ORDER: readonly [string, number][] = [
-  ['id', 0], ['chainid', 0], ['nochainid', 0], ['nochainid', 1], ['kill', 0], ['guard.kill', 0], ['fall.kill', 0],
-  ['hitonce', 0], ['air.juggle', 0], ['damage', 0], ['damage', 1], ['getpower', 0], ['getpower', 1], ['givepower', 0], ['givepower', 1],
-  ['pausetime', 1], ['pausetime', 0], ['numhits', 0], ['priority', 0], ['p1stateno', 0], ['p2stateno', 0], ['p2getp1state', 0],
-  ['p1sprpriority', 0], ['p2sprpriority', 0], ['forcestand', 0], ['forcenofall', 0], ['fall', 0], ['fall.damage', 0],
-  ['fall.xvelocity', 0], ['fall.yvelocity', 0], ['fall.recover', 0], ['fall.recovertime', 0], ['sparkxy', 0], ['sparkxy', 1],
-  ['p1facing', 0], ['p1getp2facing', 0], ['mindist', 0], ['mindist', 1], ['maxdist', 0], ['maxdist', 1], ['p2facing', 0],
-  ['ground.hittime', 0], ['ground.slidetime', 0], ['ground.velocity', 0], ['ground.velocity', 1], ['ground.cornerpush.veloff', 0],
-  ['air.hittime', 0], ['air.fall', 0], ['air.velocity', 0], ['air.velocity', 1], ['air.cornerpush.veloff', 0],
-  ['down.bounce', 0], ['down.hittime', 0], ['down.velocity', 0], ['down.velocity', 1], ['down.cornerpush.veloff', 0],
-  ['guard.velocity', 0], ['guard.hittime', 0], ['guard.slidetime', 0], ['guard.ctrltime', 0], ['guard.dist', 0],
-  ['guard.pausetime', 1], ['guard.pausetime', 0], ['guard.cornerpush.veloff', 0], ['airguard.velocity', 0], ['airguard.velocity', 1],
-  ['airguard.ctrltime', 0], ['airguard.cornerpush.veloff', 0], ['yaccel', 0],
+  ['id', 0],
+  ['chainid', 0],
+  ['nochainid', 0],
+  ['nochainid', 1],
+  ['kill', 0],
+  ['guard.kill', 0],
+  ['fall.kill', 0],
+  ['hitonce', 0],
+  ['air.juggle', 0],
+  ['damage', 0],
+  ['damage', 1],
+  ['getpower', 0],
+  ['getpower', 1],
+  ['givepower', 0],
+  ['givepower', 1],
+  ['pausetime', 1],
+  ['pausetime', 0],
+  ['numhits', 0],
+  ['priority', 0],
+  ['p1stateno', 0],
+  ['p2stateno', 0],
+  ['p2getp1state', 0],
+  ['p1sprpriority', 0],
+  ['p2sprpriority', 0],
+  ['forcestand', 0],
+  ['forcenofall', 0],
+  ['fall', 0],
+  ['fall.damage', 0],
+  ['fall.xvelocity', 0],
+  ['fall.yvelocity', 0],
+  ['fall.recover', 0],
+  ['fall.recovertime', 0],
+  ['sparkxy', 0],
+  ['sparkxy', 1],
+  ['p1facing', 0],
+  ['p1getp2facing', 0],
+  ['mindist', 0],
+  ['mindist', 1],
+  ['maxdist', 0],
+  ['maxdist', 1],
+  ['p2facing', 0],
+  ['ground.hittime', 0],
+  ['ground.slidetime', 0],
+  ['ground.velocity', 0],
+  ['ground.velocity', 1],
+  ['ground.cornerpush.veloff', 0],
+  ['air.hittime', 0],
+  ['air.fall', 0],
+  ['air.velocity', 0],
+  ['air.velocity', 1],
+  ['air.cornerpush.veloff', 0],
+  ['down.bounce', 0],
+  ['down.hittime', 0],
+  ['down.velocity', 0],
+  ['down.velocity', 1],
+  ['down.cornerpush.veloff', 0],
+  ['guard.velocity', 0],
+  ['guard.hittime', 0],
+  ['guard.slidetime', 0],
+  ['guard.ctrltime', 0],
+  ['guard.dist', 0],
+  ['guard.pausetime', 1],
+  ['guard.pausetime', 0],
+  ['guard.cornerpush.veloff', 0],
+  ['airguard.velocity', 0],
+  ['airguard.velocity', 1],
+  ['airguard.ctrltime', 0],
+  ['airguard.cornerpush.veloff', 0],
+  ['yaccel', 0],
 ];

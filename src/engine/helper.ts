@@ -147,7 +147,8 @@ export function compileParentVar(c: ControllerDef, env: TriggerEnv<P>, add: bool
     i = toInt(i);
     const val = op.value(p);
     if ((R.t as number) === BOTTOM) return;
-    const arr = op.kind === 'var' ? parent.vars : op.kind === 'fvar' ? parent.fvars : op.kind === 'sysvar' ? parent.sysVars : parent.sysFvars;
+    const arr =
+      op.kind === 'var' ? parent.vars : op.kind === 'fvar' ? parent.fvars : op.kind === 'sysvar' ? parent.sysVars : parent.sysFvars;
     if (i < 0 || i >= arr.length) return;
     const n = arr instanceof Float32Array ? val : R.t === 1 ? toInt(val) : val;
     arr[i] = add ? arr[i]! + n : n;

@@ -120,7 +120,10 @@ function kindOk(spec: ParamSpec, raw: string, c: ControllerDef, pre10: boolean):
     if (count === 0) return false;
     if (end >= s.length) return true;
     if (s[end] !== ',' || count !== 2) return false;
-    const w = s.slice(end + 1).trim()[0]?.toLowerCase();
+    const w = s
+      .slice(end + 1)
+      .trim()[0]
+      ?.toLowerCase();
     return w === 'f' || w === 'h' || w === 'm';
   }
   if (pre10 && (spec.key === 'mindist' || spec.key === 'maxdist')) return valuesOk(s, 'iii', 'checked');
@@ -154,7 +157,10 @@ function kindOk(spec: ParamSpec, raw: string, c: ControllerDef, pre10: boolean):
         if (count === 0) return false;
         if (end >= s.length) return true;
         if (s[end] !== ',') return false;
-        const w = s.slice(end + 1).trim()[0]?.toLowerCase();
+        const w = s
+          .slice(end + 1)
+          .trim()[0]
+          ?.toLowerCase();
         return w === 'h' || w === 'm' || w === 'd';
       }
       if (spec.key === 'value') {

@@ -7,7 +7,19 @@ import type { Engine, EngineHooks } from '../../src/app/engine';
 import { FightScreen } from '../../src/app/fight-screen';
 import type { Screen } from '../../src/app/screen';
 
-const KEYMAP: Record<string, number> = { u: IN_U, d: IN_D, l: IN_L, r: IN_R, x: IN_X, y: IN_Y, z: IN_Z, a: IN_A, b: IN_B, c: IN_C, s: IN_S };
+const KEYMAP: Record<string, number> = {
+  u: IN_U,
+  d: IN_D,
+  l: IN_L,
+  r: IN_R,
+  x: IN_X,
+  y: IN_Y,
+  z: IN_Z,
+  a: IN_A,
+  b: IN_B,
+  c: IN_C,
+  s: IN_S,
+};
 
 function makeFlowHarness(engine: Engine, params: URLSearchParams) {
   const { canvas, keys } = engine;
@@ -58,8 +70,19 @@ function makeFlowHarness(engine: Engine, params: URLSearchParams) {
     World.prototype.random = function (this: World, n: number) {
       const v = orig.call(this, n);
       if (frame >= rtFrom && frame <= rtTo) {
-        const st = (new Error().stack ?? '').split('\n').slice(2, 6).map((l) => l.trim().replace(/\(.*\/src\//, '(').replace(/\?[^:)]*/, '')).join(' < ');
-        console.log(`DBG|${frame}|rand ${n}=${v} ${this.players.map((p) => `${p.stateNo}/${p.time}/${p.ai?.state ?? '-'}`).join(' ')} ${st}`);
+        const st = (new Error().stack ?? '')
+          .split('\n')
+          .slice(2, 6)
+          .map((l) =>
+            l
+              .trim()
+              .replace(/\(.*\/src\//, '(')
+              .replace(/\?[^:)]*/, ''),
+          )
+          .join(' < ');
+        console.log(
+          `DBG|${frame}|rand ${n}=${v} ${this.players.map((p) => `${p.stateNo}/${p.time}/${p.ai?.state ?? '-'}`).join(' ')} ${st}`,
+        );
       }
       return v;
     };
@@ -80,7 +103,13 @@ function makeFlowHarness(engine: Engine, params: URLSearchParams) {
         if (kf === k.from) window.dispatchEvent(new KeyboardEvent('keydown', { code: k.code, ctrlKey: true }));
       }
       const fighting = !(s instanceof FightScreen) || s.world.roundState === 2;
-      if (mash && fighting && s.constructor.name === mash[0] && (((kf - mashDelay + keyDelay) % parseInt(mash[2]!, 10)) + parseInt(mash[2]!, 10)) % parseInt(mash[2]!, 10) < parseInt(mash[3]!, 10)) bits |= parseKeys(mash[1]!);
+      if (
+        mash &&
+        fighting &&
+        s.constructor.name === mash[0] &&
+        (((kf - mashDelay + keyDelay) % parseInt(mash[2]!, 10)) + parseInt(mash[2]!, 10)) % parseInt(mash[2]!, 10) < parseInt(mash[3]!, 10)
+      )
+        bits |= parseKeys(mash[1]!);
       if (bits) keys.pads[0]!.bits |= bits;
     },
     after(s: Screen) {
@@ -91,21 +120,37 @@ function makeFlowHarness(engine: Engine, params: URLSearchParams) {
           if (p && p.life > max) p.life = max;
         }
       }
-      if (s instanceof FightScreen && seedFrom >= 0 && frame >= seedFrom && frame <= seedTo) console.log(`SEED|${frame}|${s.world.seed}|${s.world.players.map((p) => `${p.stateNo}/${p.time} @${((p.wx * s.world.gameWidth) / s.world.screenWidth).toFixed(3)},${((p.wy * s.world.gameWidth) / s.world.screenWidth).toFixed(3)} D${(((p.clsnX - s.world.camera.x + s.world.screenWidth / 2) * s.world.gameWidth) / s.world.screenWidth).toFixed(3)},${(((s.world.groundY + p.clsnY - s.world.camera.y - s.world.shakeBase - s.world.cropTop) * s.world.gameWidth) / s.world.screenWidth).toFixed(7)} y${p.pos.y.toFixed(2)} vy${p.vel.y.toFixed(3)} pal${p.palNo}${p.ctrl ? ' c' : ''}`).join(' ')}`);
+      if (s instanceof FightScreen && seedFrom >= 0 && frame >= seedFrom && frame <= seedTo)
+        console.log(
+          `SEED|${frame}|${s.world.seed}|${s.world.players.map((p) => `${p.stateNo}/${p.time} @${((p.wx * s.world.gameWidth) / s.world.screenWidth).toFixed(3)},${((p.wy * s.world.gameWidth) / s.world.screenWidth).toFixed(3)} D${(((p.clsnX - s.world.camera.x + s.world.screenWidth / 2) * s.world.gameWidth) / s.world.screenWidth).toFixed(3)},${(((s.world.groundY + p.clsnY - s.world.camera.y - s.world.shakeBase - s.world.cropTop) * s.world.gameWidth) / s.world.screenWidth).toFixed(7)} y${p.pos.y.toFixed(2)} vy${p.vel.y.toFixed(3)} pal${p.palNo}${p.ctrl ? ' c' : ''}`).join(' ')}`,
+        );
       // ?dumpsuper logs the frames a darkening SuperPause runs.
-      if (s instanceof FightScreen && params.get('dumpsuper') && s.world.darkened) console.log(`DBG|${frame}|superpause owner=${s.world.superPause!.owner.slotNo}`);
+      if (s instanceof FightScreen && params.get('dumpsuper') && s.world.darkened)
+        console.log(`DBG|${frame}|superpause owner=${s.world.superPause!.owner.slotNo}`);
       // ?dumpcmds=from:to logs each player's active commands and the AI's injected indices.
       if (s instanceof FightScreen && frame >= cmFrom && frame <= cmTo) {
-        console.log(`DBG|${frame}|env ${JSON.stringify(s.world.envColor ?? null)} flags ${[...s.world.assertFlags].join(',')} helpers ${s.world.helpers.map((h) => `${h.root.slotNo}:${h.helperId}:${h.stateNo}/${h.time}@${h.wx.toFixed(1)},${h.wy.toFixed(1)},f${h.facing},a${h.animNo},e${h.anim.view()?.element.group},${h.anim.view()?.element.number}${h.anim.view()?.element.flipH ? 'H' : ''}`).join(' ')}`);
-        for (const p of s.world.players) console.log(`DBG|${frame}|cmds P${p.slotNo} state=${p.stateNo} ai=${p.ai?.cmds.join(',') ?? ''} active=${[...(p.cmdInput?.active() ?? [])].map((n) => commandLabel(n)).join(' ')}`);
+        console.log(
+          `DBG|${frame}|env ${JSON.stringify(s.world.envColor ?? null)} flags ${[...s.world.assertFlags].join(',')} helpers ${s.world.helpers.map((h) => `${h.root.slotNo}:${h.helperId}:${h.stateNo}/${h.time}@${h.wx.toFixed(1)},${h.wy.toFixed(1)},f${h.facing},a${h.animNo},e${h.anim.view()?.element.group},${h.anim.view()?.element.number}${h.anim.view()?.element.flipH ? 'H' : ''}`).join(' ')}`,
+        );
+        for (const p of s.world.players)
+          console.log(
+            `DBG|${frame}|cmds P${p.slotNo} state=${p.stateNo} ai=${p.ai?.cmds.join(',') ?? ''} active=${[...(p.cmdInput?.active() ?? [])].map((n) => commandLabel(n)).join(' ')}`,
+          );
       }
       if (s instanceof FightScreen && frame >= exFrom && frame <= exTo) {
-        for (const pr of s.world.projectiles) console.log(`DBG|${frame}|proj owner=${pr.owner.slotNo} phase=${pr.phase} x=${pr.x.toFixed(1)} y=${pr.y.toFixed(1)} f=${pr.facing} scale=${pr.scale} elem=${pr.anim.view()?.element.group},${pr.anim.view()?.element.number} ${pr.anim.view()?.element.flipH ? 'H' : ''} off=${pr.anim.view()?.x},${pr.anim.view()?.y} ang=${pr.anim.view()?.angle}`);
-        for (const e of s.world.explods) console.log(`DBG|${frame}|explod ${e.anim.current?.group},${e.anim.current?.number} common=${e.common} x=${e.x.toFixed(1)} y=${e.y.toFixed(1)} age=${e.age} scale=${e.drawScale} owner=${e.owner?.slotNo} facing=${e.facing} v=${e.vfacing} ang=${e.angle} sx=${e.scale[0]} elem=${e.anim.view()?.element.flipH ? 'H' : ''}${e.anim.view()?.x ?? ''},${e.anim.view()?.y ?? ''}`);
+        for (const pr of s.world.projectiles)
+          console.log(
+            `DBG|${frame}|proj owner=${pr.owner.slotNo} phase=${pr.phase} x=${pr.x.toFixed(1)} y=${pr.y.toFixed(1)} f=${pr.facing} scale=${pr.scale} elem=${pr.anim.view()?.element.group},${pr.anim.view()?.element.number} ${pr.anim.view()?.element.flipH ? 'H' : ''} off=${pr.anim.view()?.x},${pr.anim.view()?.y} ang=${pr.anim.view()?.angle}`,
+          );
+        for (const e of s.world.explods)
+          console.log(
+            `DBG|${frame}|explod ${e.anim.current?.group},${e.anim.current?.number} common=${e.common} x=${e.x.toFixed(1)} y=${e.y.toFixed(1)} age=${e.age} scale=${e.drawScale} owner=${e.owner?.slotNo} facing=${e.facing} v=${e.vfacing} ang=${e.angle} sx=${e.scale[0]} elem=${e.anim.view()?.element.flipH ? 'H' : ''}${e.anim.view()?.x ?? ''},${e.anim.view()?.y ?? ''}`,
+          );
       }
       if (s instanceof FightScreen) {
         const key = `${s.world.roundState}`;
-        if (key !== lastRs) console.log(`DBG|${frame}|rs ${s.world.roundState} seed ${s.world.seed} life ${s.world.players.map((p) => p.life).join(',')}`);
+        if (key !== lastRs)
+          console.log(`DBG|${frame}|rs ${s.world.roundState} seed ${s.world.seed} life ${s.world.players.map((p) => p.life).join(',')}`);
         lastRs = key;
       } else lastRs = '';
       if (name !== lastName) {

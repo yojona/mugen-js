@@ -4,7 +4,15 @@ import type { Sprite } from '../formats/sff';
 import type { StageRuntime } from '../stage/stage';
 import type { Renderer } from './renderer';
 
-export function drawStageLayer(r: Renderer, rt: StageRuntime, cam: { x: number; y: number }, layer: 0 | 1, screenW: number, screenH: number, shakeY = 0): void {
+export function drawStageLayer(
+  r: Renderer,
+  rt: StageRuntime,
+  cam: { x: number; y: number },
+  layer: 0 | 1,
+  screenW: number,
+  screenH: number,
+  shakeY = 0,
+): void {
   const sff = rt.stage.sff;
   rt.setCamera(cam.x, cam.y);
   for (const e of rt.elements) {
@@ -41,7 +49,25 @@ export function drawStageLayer(r: Renderer, rt: StageRuntime, cam: { x: number; 
 
     if (d.type === 'parallax') {
       if (e.anim) drawParallax(r, sprite, palette, d, cam, x, y, screenW, blend);
-      else drawParallaxRows(r, sprite, palette, d, e, x, y, blend, win ? [win[0] - cam.x * d.windowDelta[0], win[1] - cam.y * d.windowDelta[1], win[2] - cam.x * d.windowDelta[0] + 1, win[3] - cam.y * d.windowDelta[1] + 1] : undefined);
+      else
+        drawParallaxRows(
+          r,
+          sprite,
+          palette,
+          d,
+          e,
+          x,
+          y,
+          blend,
+          win
+            ? [
+                win[0] - cam.x * d.windowDelta[0],
+                win[1] - cam.y * d.windowDelta[1],
+                win[2] - cam.x * d.windowDelta[0] + 1,
+                win[3] - cam.y * d.windowDelta[1] + 1,
+              ]
+            : undefined,
+        );
       if (win) r.setClip(undefined);
       continue;
     }
@@ -64,7 +90,16 @@ export function drawStageLayer(r: Renderer, rt: StageRuntime, cam: { x: number; 
     const top = y - sprite.axisY * dsy;
     for (const ty of range(d.tile[1], stepY, top, sprite.height * dsy, screenH)) {
       for (const tx of range(d.tile[0], stepX, left, sprite.width * dsx, screenW)) {
-        r.draw({ sprite, palette, x: x + tx * stepX, y: y + ty * stepY, scaleX: (flipH ? -1 : 1) * dsx, scaleY: (flipV ? -1 : 1) * dsy, blend, mask: d.mask });
+        r.draw({
+          sprite,
+          palette,
+          x: x + tx * stepX,
+          y: y + ty * stepY,
+          scaleX: (flipH ? -1 : 1) * dsx,
+          scaleY: (flipV ? -1 : 1) * dsy,
+          blend,
+          mask: d.mask,
+        });
       }
     }
     if (win) r.setClip(undefined);
@@ -183,7 +218,16 @@ function drawParallaxRows(
               const [gx, gy] = r.fromDevice(t + 0.25, oy - row);
               const sx = span / w / kx;
               const sy = 1 / ky;
-              r.draw({ sprite, palette, x: gx + sprite.axisX * sx, y: gy + sprite.axisY * sy, scaleX: sx, scaleY: sy, blend, mask: d.mask });
+              r.draw({
+                sprite,
+                palette,
+                x: gx + sprite.axisX * sx,
+                y: gy + sprite.axisY * sy,
+                scaleX: sx,
+                scaleY: sy,
+                blend,
+                mask: d.mask,
+              });
             }
             t = start + len;
             start = t;

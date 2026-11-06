@@ -117,7 +117,15 @@ export class ElementInstance {
       }
     } else if (d.spr) {
       const s = this.assets.sff.get(d.spr[0], d.spr[1]);
-      if (s) r.draw({ sprite: s, palette: this.assets.sff.palettes[s.palette], x: px, y: py, scaleX: d.facing * d.scale[0], scaleY: d.vfacing * d.scale[1] });
+      if (s)
+        r.draw({
+          sprite: s,
+          palette: this.assets.sff.palettes[s.palette],
+          x: px,
+          y: py,
+          scaleX: d.facing * d.scale[0],
+          scaleY: d.vfacing * d.scale[1],
+        });
     }
     const t = text ?? d.text;
     if (d.font && t !== undefined) {
@@ -136,8 +144,25 @@ export function fontColor(r: number, g: number, b: number): [number, number, num
  * Draw a string; (x, y) is the baseline anchor. align: 1 = left edge at x,
  * 0 = centered on x, -1 = right edge at x.
  */
-export function drawText(r: Renderer, font: Font, text: string, x: number, y: number, bank: number, align: number, scale: [number, number] = [1, 1], color?: [number, number, number]): void {
-  const tint = color ? { add: [0, 0, 0] as [number, number, number], mul: [color[0] / 255, color[1] / 255, color[2] / 255] as [number, number, number], color: 1, invertAll: false } : undefined;
+export function drawText(
+  r: Renderer,
+  font: Font,
+  text: string,
+  x: number,
+  y: number,
+  bank: number,
+  align: number,
+  scale: [number, number] = [1, 1],
+  color?: [number, number, number],
+): void {
+  const tint = color
+    ? {
+        add: [0, 0, 0] as [number, number, number],
+        mul: [color[0] / 255, color[1] / 255, color[2] / 255] as [number, number, number],
+        color: 1,
+        invertAll: false,
+      }
+    : undefined;
   // Font_DrawLines / Font_DrawLine: the glyphs hang a screen pixel below
   // size_h above the baseline; right-aligned text ends a screen pixel further.
   const px = r.screenPixel;
@@ -147,7 +172,8 @@ export function drawText(r: Renderer, font: Font, text: string, x: number, y: nu
   const palette = font.palette(bank);
   for (const ch of text) {
     const g = font.glyph(ch);
-    if (g) r.draw({ sprite: g.sprite, palette, x: cx + font.offset[0] * scale[0], y: top, scaleX: scale[0], scaleY: scale[1], palfx: tint });
+    if (g)
+      r.draw({ sprite: g.sprite, palette, x: cx + font.offset[0] * scale[0], y: top, scaleX: scale[0], scaleY: scale[1], palfx: tint });
     cx += ((g?.width ?? font.spaceWidth) + font.spacing[0]) * scale[0];
   }
 }

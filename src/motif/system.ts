@@ -39,7 +39,12 @@ export async function loadMotif(vfs: Vfs, defPath: string): Promise<Motif> {
   const lc = splitCsv(getValue(info, 'localcoord') ?? '320,240').map((x) => parseInt(x, 10));
   const sff = await parseSff(await vfs.read(f('spr') ?? 'system.sff', dir, 'data'));
   const sndFile = f('snd');
-  const snd = sndFile ? await vfs.read(sndFile, dir, 'data').then(parseSnd).catch(() => undefined) : undefined;
+  const snd = sndFile
+    ? await vfs
+        .read(sndFile, dir, 'data')
+        .then(parseSnd)
+        .catch(() => undefined)
+    : undefined;
   const fonts: (Font | undefined)[] = [];
   for (let i = 0; i <= 9; i++) {
     const ff = f(`font${i}`);
@@ -135,5 +140,10 @@ export async function loadRoster(vfs: Vfs, path: string): Promise<Roster> {
   const opts = parseIni(text);
   const mm = getValue(findSection(opts, 'Options'), 'arcade.maxmatches') ?? '6';
   const tm = getValue(findSection(opts, 'Options'), 'team.maxmatches') ?? '4,1,1';
-  return { chars, extraStages, arcadeMaxMatches: splitCsv(mm).map((x) => parseInt(x, 10) || 0), teamMaxMatches: splitCsv(tm).map((x) => parseInt(x, 10) || 0) };
+  return {
+    chars,
+    extraStages,
+    arcadeMaxMatches: splitCsv(mm).map((x) => parseInt(x, 10) || 0),
+    teamMaxMatches: splitCsv(tm).map((x) => parseInt(x, 10) || 0),
+  };
 }

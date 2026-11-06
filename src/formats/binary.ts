@@ -3,7 +3,10 @@ export class Reader {
   readonly dv: DataView;
   pos = 0;
 
-  constructor(readonly bytes: Uint8Array, pos = 0) {
+  constructor(
+    readonly bytes: Uint8Array,
+    pos = 0,
+  ) {
     this.dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     this.pos = pos;
   }

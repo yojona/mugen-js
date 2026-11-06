@@ -211,7 +211,18 @@ const DEFAULTS: Record<string, number> = {
 };
 
 /** Constants that are floats (all others are ints), per trigger.html Const(). */
-const FLOAT_PREFIXES = ['velocity.', 'movement.yaccel', 'movement.stand.', 'movement.crouch.', 'movement.jump.', 'movement.air.', 'movement.down.', 'size.xscale', 'size.yscale', 'data.fall.defence_mul'];
+const FLOAT_PREFIXES = [
+  'velocity.',
+  'movement.yaccel',
+  'movement.stand.',
+  'movement.crouch.',
+  'movement.jump.',
+  'movement.air.',
+  'movement.down.',
+  'size.xscale',
+  'size.yscale',
+  'data.fall.defence_mul',
+];
 
 export function isFloatConst(name: string): boolean {
   return FLOAT_PREFIXES.some((p) => name.startsWith(p));

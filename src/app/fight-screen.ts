@@ -209,7 +209,11 @@ export class FightScreen implements Screen {
     w.sounds.length = 0;
     if (m.finished && !this.fade.fadingOut) {
       this.saveRecords();
-      this.pendingResult = { winner: m.winner ? m.winner.side : -1, quote: m.winner ? pickVictoryQuote(m.winner) : undefined, wins: [...m.wins] };
+      this.pendingResult = {
+        winner: m.winner ? m.winner.side : -1,
+        quote: m.winner ? pickVictoryQuote(m.winner) : undefined,
+        wins: [...m.wins],
+      };
       this.fade.fadeOut();
     }
   }
@@ -257,7 +261,11 @@ export class FightScreen implements Screen {
     if (zv.active) {
       const k = w.gameWidth / w.screenWidth;
       const top = w.groundY - w.camera.y;
-      r.view = { s: zv.scale, ox: (W / 2) * (1 - zv.scale) - (zv.shakeX / k) * zv.scale, oy: top * (1 - zv.scale) - (zv.shakeY / k) * zv.scale };
+      r.view = {
+        s: zv.scale,
+        ox: (W / 2) * (1 - zv.scale) - (zv.shakeX / k) * zv.scale,
+        oy: top * (1 - zv.scale) - (zv.shakeY / k) * zv.scale,
+      };
     }
     const [mw, mh] = this.ctx.motif.localCoord;
     const debug = this.ctx.debug;
@@ -281,18 +289,20 @@ export class FightScreen implements Screen {
       },
       foreground: () => drawStageLayer(r, this.bg, w.camera, 1, W, H, -(w.shakeBase + w.cropTop)),
       hud: (layer) => {
-        if (showBars) inMotif(() => {
-          // The HUD's palette group (0x200) darkens with the stage in a SuperPause.
-          r.tint = w.darkened ? DARKEN_BG : undefined;
-          this.s.hud.drawLayer(r, this.match, layer);
-          r.tint = undefined;
-        });
+        if (showBars)
+          inMotif(() => {
+            // The HUD's palette group (0x200) darkens with the stage in a SuperPause.
+            r.tint = w.darkened ? DARKEN_BG : undefined;
+            this.s.hud.drawLayer(r, this.match, layer);
+            r.tint = undefined;
+          });
       },
-      systemElements: () => inMotif(() => {
-        r.tint = w.darkened ? DARKEN_BG : undefined;
-        this.s.hud.drawAnnouncements(r, this.match);
-        r.tint = undefined;
-      }),
+      systemElements: () =>
+        inMotif(() => {
+          r.tint = w.darkened ? DARKEN_BG : undefined;
+          this.s.hud.drawAnnouncements(r, this.match);
+          r.tint = undefined;
+        }),
     });
     // Game_Draw: the collision display goes under the combos.
     if (debug?.clsnMode) drawCollisionDebug(r, w, debug.clsnMode, debug.font);

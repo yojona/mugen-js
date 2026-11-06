@@ -54,7 +54,6 @@ export interface SelectResult {
 /** Charsel_MoveCursor: the buttons in [Palette Keymap] order (the last one pressed in this order wins). */
 const PAL_BUTTONS = [IN_A, IN_B, IN_C, IN_X, IN_Y, IN_Z];
 
-
 // ---- select scripts (Charsel_SetupMode, select.c 0x408b20) ----
 
 type StepType = 'menu' | 'chars' | 'auto' | 'stage' | 'done';
@@ -90,7 +89,17 @@ interface Script {
 const MENU_ALL = 0x0b; // single, simul, turns
 const MENU_NO_TURNS = 0x03; // single, simul
 
-const step = (type: StepType, o: Partial<Step> = {}): Step => ({ type, team: 0, mode: 'single', count: 1, simul: 0, flags: 0, item: 0, player: 0, ...o });
+const step = (type: StepType, o: Partial<Step> = {}): Step => ({
+  type,
+  team: 0,
+  mode: 'single',
+  count: 1,
+  simul: 0,
+  flags: 0,
+  item: 0,
+  player: 0,
+  ...o,
+});
 const chars = (team: number, mode: TeamMode, count: number, simul: 0 | 1 | 2 = 0) => step('chars', { team, mode, count, simul });
 const autoTeam = (team: number, mode: TeamMode, count: number, simul: 0 | 1 | 2 = 0) => step('auto', { team, mode, count, simul });
 /** A team menu for `player`; it fills the step that follows it. */
@@ -123,7 +132,14 @@ function buildScripts(mode: GameMode): [Script, Script] {
       s0 = [chars(side, 'simul', 2, 1), menu(other, MENU_ALL, 1), autoTeam(other, 'simul', 2, 2), done()];
       break;
     case 'survival':
-      s0 = [menu(side, MENU_ALL, 0), chars(side, 'simul', 2, 0), menu(other, MENU_NO_TURNS, 0), autoTeam(other, 'simul', 2, 2), stage(), done()];
+      s0 = [
+        menu(side, MENU_ALL, 0),
+        chars(side, 'simul', 2, 0),
+        menu(other, MENU_NO_TURNS, 0),
+        autoTeam(other, 'simul', 2, 2),
+        stage(),
+        done(),
+      ];
       break;
     case 'survivalcoop':
       s0 = [chars(side, 'simul', 2, 1), menu(other, MENU_NO_TURNS, 0), autoTeam(other, 'simul', 2, 2), stage(), done()];
@@ -627,7 +643,7 @@ export class SelectScreen implements Screen {
     };
     const step = (v: number, n: number, d: number, isEmpty: (v: number) => boolean): number => {
       let last = v;
-      for (let tries = n; ; ) {
+      for (let tries = n; ;) {
         if (!isEmpty(v)) last = v;
         v += d;
         if (v < 0 || v >= n) {
@@ -713,7 +729,9 @@ export class SelectScreen implements Screen {
     const sff = motif.sff;
     const sec = motif.section('Select Info');
     const spr = (k: string) => {
-      const p = this.v(k)?.split(',').map((x) => parseInt(x, 10));
+      const p = this.v(k)
+        ?.split(',')
+        .map((x) => parseInt(x, 10));
       return p && p.length >= 2 ? sff.get(p[0]!, p[1]!) : undefined;
     };
     const cellBg = spr('cell.bg.spr');
@@ -744,7 +762,15 @@ export class SelectScreen implements Screen {
       const k = this.charScale(d);
       const win = this.v(`${pre}.face.window`)?.split(',').map(Number);
       if (win && win.length === 4) r.setClip([win[0]!, win[1]!, win[2]! + 1, win[3]! + 1]);
-      if (s) r.draw({ sprite: s, palette: d.paletteFor(s, b.state === 'done' ? b.pal : 1), x: fo[0], y: fo[1], scaleX: facing * fsc[0] * k, scaleY: fsc[1] * k });
+      if (s)
+        r.draw({
+          sprite: s,
+          palette: d.paletteFor(s, b.state === 'done' ? b.pal : 1),
+          x: fo[0],
+          y: fo[1],
+          scaleX: facing * fsc[0] * k,
+          scaleY: fsc[1] * k,
+        });
       if (win) r.setClip(undefined);
     });
 
@@ -754,11 +780,20 @@ export class SelectScreen implements Screen {
         if (!entry && !showEmpty) continue;
         const [x, y] = this.cellPos(row, col);
         if (cellBg) r.draw({ sprite: cellBg, palette: sff.palettes[cellBg.palette], x, y, scaleX: bgScale[0], scaleY: bgScale[1] });
-        if (entry?.entry.def === 'randomselect' && random) r.draw({ sprite: random, palette: sff.palettes[random.palette], x, y, scaleX: rndScale[0], scaleY: rndScale[1] });
+        if (entry?.entry.def === 'randomselect' && random)
+          r.draw({ sprite: random, palette: sff.palettes[random.palette], x, y, scaleX: rndScale[0], scaleY: rndScale[1] });
         const d = entry?.data;
         const s = d?.sff.get(portraitSpr[0], portraitSpr[1]);
         const k = d ? this.charScale(d) : 1;
-        if (d && s) r.draw({ sprite: s, palette: d.paletteFor(s, 1), x: x + portraitOff[0], y: y + portraitOff[1], scaleX: portraitScale[0] * k, scaleY: portraitScale[1] * k });
+        if (d && s)
+          r.draw({
+            sprite: s,
+            palette: d.paletteFor(s, 1),
+            x: x + portraitOff[0],
+            y: y + portraitOff[1],
+            scaleX: portraitScale[0] * k,
+            scaleY: portraitScale[1] * k,
+          });
       }
     }
 
@@ -776,9 +811,10 @@ export class SelectScreen implements Screen {
       if (el && b.x !== undefined && b.y !== undefined) el.draw(r, Math.trunc(b.x), Math.trunc(b.y));
     };
     for (const b of done) drawBox(b, 'done');
-    const blink = active.length === 2 && this.int('p2.cursor.blink', 0) !== 0 && active[0]!.col === active[1]!.col && active[0]!.row === active[1]!.row;
+    const blink =
+      active.length === 2 && this.int('p2.cursor.blink', 0) !== 0 && active[0]!.col === active[1]!.col && active[0]!.row === active[1]!.row;
     active.forEach((b, s) => {
-      if (blink && ((this.time & 7) < 4) !== (s === 1)) return;
+      if (blink && (this.time & 7) < 4 !== (s === 1)) return;
       drawBox(b, 'active');
     });
 

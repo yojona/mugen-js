@@ -9,8 +9,12 @@ import { emptyGetHitVars, GETHITVAR_FLOATS, type GetHitVars } from './hitdef';
 import type { Player } from './player';
 
 type P = Player;
-const int = (f: (p: P) => number): Fn<P> => (p) => ((R.t = INT), f(p) | 0);
-const flt = (f: (p: P) => number): Fn<P> => (p) => ((R.t = FLOAT), Math.fround(f(p)));
+const int =
+  (f: (p: P) => number): Fn<P> =>
+  (p) => ((R.t = INT), f(p) | 0);
+const flt =
+  (f: (p: P) => number): Fn<P> =>
+  (p) => ((R.t = FLOAT), Math.fround(f(p)));
 const bottom = (): number => ((R.t = BOTTOM), 0);
 
 /** Evaluate an argument as int; returns undefined on bottom. */
@@ -57,7 +61,13 @@ const NULLARY: Record<string, Fn<P>> = {
   lose: int((p) => (p.world.winType !== 0 && p.world.roundWinnerSide !== 0 && p.world.roundWinnerSide !== p.root.side + 1 ? 1 : 0)),
   loseko: int((p) => (p.world.winType === 1 && p.world.roundWinnerSide !== 0 && p.world.roundWinnerSide !== p.root.side + 1 ? 1 : 0)),
   losetime: int((p) => (p.world.winType === 2 && p.world.roundWinnerSide !== 0 && p.world.roundWinnerSide !== p.root.side + 1 ? 1 : 0)),
-  winperfect: int((p) => (p.world.winType !== 0 && p.world.roundWinnerSide === p.root.side + 1 && p.world.players.every((q) => q.side !== p.root.side || q.life >= q.lifeMax) ? 1 : 0)),
+  winperfect: int((p) =>
+    p.world.winType !== 0 &&
+    p.world.roundWinnerSide === p.root.side + 1 &&
+    p.world.players.every((q) => q.side !== p.root.side || q.life >= q.lifeMax)
+      ? 1
+      : 0,
+  ),
   drawgame: int((p) => (p.world.winType !== 0 && p.world.roundWinnerSide === 0 ? 1 : 0)),
   // CPU players report their AI level, humans 0 (mugen.exe 0x456dc8).
   ailevel: int((p) => p.root.ai?.level ?? 0),
@@ -131,7 +141,12 @@ const AXIS: Record<string, (p: P, axis: 'x' | 'y' | 'z') => number | undefined> 
     return a === 'x' ? (k === 1 ? p.vel.x : p.vel.x * k) : a === 'y' ? (k === 1 ? p.vel.y : p.vel.y * k) : 0;
   },
   hitvel: (p, a) => (a === 'x' ? p.ghv.xvel * p.facing : a === 'y' ? p.ghv.yvel : 0),
-  screenpos: (p, a) => (a === 'x' ? (p.wx - (p.world.camera.x - p.world.screenWidth / 2)) / us(p) : a === 'y' ? (p.wy - p.world.camera.y + p.world.groundY) / us(p) : 0),
+  screenpos: (p, a) =>
+    a === 'x'
+      ? (p.wx - (p.world.camera.x - p.world.screenWidth / 2)) / us(p)
+      : a === 'y'
+        ? (p.wy - p.world.camera.y + p.world.groundY) / us(p)
+        : 0,
   camerapos: (p, a) => (a === 'x' ? p.world.camera.x / us(p) : a === 'y' ? p.world.camera.y / us(p) : 0),
   p2dist: (p, a) => {
     const e = p.world.enemyOf(p);
@@ -144,8 +159,10 @@ const AXIS: Record<string, (p: P, axis: 'x' | 'y' | 'z') => number | undefined> 
     if (a !== 'x') return a === 'y' ? (e.wy - p.wy) / us(p) : 0;
     return bodyDistX(p, e) / us(p);
   },
-  parentdist: (p, a) => (p.parent ? (a === 'x' ? ((p.parent.wx - p.wx) * p.facing) / us(p) : a === 'y' ? (p.parent.wy - p.wy) / us(p) : 0) : undefined),
-  rootdist: (p, a) => (p.isHelper ? (a === 'x' ? ((p.root.wx - p.wx) * p.facing) / us(p) : a === 'y' ? (p.root.wy - p.wy) / us(p) : 0) : undefined),
+  parentdist: (p, a) =>
+    p.parent ? (a === 'x' ? ((p.parent.wx - p.wx) * p.facing) / us(p) : a === 'y' ? (p.parent.wy - p.wy) / us(p) : 0) : undefined,
+  rootdist: (p, a) =>
+    p.isHelper ? (a === 'x' ? ((p.root.wx - p.wx) * p.facing) / us(p) : a === 'y' ? (p.root.wy - p.wy) / us(p) : 0) : undefined,
 };
 
 /** Axis triggers whose result is an int (trigger.html). */
@@ -177,8 +194,8 @@ function call(node: CallNode, args: Fn<P>[]): Fn<P> | undefined {
       return (p) => {
         const v = p.prog.consts.get(w);
         if (v === undefined) return bottom();
-        if (isF) return (R.t = FLOAT), Math.fround(v);
-        return (R.t = INT), Math.trunc(v) | 0;
+        if (isF) return ((R.t = FLOAT), Math.fround(v));
+        return ((R.t = INT), Math.trunc(v) | 0);
       };
     }
     if (name === 'gethitvar') {
@@ -189,8 +206,8 @@ function call(node: CallNode, args: Fn<P>[]): Fn<P> | undefined {
       const isF = GETHITVAR_FLOATS.has(w);
       return (p) => {
         const v = p.ghv[key];
-        if (isF) return (R.t = FLOAT), Math.fround(Number.isNaN(v) ? 0 : v);
-        return (R.t = INT), Math.trunc(v) | 0;
+        if (isF) return ((R.t = FLOAT), Math.fround(Number.isNaN(v) ? 0 : v));
+        return ((R.t = INT), Math.trunc(v) | 0);
       };
     }
     if (name === 'stagevar') return int(() => 0);
@@ -239,13 +256,18 @@ function call(node: CallNode, args: Fn<P>[]): Fn<P> | undefined {
     case 'numexplod':
       return (p) => {
         const id = argInt(a, p);
-        return id === undefined ? bottom() : ((R.t = INT), p.world.explods.filter((e) => e.owner === p && !e.system && (id === -1 || e.id === id)).length);
+        return id === undefined
+          ? bottom()
+          : ((R.t = INT), p.world.explods.filter((e) => e.owner === p && !e.system && (id === -1 || e.id === id)).length);
       };
     case 'numproj':
     case 'numprojid':
       return (p) => {
         const id = argInt(a, p);
-        return id === undefined ? bottom() : ((R.t = INT), p.world.projectiles.filter((pr) => pr.owner === p && pr.phase === 'active' && pr.projId === (id < 0 ? 0 : id)).length);
+        return id === undefined
+          ? bottom()
+          : ((R.t = INT),
+            p.world.projectiles.filter((pr) => pr.owner === p && pr.phase === 'active' && pr.projId === (id < 0 ? 0 : id)).length);
       };
     case 'numtarget':
       return (p) => {
@@ -297,7 +319,9 @@ function commandSlot(p: P, name: string): number {
 function clause(node: ClauseNode, nums: Fn<P>[]): Fn<P> | undefined {
   const eq = node.op === '=';
   const word = node.words[0] ?? '';
-  const boolOut = (f: (p: P) => boolean): Fn<P> => (p) => ((R.t = INT), f(p) === eq ? 1 : 0);
+  const boolOut =
+    (f: (p: P) => boolean): Fn<P> =>
+    (p) => ((R.t = INT), f(p) === eq ? 1 : 0);
   switch (node.name) {
     case 'command': {
       // Cmd_FindLabel: an exact (case-sensitive) name.
@@ -456,7 +480,6 @@ function compileSecond(second: NonNullable<ClauseNode['second']>): (p: P, t: num
     return (loOpen ? t > lo : t >= lo) && (hiOpen ? t < hi : t <= hi);
   };
 }
-
 
 /**
  * ProjHitTime & co. (mugen.exe Trigger_Eval): ticks since the last contact if

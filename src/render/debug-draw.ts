@@ -31,7 +31,17 @@ function outline(r: Renderer, x1: number, y1: number, x2: number, y2: number, c:
 }
 
 /** Clsn_Draw: every box's outline darkened by 0x20, then drawn over, or the box filled in mode 2. */
-function drawBoxes(r: Renderer, boxes: readonly Clsn[] | null, x: number, y: number, scaleX: number, scaleY: number, facing: number, color: Rgb, filled: boolean): void {
+function drawBoxes(
+  r: Renderer,
+  boxes: readonly Clsn[] | null,
+  x: number,
+  y: number,
+  scaleX: number,
+  scaleY: number,
+  facing: number,
+  color: Rgb,
+  filled: boolean,
+): void {
   if (!boxes || scaleX === 0 || scaleY === 0) return;
   for (const b of boxes) {
     const xa = Math.trunc(b.x1 * scaleX * facing + x);

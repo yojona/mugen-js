@@ -182,7 +182,12 @@ describe('community characters vs mugen.exe', () => {
     'Kyo+Iori (simul) vs Akuma, CPU level 4: the whole match, 6502 frames (hits during the hit pause, a projectile hitting both partners, combo target order)',
     async () => {
       const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kyo-iori-vs-akuma-simul.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['kyo-kofa', 'akuma-kofa'], partners: ['iori-yagami-kofa', undefined], frames: 7000, seed: 16808 });
+      const ours = await peekMatch({
+        chars: ['kyo-kofa', 'akuma-kofa'],
+        partners: ['iori-yagami-kofa', undefined],
+        frames: 7000,
+        seed: 16808,
+      });
       expect(ours.length).toBe(7000);
       // The capture's framestep slipped around frame 400 (398 read three
       // times, then 399, 401, 403); frame 6502 is where the reference stops.
@@ -195,7 +200,12 @@ describe('community characters vs mugen.exe', () => {
     'Kim+Benimaru vs Clark+Kula (simul 2v2), CPU level 4: the whole match, 8450 frames (AI helper sees the root key state, KOed partner push, push clamps, per-target TargetState, frozen NotHitBy, juggle per tick)',
     async () => {
       const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kim-beni-vs-clark-kula-simul.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['kim-kofa', 'clark-kofa'], partners: ['benimaru-kofa', 'kula-kofa'], frames: 9000, seed: 16808 });
+      const ours = await peekMatch({
+        chars: ['kim-kofa', 'clark-kofa'],
+        partners: ['benimaru-kofa', 'kula-kofa'],
+        frames: 9000,
+        seed: 16808,
+      });
       expect(ours.length).toBe(9000);
       // The capture's framestep slipped at frame 400; frame 8450 is
       // where the reference stops.
@@ -208,7 +218,12 @@ describe('community characters vs mugen.exe', () => {
     'Iori+Kyo vs Athena+Leona (simul 2v2), CPU level 4: the whole match, 7360 frames (quick VS pal.defaults, TargetBind bind_active, KeyedArray target order, movetimes in the update tail, BindToTarget postype letter)',
     async () => {
       const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'iori-kyo-vs-athena-leona-simul.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['iori-yagami-kofa', 'athena-kofa'], partners: ['kyo-kofa', 'leona-kofa'], frames: 8000, seed: 16808 });
+      const ours = await peekMatch({
+        chars: ['iori-yagami-kofa', 'athena-kofa'],
+        partners: ['kyo-kofa', 'leona-kofa'],
+        frames: 8000,
+        seed: 16808,
+      });
       expect(ours.length).toBe(8000);
       // The capture's framestep slipped at frame 393; frame 7360 is
       // where the reference stops.
@@ -221,7 +236,12 @@ describe('community characters vs mugen.exe', () => {
     'Chizuru&Maki+Andy vs Kula+King (simul 2v2), CPU level 4: the whole match, 11343 frames (AI learn clock fixed at the tick start, second auto-turn keeps the turning action)',
     async () => {
       const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'chizuru-andy-vs-kula-king-simul.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['chizuru&maki-kofa', 'kula-kofa'], partners: ['andy-kofa', 'king-kofa'], frames: 12000, seed: 16808 });
+      const ours = await peekMatch({
+        chars: ['chizuru&maki-kofa', 'kula-kofa'],
+        partners: ['andy-kofa', 'king-kofa'],
+        frames: 12000,
+        seed: 16808,
+      });
       expect(ours.length).toBe(12000);
       // The capture's framestep slipped at frame 413; frame 11343 is
       // where the reference stops.
@@ -233,8 +253,15 @@ describe('community characters vs mugen.exe', () => {
   it.skipIf(!have('heidern-kofa', 'geese-kofa', 'd-yashiro-kofa', 'billy-kofa'))(
     'Heidern+D-Yashiro vs Geese+Billy (simul 2v2), CPU level 4: the whole match, 10383 frames',
     async () => {
-      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'heidern-yashiro-vs-geese-billy-simul.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['heidern-kofa', 'geese-kofa'], partners: ['d-yashiro-kofa', 'billy-kofa'], frames: 11000, seed: 16808 });
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'heidern-yashiro-vs-geese-billy-simul.mugen.log.gz'))).toString(
+        'latin1',
+      );
+      const ours = await peekMatch({
+        chars: ['heidern-kofa', 'geese-kofa'],
+        partners: ['d-yashiro-kofa', 'billy-kofa'],
+        frames: 11000,
+        seed: 16808,
+      });
       expect(ours.length).toBe(11000);
       // The capture's framestep slipped around frame 414 (413 read three
       // times, then 414, 416, 418); frame 10383 is where the reference stops.
@@ -247,7 +274,12 @@ describe('community characters vs mugen.exe', () => {
     'Chang+Choi vs Daimon+Joe (simul 2v2), CPU level 4: the whole match, 9598 frames (hit ends a TargetBind, helper power)',
     async () => {
       const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'chang-choi-vs-daimon-joe-simul.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['chang-kofa', 'daimon-kofa'], partners: ['choi-kofa', 'joe-kofa'], frames: 11000, seed: 16808 });
+      const ours = await peekMatch({
+        chars: ['chang-kofa', 'daimon-kofa'],
+        partners: ['choi-kofa', 'joe-kofa'],
+        frames: 11000,
+        seed: 16808,
+      });
       expect(ours.length).toBe(11000);
       // The capture's framestep slipped at frames 417-418, 2795-2797 and 9591.
       expect(peekDiff(ref, ours, 14, 416)).toEqual([]);
@@ -260,8 +292,15 @@ describe('community characters vs mugen.exe', () => {
   it.skipIf(!have('hotaru-kofa', 'kasumi-kofa', 'lee-kofa', 'duolon-kofa'))(
     'Hotaru+Lee vs Kasumi+Duolon (simul 2v2), CPU level 4: the whole match, 12737 frames (commands held in a pause, throw reversal)',
     async () => {
-      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'hotaru-lee-vs-kasumi-duolon-simul.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['hotaru-kofa', 'kasumi-kofa'], partners: ['lee-kofa', 'duolon-kofa'], frames: 14000, seed: 16808 });
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'hotaru-lee-vs-kasumi-duolon-simul.mugen.log.gz'))).toString(
+        'latin1',
+      );
+      const ours = await peekMatch({
+        chars: ['hotaru-kofa', 'kasumi-kofa'],
+        partners: ['lee-kofa', 'duolon-kofa'],
+        frames: 14000,
+        seed: 16808,
+      });
       expect(ours.length).toBe(14000);
       // Frame 12737 is where the reference stops.
       expect(peekDiff(ref, ours, 14, 12736)).toEqual([]);
@@ -272,7 +311,12 @@ describe('community characters vs mugen.exe', () => {
     'Ash+Chris vs Blue Mary+Hinako (simul 2v2), CPU level 4: 14000 frames (reversal get-hit vars, recovery from the own command list)',
     async () => {
       const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'ash-chris-vs-mary-hinako-simul.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['ash-kofa', 'bluemary-kofa'], partners: ['chris-kofa', 'hinako-kofa'], frames: 14000, seed: 16808 });
+      const ours = await peekMatch({
+        chars: ['ash-kofa', 'bluemary-kofa'],
+        partners: ['chris-kofa', 'hinako-kofa'],
+        frames: 14000,
+        seed: 16808,
+      });
       expect(ours.length).toBe(14000);
       expect(peekDiff(ref, ours, 14, 14000)).toEqual([]);
     },
@@ -282,7 +326,12 @@ describe('community characters vs mugen.exe', () => {
     'Hwa Jai+Eiji vs Jhun+Kyoko (simul 2v2), CPU level 4: the whole match, 11453 frames',
     async () => {
       const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'hwajai-eiji-vs-jhun-kyoko-simul.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['hwa-jai-kofa', 'jhun-kofa'], partners: ['eiji-kofa', 'kyoko-kofa'], frames: 14000, seed: 16808 });
+      const ours = await peekMatch({
+        chars: ['hwa-jai-kofa', 'jhun-kofa'],
+        partners: ['eiji-kofa', 'kyoko-kofa'],
+        frames: 14000,
+        seed: 16808,
+      });
       expect(ours.length).toBe(14000);
       // Frame 11453 is where the reference stops.
       expect(peekDiff(ref, ours, 14, 11452)).toEqual([]);
@@ -292,8 +341,15 @@ describe('community characters vs mugen.exe', () => {
   it.skipIf(!have('geo-kensou-kofa', 'hon-fu-kofa', 'lin-kofa', 'gato-kofa'))(
     'Geo Kensou+Lin vs Hon Fu+Gato (simul 2v2), CPU level 4: 14000 frames (intro, HitDef eval order, hit shake count, pause movetime)',
     async () => {
-      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'geokensou-lin-vs-honfu-gato-simul.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['geo-kensou-kofa', 'hon-fu-kofa'], partners: ['lin-kofa', 'gato-kofa'], frames: 14000, seed: 16808 });
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'geokensou-lin-vs-honfu-gato-simul.mugen.log.gz'))).toString(
+        'latin1',
+      );
+      const ours = await peekMatch({
+        chars: ['geo-kensou-kofa', 'hon-fu-kofa'],
+        partners: ['lin-kofa', 'gato-kofa'],
+        frames: 14000,
+        seed: 16808,
+      });
       expect(ours.length).toBe(14000);
       expect(peekDiff(ref, ours, 14, 14000)).toEqual([]);
     },
@@ -302,8 +358,15 @@ describe('community characters vs mugen.exe', () => {
   it.skipIf(!have('k9999-kofa', 'jae-hoon-kofa', 'kyo-233-kofa', 'kaede-kofa'))(
     'K9999+Kyo-233 vs Jae Hoon+Kaede (simul 2v2), CPU level 4: the whole match, 8241 frames (guard decided per hit, fall kept on KO damage)',
     async () => {
-      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'k9999-kyo233-vs-jaehoon-kaede-simul.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['k9999-kofa', 'jae-hoon-kofa'], partners: ['kyo-233-kofa', 'kaede-kofa'], frames: 14000, seed: 16808 });
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'k9999-kyo233-vs-jaehoon-kaede-simul.mugen.log.gz'))).toString(
+        'latin1',
+      );
+      const ours = await peekMatch({
+        chars: ['k9999-kofa', 'jae-hoon-kofa'],
+        partners: ['kyo-233-kofa', 'kaede-kofa'],
+        frames: 14000,
+        seed: 16808,
+      });
       expect(ours.length).toBe(14000);
       // Frame 8241 is where the reference stops.
       expect(peekDiff(ref, ours, 14, 8240)).toEqual([]);
@@ -313,8 +376,15 @@ describe('community characters vs mugen.exe', () => {
   it.skipIf(!have('iori-xiii-kofa', 'lien-kofa', 'kensou-ex-kofa', 'kisarah-kofa'))(
     'Iori XIII+Kensou EX vs Lien+Kisarah (simul 2v2), CPU level 4: the whole match, 11058 frames (projectiles hit paused players)',
     async () => {
-      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'iorixiii-kensouex-vs-lien-kisarah-simul.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['iori-xiii-kofa', 'lien-kofa'], partners: ['kensou-ex-kofa', 'kisarah-kofa'], frames: 14000, seed: 16808 });
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'iorixiii-kensouex-vs-lien-kisarah-simul.mugen.log.gz'))).toString(
+        'latin1',
+      );
+      const ours = await peekMatch({
+        chars: ['iori-xiii-kofa', 'lien-kofa'],
+        partners: ['kensou-ex-kofa', 'kisarah-kofa'],
+        frames: 14000,
+        seed: 16808,
+      });
       expect(ours.length).toBe(14000);
       // Frame 11058 is where the reference stops.
       expect(peekDiff(ref, ours, 14, 11057)).toEqual([]);
@@ -325,7 +395,12 @@ describe('community characters vs mugen.exe', () => {
     'Kim PK+Jhun vs Leo+Lucky (simul 2v2), CPU level 4: the whole match, 5808 frames (affectteam, down bounce offset, guard takes air jumps)',
     async () => {
       const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kimpk-jhun-vs-leo-lucky-simul.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['kim-pk-kofa', 'leo-alphonse-kofa'], partners: ['jhun-kofa', 'lucky-kofa'], frames: 14000, seed: 16808 });
+      const ours = await peekMatch({
+        chars: ['kim-pk-kofa', 'leo-alphonse-kofa'],
+        partners: ['jhun-kofa', 'lucky-kofa'],
+        frames: 14000,
+        seed: 16808,
+      });
       expect(ours.length).toBe(14000);
       // Frame 5808 is where the reference stops.
       expect(peekDiff(ref, ours, 14, 5807)).toEqual([]);
@@ -335,8 +410,16 @@ describe('community characters vs mugen.exe', () => {
   it.skipIf(!have('kyo-kofa', 'iori-yagami-kofa', 'benimaru-kofa', 'athena-kofa'))(
     'Kyo+Benimaru vs Iori+Athena (simul 2v2) on stage0, CPU level 4: the whole match, 6651 frames (freed default Clsn, pre-1.0 flags in hit pause, removing projectiles)',
     async () => {
-      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kyo-beni-vs-iori-athena-stage0-simul.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['kyo-kofa', 'iori-yagami-kofa'], partners: ['benimaru-kofa', 'athena-kofa'], frames: 14000, seed: 16808, stage: 'stage0' });
+      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'kyo-beni-vs-iori-athena-stage0-simul.mugen.log.gz'))).toString(
+        'latin1',
+      );
+      const ours = await peekMatch({
+        chars: ['kyo-kofa', 'iori-yagami-kofa'],
+        partners: ['benimaru-kofa', 'athena-kofa'],
+        frames: 14000,
+        seed: 16808,
+        stage: 'stage0',
+      });
       expect(ours.length).toBe(14000);
       // Frame 6651 is where the reference stops.
       expect(peekDiff(ref, ours, 14, 6650)).toEqual([]);
@@ -346,8 +429,16 @@ describe('community characters vs mugen.exe', () => {
   it.skipIf(!have('ken-kofa', 'haohmaru-kofa', 'chunli-kofa', 'elisabeth-kofa'))(
     'Ken+Chun-Li vs Haohmaru+Elisabeth (simul 2v2) on stage0-720, CPU level 4: the whole match, 13214 frames (empty actions, [Remap], statedef anim, failed ChangeAnim slot)',
     async () => {
-      const ref = gunzipSync(readFileSync(join(__dirname, 'reference', 'ken-chunli-vs-haohmaru-elisabeth-720-simul.mugen.log.gz'))).toString('latin1');
-      const ours = await peekMatch({ chars: ['ken-kofa', 'haohmaru-kofa'], partners: ['chunli-kofa', 'elisabeth-kofa'], frames: 14000, seed: 16808, stage: 'stage0-720' });
+      const ref = gunzipSync(
+        readFileSync(join(__dirname, 'reference', 'ken-chunli-vs-haohmaru-elisabeth-720-simul.mugen.log.gz')),
+      ).toString('latin1');
+      const ours = await peekMatch({
+        chars: ['ken-kofa', 'haohmaru-kofa'],
+        partners: ['chunli-kofa', 'elisabeth-kofa'],
+        frames: 14000,
+        seed: 16808,
+        stage: 'stage0-720',
+      });
       expect(ours.length).toBe(14000);
       // Open: frame 4175, Haohmaru entering his win pose at the screen edge
       // is clamped with the standing width a tick before mugen.exe (x 536

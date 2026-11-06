@@ -32,10 +32,17 @@ const load = async (c: string) => {
   return { data, prog: await loadProgram(vfs, data) };
 };
 const [a, b] = await Promise.all([load(c1), load(c2)]);
-const roster = (data: typeof a.data): RosterChar => ({ entry: { def: data.defPath, order: 1, includeStage: true } as never, data, defPath: data.defPath });
+const roster = (data: typeof a.data): RosterChar => ({
+  entry: { def: data.defPath, order: 1, includeStage: true } as never,
+  data,
+  defPath: data.defPath,
+});
 const hud = await FightHud.load(vfs, motif.fightDef, mw);
 const fightFx = { anims: parseAir(await vfs.text('data/fightfx.air')), sff: await parseSff(await vfs.read('data/fightfx.sff')) };
-const commonSnd = await vfs.read('data/common.snd').then(parseSnd).catch(() => undefined);
+const commonSnd = await vfs
+  .read('data/common.snd')
+  .then(parseSnd)
+  .catch(() => undefined);
 const screen = new FightScreen(ctx, {
   seed: Number(q.get('seed') ?? 16808),
   p1: { char: roster(a.data), pal: 1 },

@@ -39,12 +39,8 @@ async function selectChar(defPath: string): Promise<void> {
   ui.title.textContent = 'Cargando…';
   ch = await loadCharacter(vfs, defPath);
   ui.title.textContent = `${ch.def.displayName} (SFF ${ch.sff.versionText})`;
-  ui.action.replaceChildren(
-    ...[...ch.anims.keys()].sort((a, b) => a - b).map((n) => new Option(String(n), String(n))),
-  );
-  ui.palette.replaceChildren(
-    ...ch.palettes.flatMap((p, i) => (p ? [new Option(String(i + 1), String(i + 1))] : [])),
-  );
+  ui.action.replaceChildren(...[...ch.anims.keys()].sort((a, b) => a - b).map((n) => new Option(String(n), String(n))));
+  ui.palette.replaceChildren(...ch.palettes.flatMap((p, i) => (p ? [new Option(String(i + 1), String(i + 1))] : [])));
   palette = ch.def.palDefaults[0] ?? 1;
   ui.palette.value = String(palette);
   setup();
@@ -137,7 +133,9 @@ const shift = (d: number) => {
 ui.prev.onclick = () => shift(-1);
 ui.next.onclick = () => shift(1);
 
-const defs = (await (await fetch('/__ref.json')).json() as string[]).filter((p) => /^chars\/[^/]+\/[^/]+\.def$/i.test(p) && !/(intro|ending)\.def$/i.test(p));
+const defs = ((await (await fetch('/__ref.json')).json()) as string[]).filter(
+  (p) => /^chars\/[^/]+\/[^/]+\.def$/i.test(p) && !/(intro|ending)\.def$/i.test(p),
+);
 ui.char.replaceChildren(...defs.map((d) => new Option(d.split('/')[1]!, d)));
 await selectChar(defs[0]!);
 requestAnimationFrame(frame);

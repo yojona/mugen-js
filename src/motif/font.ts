@@ -103,7 +103,10 @@ export function parseFntV1(bytes: Uint8Array): Font {
     if (!Number.isFinite(x) || w <= 0) return;
     const indices = new Uint8Array(w * img.height);
     for (let y = 0; y < img.height; y++) indices.set(img.indices.subarray(y * img.width + x, y * img.width + x + w), y * w);
-    glyphs.set(m.ch, { width: w, sprite: { group: 0, number: m.ch.charCodeAt(0), width: w, height: img.height, axisX: 0, axisY: 0, palette: 0, indices } });
+    glyphs.set(m.ch, {
+      width: w,
+      sprite: { group: 0, number: m.ch.charCodeAt(0), width: w, height: img.height, axisX: 0, axisY: 0, palette: 0, indices },
+    });
   });
 
   const banks = new Map<number, Uint8Array>();

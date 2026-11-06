@@ -16,7 +16,20 @@ mkdirSync(outDir, { recursive: true });
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const port = 9333 + Math.floor(Math.random() * 500);
 const profile = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'flow-chrome-'));
-const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--window-size=1280,960', '--autoplay-policy=no-user-gesture-required', 'about:blank'], { stdio: 'ignore' });
+const chrome = spawn(
+  CHROME,
+  [
+    '--headless=new',
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${profile}`,
+    '--use-angle=swiftshader',
+    '--enable-unsafe-swiftshader',
+    '--window-size=1280,960',
+    '--autoplay-policy=no-user-gesture-required',
+    'about:blank',
+  ],
+  { stdio: 'ignore' },
+);
 
 async function json(path: string, method = 'GET'): Promise<any> {
   for (let i = 0; i < 100; i++) {
@@ -49,7 +62,8 @@ try {
         log.push(`S|${frame}`);
       } else if (/^(FLOW|DBG|SEED)\|/.test(text)) log.push(text);
     }
-    if (m.method === 'Runtime.exceptionThrown') log.push(`ERR|${JSON.stringify(m.params.exceptionDetails.exception?.description ?? m.params.exceptionDetails.text)}`);
+    if (m.method === 'Runtime.exceptionThrown')
+      log.push(`ERR|${JSON.stringify(m.params.exceptionDetails.exception?.description ?? m.params.exceptionDetails.text)}`);
   });
   send('Runtime.enable');
   send('Page.enable');

@@ -15,7 +15,8 @@ import { parseSff } from '../../src/formats/sff';
 import { FightHud } from '../../src/motif/fight';
 import { loadStage } from '../../src/stage/stage';
 const vfs = new Vfs(nodeSource(join(import.meta.dirname, '..', '..', 'ref', 'mugen-1.1b1')));
-const c1 = process.env.C1!, c2 = process.env.C2!;
+const c1 = process.env.C1!,
+  c2 = process.env.C2!;
 const prog1 = await loadProgram(vfs, await loadCharacter(vfs, `chars/${c1}/${c1}.def`));
 const prog2 = await loadProgram(vfs, await loadCharacter(vfs, `chars/${c2}/${c2}.def`));
 const stage = await loadStage(vfs, `stages/kfm.def`);
@@ -23,8 +24,10 @@ const hud = await FightHud.load(vfs, 'data/fight.def');
 const w = new World();
 w.applyStage(stage.info);
 w.fightFx = { anims: parseAir(await vfs.text('data/fightfx.air')), sff: await parseSff(await vfs.read('data/fightfx.sff')) };
-const p1 = new Player(prog1, w, 0), p2 = new Player(prog2, w, 1);
-p2.palNo = 2; w.players.push(p1, p2);
+const p1 = new Player(prog1, w, 0),
+  p2 = new Player(prog2, w, 1);
+p2.palNo = 2;
+w.players.push(p1, p2);
 [p1, p2].forEach((p) => (p.ai = new MugenAI(p, 4)));
 const m = new Match(w, hud.roundConfig(), [
   { x: stage.info.p1.x, y: stage.info.p1.y, facing: stage.info.p1.facing },

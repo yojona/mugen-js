@@ -32,7 +32,11 @@ World.prototype.tick = function (this: World, inp: number[]) {
   if (c > 0) last = c;
   if (c > 0) ours.set(key(round, c), this.seed);
 };
-await runProbe(Number(process.env.TICKS ?? 9000), { char: 'probeai', seed: 937167434, ai: (ai ?? '4,4').split(',').map(Number) as [number, number] });
+await runProbe(Number(process.env.TICKS ?? 9000), {
+  char: 'probeai',
+  seed: 937167434,
+  ai: (ai ?? '4,4').split(',').map(Number) as [number, number],
+});
 for (const [k, s] of [...mugen].sort((a, b) => a[0] - b[0])) {
   if (ours.get(k) !== s) {
     console.log('first seed diff at', k, 'mugen', s, 'ours', ours.get(k));

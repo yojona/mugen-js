@@ -41,4 +41,12 @@ const dist = (a: number, b: number) => {
   return -1;
 };
 console.log('mugen', mugen.length, 'ours', ours.length);
-for (let i = 0; i < Math.max(mugen.length, ours.length); i++) console.log(i, mugen[i], ours[i], mugen[i] === ours[i] ? '' : 'DIFF', i > 0 && mugen[i - 1] && mugen[i] ? dist(mugen[i - 1]!, mugen[i]!) : '', i > 0 && ours[i - 1] && ours[i] ? dist(ours[i - 1]!, ours[i]!) : '');
+for (let i = 0; i < Math.max(mugen.length, ours.length); i++)
+  console.log(
+    i,
+    mugen[i],
+    ours[i],
+    mugen[i] === ours[i] ? '' : 'DIFF',
+    i > 0 && mugen[i - 1] && mugen[i] ? dist(mugen[i - 1]!, mugen[i]!) : '',
+    i > 0 && ours[i - 1] && ours[i] ? dist(ours[i - 1]!, ours[i]!) : '',
+  );

@@ -60,7 +60,8 @@ export class VersusScreen implements Screen {
     this.fade.tick();
     // Pressing a button skips ahead. The screen lasts one frame past `time`
     // (measured: VS to RoundState 1 takes 196 frames in mugen.exe).
-    if (!this.fade.fadingOut && (this.t > this.time || (this.t > 20 && this.ctx.keys.pads[0]!.pressed(BUTTONS | IN_S)))) this.fade.fadeOut();
+    if (!this.fade.fadingOut && (this.t > this.time || (this.t > 20 && this.ctx.keys.pads[0]!.pressed(BUTTONS | IN_S))))
+      this.fade.fadeOut();
     if (this.fade.done) this.result = true;
   }
 
@@ -102,7 +103,8 @@ export class VictoryScreen implements Screen {
     this.t++;
     this.bg.tick();
     this.fade.tick();
-    if (!this.fade.fadingOut && (this.t >= this.time || (this.t > 20 && this.ctx.keys.pads[0]!.pressed(BUTTONS | IN_S)))) this.fade.fadeOut();
+    if (!this.fade.fadingOut && (this.t >= this.time || (this.t > 20 && this.ctx.keys.pads[0]!.pressed(BUTTONS | IN_S))))
+      this.fade.fadeOut();
     if (this.fade.done) this.result = true;
   }
 
@@ -127,7 +129,9 @@ export class VictoryScreen implements Screen {
       const maxW = win && win.length === 4 ? win[2]! - x : w - x;
       // textwrap = w: wrap on word boundaries inside the window.
       const lines = wrap(this.quote, (s) => s.length * (font.spaceWidth + font.spacing[0]), maxW);
-      lines.forEach((line, i) => drawText(r, font, line, x, y + i * (font.height + font.spacing[1]), el.font![1], el.font![2], el.scale, el.fontColor));
+      lines.forEach((line, i) =>
+        drawText(r, font, line, x, y + i * (font.height + font.spacing[1]), el.font![1], el.font![2], el.scale, el.fontColor),
+      );
     }
     this.bg.drawFront();
     this.fade.draw(r, w, h);

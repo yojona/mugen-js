@@ -1,11 +1,47 @@
 import { describe, expect, it } from 'vitest';
 import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../src/engine/cmd';
 import { Keyboard, Pad, padButtonsHeld, type GamepadLike } from '../src/app/input';
-import { BROWSER_DEFAULT_KEYS, JOY_NONE, KEY_NONE, KEYBOARD_RELEASE, PAD_RELEASE, SDLK_DOWN, SDLK_ESCAPE, SDLK_F1, SDLK_F2, SDLK_F3, SDLK_F4, SDLK_RETURN, SDLK_RIGHT, SDLK_SPACE, SDLK_UP, sdlk } from '../src/app/sdl-keys';
+import {
+  BROWSER_DEFAULT_KEYS,
+  JOY_NONE,
+  KEY_NONE,
+  KEYBOARD_RELEASE,
+  PAD_RELEASE,
+  SDLK_DOWN,
+  SDLK_ESCAPE,
+  SDLK_F1,
+  SDLK_F2,
+  SDLK_F3,
+  SDLK_F4,
+  SDLK_RETURN,
+  SDLK_RIGHT,
+  SDLK_SPACE,
+  SDLK_UP,
+  sdlk,
+} from '../src/app/sdl-keys';
 import { parseIni } from '../src/formats/text';
-import { GameOptions, OPTIONS_DEFAULTS, OPTIONS_LOAD_SAVE, OPTIONS_STORAGE_KEY, OPTIONS_TIME, pctToVolume, volumeToPct } from '../src/app/game-options';
+import {
+  GameOptions,
+  OPTIONS_DEFAULTS,
+  OPTIONS_LOAD_SAVE,
+  OPTIONS_STORAGE_KEY,
+  OPTIONS_TIME,
+  pctToVolume,
+  volumeToPct,
+} from '../src/app/game-options';
 import { PaletteFade } from '../src/app/screen';
-import { OPTIONS_MENU_INPUT, OPTIONS_MENU_MAIN, OPTIONS_MENU_TEAM, OptionsScreen, fillRect, fontDrawText, keyConfigKeyName, optionsChangeMain, optionsMainValueText, titlePulse } from '../src/app/options';
+import {
+  OPTIONS_MENU_INPUT,
+  OPTIONS_MENU_MAIN,
+  OPTIONS_MENU_TEAM,
+  OptionsScreen,
+  fillRect,
+  fontDrawText,
+  keyConfigKeyName,
+  optionsChangeMain,
+  optionsMainValueText,
+  titlePulse,
+} from '../src/app/options';
 
 const CFG = parseIni(`[Options]
 Difficulty = 4
@@ -41,14 +77,38 @@ function make(opts = new GameOptions(CFG).init()) {
   const pads = [new Pad(), new Pad()];
   const queue: number[] = [];
   const padQueue: number[] = [];
-  const keys = { pads, escape: false, pressed: [] as string[], capture: false, resetQueues() {}, popKey: () => queue.shift() ?? 0, popPad: () => padQueue.shift() ?? 0 };
-  const font = { height: 20, spaceWidth: 10, spacing: [1, 0], offset: [0, 0], glyph: () => undefined, palette: () => undefined, trueType: true };
+  const keys = {
+    pads,
+    escape: false,
+    pressed: [] as string[],
+    capture: false,
+    resetQueues() {},
+    popKey: () => queue.shift() ?? 0,
+    popPad: () => padQueue.shift() ?? 0,
+  };
+  const font = {
+    height: 20,
+    spaceWidth: 10,
+    spacing: [1, 0],
+    offset: [0, 0],
+    glyph: () => undefined,
+    palette: () => undefined,
+    trueType: true,
+  };
   const ctx = {
     renderer: {},
     mixer: { play() {}, volume: 1 },
     keys,
     aiLevel: 4,
-    motif: { value: () => undefined, section: () => undefined, localCoord: [320, 240], backgrounds: new Map(), assets: {}, fonts: [], snd: undefined },
+    motif: {
+      value: () => undefined,
+      section: () => undefined,
+      localCoord: [320, 240],
+      backgrounds: new Map(),
+      assets: {},
+      fonts: [],
+      snd: undefined,
+    },
   };
   const scr = new OptionsScreen(ctx as never, font as never, opts);
   const tick = (pad = 0, bit = 0, key?: string) => {
@@ -117,7 +177,14 @@ describe('options values', () => {
     expect(again.time).toBe(-1);
     expect(again.wavVolume).toBe(40);
     // a storage that throws is ignored
-    const bad = { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); } };
+    const bad = {
+      getItem: () => {
+        throw new Error('denied');
+      },
+      setItem: () => {
+        throw new Error('denied');
+      },
+    };
     const o2 = new GameOptions(CFG, bad).init();
     expect(o2.difficulty).toBe(4);
     expect(o2.save()).toBe(false);
@@ -204,8 +271,32 @@ describe('key maps', () => {
   it('default play is the fixed maps input.ts always had', () => {
     const { kb, send } = held();
     const old: Record<string, number>[] = [
-      { ArrowUp: IN_U, ArrowDown: IN_D, ArrowLeft: IN_L, ArrowRight: IN_R, KeyA: IN_X, KeyS: IN_Y, KeyD: IN_Z, KeyZ: IN_A, KeyX: IN_B, KeyC: IN_C, Enter: IN_S },
-      { KeyI: IN_U, KeyK: IN_D, KeyJ: IN_L, KeyL: IN_R, KeyU: IN_X, KeyO: IN_Y, KeyP: IN_Z, KeyM: IN_A, Comma: IN_B, Period: IN_C, Backspace: IN_S },
+      {
+        ArrowUp: IN_U,
+        ArrowDown: IN_D,
+        ArrowLeft: IN_L,
+        ArrowRight: IN_R,
+        KeyA: IN_X,
+        KeyS: IN_Y,
+        KeyD: IN_Z,
+        KeyZ: IN_A,
+        KeyX: IN_B,
+        KeyC: IN_C,
+        Enter: IN_S,
+      },
+      {
+        KeyI: IN_U,
+        KeyK: IN_D,
+        KeyJ: IN_L,
+        KeyL: IN_R,
+        KeyU: IN_X,
+        KeyO: IN_Y,
+        KeyP: IN_Z,
+        KeyM: IN_A,
+        Comma: IN_B,
+        Period: IN_C,
+        Backspace: IN_S,
+      },
     ];
     old.forEach((m, side) => {
       for (const [code, bit] of Object.entries(m)) {
@@ -577,7 +668,17 @@ describe('options fades (FADE_PALETTE)', () => {
     const { r, calls } = recorder();
     const glyph = { sprite: {}, width: 4 };
     const ttf = { trueType: true, height: 10, offset: [0, 0], spaceWidth: 4, spacing: [0, 0], glyph: () => glyph };
-    const bitmap = { trueType: false, height: 10, offset: [0, 0], spaceWidth: 4, spacing: [0, 0], glyph: () => glyph, palette: () => undefined, banks: 1, bankType: '' };
+    const bitmap = {
+      trueType: false,
+      height: 10,
+      offset: [0, 0],
+      spaceWidth: 4,
+      spacing: [0, 0],
+      glyph: () => glyph,
+      palette: () => undefined,
+      banks: 1,
+      bankType: '',
+    };
     r.tint = [0.5, 0.5, 0.5];
     fontDrawText(r as never, ttf as never, 'a', 0, 0, 1, [0x100, 0x100, 0x100]);
     expect(calls.pop()).toEqual({ kind: 'sprite', tint: undefined });

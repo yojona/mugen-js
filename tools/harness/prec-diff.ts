@@ -16,7 +16,16 @@ for (const l of ours) {
   const v = l.split('|')[2]!.split(',').map(Number);
   const m = rows.get(v[0]!);
   if (!m) continue;
-  for (const [i, name] of [[6, 'p1.x'], [7, 'p1.y'], [8, 'p1.vx'], [9, 'p1.vy'], [13, 'p2.x'], [14, 'p2.y'], [15, 'p2.vx'], [16, 'p2.vy']] as const) {
+  for (const [i, name] of [
+    [6, 'p1.x'],
+    [7, 'p1.y'],
+    [8, 'p1.vx'],
+    [9, 'p1.vy'],
+    [13, 'p2.x'],
+    [14, 'p2.y'],
+    [15, 'p2.vx'],
+    [16, 'p2.vy'],
+  ] as const) {
     const d = Math.abs(m[i]! - v[i]! * 2);
     if (d > 1e-9) {
       console.log(`frame ${v[0]} ${name} mugen ${m[i]} ours ${v[i]! * 2} st ${m[3]}/${m[10]}`);

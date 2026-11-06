@@ -66,7 +66,10 @@ export class AnimPlayer {
   elemTime = 0;
   private t: Timing;
 
-  constructor(public anim: Animation, startElem = 0) {
+  constructor(
+    public anim: Animation,
+    startElem = 0,
+  ) {
     this.t = timing(anim);
     this.set(anim, startElem);
   }

@@ -98,7 +98,9 @@ export async function loadAssets(vfs: Vfs, motif: Motif, options: { noTtf?: bool
       return path;
     }
   }
-  const stagePaths = [...new Set([...roster.chars.filter((c) => c.stage && c.includeStage).map((c) => c.stage!), ...roster.extraStages])].filter((p) => vfs.resolve(p));
+  const stagePaths = [
+    ...new Set([...roster.chars.filter((c) => c.stage && c.includeStage).map((c) => c.stage!), ...roster.extraStages]),
+  ].filter((p) => vfs.resolve(p));
   const stages = await Promise.all(stagePaths.map(async (p) => ({ path: vfs.resolve(p)!, name: await stageName(vfs.resolve(p)!) })));
 
   options.onProgress?.({ phase: 'hud' });
@@ -112,7 +114,10 @@ export async function loadAssets(vfs: Vfs, motif: Motif, options: { noTtf?: bool
     scale: parseFloat(getValue(findSection(fightDoc, 'FightFx'), 'scale') ?? '1') || 1,
     motifWidth: motif.localCoord[0],
   };
-  const commonSnd: Snd | undefined = await vfs.read(ff('common.snd', 'common.snd'), fightDir, 'data').then(parseSnd).catch(() => undefined);
+  const commonSnd: Snd | undefined = await vfs
+    .read(ff('common.snd', 'common.snd'), fightDir, 'data')
+    .then(parseSnd)
+    .catch(() => undefined);
 
   // mugen.exe's system font for the continue screen (G+0x873c).
   const systemFont = await loadFont(vfs, 'font/f-6x9.def').catch(() => undefined);
@@ -121,7 +126,9 @@ export async function loadAssets(vfs: Vfs, motif: Motif, options: { noTtf?: bool
   async function getOptionsFont(): Promise<Font | undefined> {
     // noTtf: as if the truetype file were missing (the harness's Wine has no
     // arial.ttf, so mugen.exe falls back to the medium font there).
-    optionsFont ??= options.noTtf ? systemFont : await loadFontSized(vfs, 'font/options.def', optionsFontHeight(OPTIONS_GAME_SIZE[1])).catch(() => systemFont);
+    optionsFont ??= options.noTtf
+      ? systemFont
+      : await loadFontSized(vfs, 'font/options.def', optionsFontHeight(OPTIONS_GAME_SIZE[1])).catch(() => systemFont);
     return optionsFont;
   }
 

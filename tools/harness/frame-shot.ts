@@ -13,7 +13,19 @@ if (!out || !query) throw new Error('usage: frame-shot.ts out.png query');
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const port = 9333 + Math.floor(Math.random() * 500);
 const profile = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'shot-chrome-'));
-const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--window-size=1280,960', 'about:blank'], { stdio: 'ignore' });
+const chrome = spawn(
+  CHROME,
+  [
+    '--headless=new',
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${profile}`,
+    '--use-angle=swiftshader',
+    '--enable-unsafe-swiftshader',
+    '--window-size=1280,960',
+    'about:blank',
+  ],
+  { stdio: 'ignore' },
+);
 
 async function json(path: string, method = 'GET'): Promise<any> {
   for (let i = 0; i < 100; i++) {
@@ -60,7 +72,10 @@ try {
     }
   }
   // The WebGL buffer is not preserved: capture the page over the canvas.
-  const rect = await call('Runtime.evaluate', { expression: "(() => { const b = document.getElementById('screen').getBoundingClientRect(); return [b.x, b.y, b.width, b.height]; })()", returnByValue: true });
+  const rect = await call('Runtime.evaluate', {
+    expression: "(() => { const b = document.getElementById('screen').getBoundingClientRect(); return [b.x, b.y, b.width, b.height]; })()",
+    returnByValue: true,
+  });
   const [x, y, width, height] = rect.result.value;
   const shot = await call('Page.captureScreenshot', { format: 'png', clip: { x, y, width, height, scale: 1 } });
   writeFileSync(out, Buffer.from(shot.data, 'base64'));

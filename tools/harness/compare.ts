@@ -3,11 +3,32 @@
 
 /** Fields the probe CNS captures (overlay/chars/probe/probe.st). */
 const VARS: Record<number, string> = {
-  40: 'stateno', 41: 'prevstateno', 42: 'anim', 43: 'animtime', 44: 'animelemno', 45: 'time', 46: 'ctrl',
-  47: 'statetype', 48: 'movetype', 49: 'life', 50: 'power', 51: 'facing', 52: 'hitpausetime', 53: 'movecontact',
-  54: 'hitshake/hitover', 58: 'clock',
+  40: 'stateno',
+  41: 'prevstateno',
+  42: 'anim',
+  43: 'animtime',
+  44: 'animelemno',
+  45: 'time',
+  46: 'ctrl',
+  47: 'statetype',
+  48: 'movetype',
+  49: 'life',
+  50: 'power',
+  51: 'facing',
+  52: 'hitpausetime',
+  53: 'movecontact',
+  54: 'hitshake/hitover',
+  58: 'clock',
 };
-const FVARS: Record<number, string> = { 30: 'pos x', 31: 'pos y', 32: 'vel x', 33: 'vel y', 34: 'screenpos x', 35: 'p2dist x', 36: 'camerapos x' };
+const FVARS: Record<number, string> = {
+  30: 'pos x',
+  31: 'pos y',
+  32: 'vel x',
+  33: 'vel y',
+  34: 'screenpos x',
+  35: 'p2dist x',
+  36: 'camerapos x',
+};
 
 export interface Row {
   v: number[];

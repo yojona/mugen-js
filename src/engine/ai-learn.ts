@@ -72,12 +72,14 @@ const tpInit = (t: number, dx: number, dy: number): TimePos => ({ time: stat(t),
  */
 export function parseAiFile(buf: Uint8Array): { sc: RecordTable; air: RecordTable } | undefined {
   const v = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-  if (buf.byteLength < 0x40 || new TextDecoder().decode(buf.subarray(0, 11)) !== 'ElecbyteAIB' || v.getInt32(0xc, true) !== 0x100) return undefined;
+  if (buf.byteLength < 0x40 || new TextDecoder().decode(buf.subarray(0, 11)) !== 'ElecbyteAIB' || v.getInt32(0xc, true) !== 0x100)
+    return undefined;
   const ST = ['', 's', 'c', 'a', 'l'];
   const MT = ['i', 'a', 'h'];
   const stat = (o: number): Stat => ({ mean: v.getFloat32(o, true), dev: v.getFloat32(o + 12, true) });
   const tpAt = (o: number): TimePos => ({ time: stat(o), dx: stat(o + 0x10), dy: stat(o + 0x20) });
-  const box = (o: number): BoxStat => (v.getFloat32(o, true) === -3.4028234663852886e38 ? null : [stat(o), stat(o + 0x10), stat(o + 0x20), stat(o + 0x30)]);
+  const box = (o: number): BoxStat =>
+    v.getFloat32(o, true) === -3.4028234663852886e38 ? null : [stat(o), stat(o + 0x10), stat(o + 0x20), stat(o + 0x30)];
   const tables = [new Map(), new Map()] as [RecordTable, RecordTable];
   let o = 0x40;
   for (const t of tables) {
@@ -90,7 +92,12 @@ export function parseAiFile(buf: Uint8Array): { sc: RecordTable; air: RecordTabl
       const count = Math.min(32, v.getInt32(o + 0x200, true));
       for (let e = 0; e < count; e++) {
         const b = o + e * 16;
-        r.entries.push({ stateNo: v.getInt32(b, true), stateType: ST[v.getInt32(b + 4, true)] ?? '', moveType: MT[v.getInt32(b + 8, true)] ?? 'i', ctrl: v.getInt32(b + 12, true) !== 0 });
+        r.entries.push({
+          stateNo: v.getInt32(b, true),
+          stateType: ST[v.getInt32(b + 4, true)] ?? '',
+          moveType: MT[v.getInt32(b + 8, true)] ?? 'i',
+          ctrl: v.getInt32(b + 12, true) !== 0,
+        });
       }
       r.stateNo = v.getInt32(o + 0x204, true);
       r.stateType = ST[v.getInt32(o + 0x208, true)] ?? '';
@@ -571,7 +578,14 @@ export function attackWouldHit(def: Player, att: Player, rec: AttackRecord | nul
  * 0x479b80: does any box of A, offset by (dx, dy), touch a box of P? Boxes
  * of a player facing left are mirrored; edges count (inclusive compares).
  */
-export function boxListsOverlap(flipP: boolean, flipA: boolean, listP: readonly Box4[], listA: readonly Box4[], dx: number, dy: number): boolean {
+export function boxListsOverlap(
+  flipP: boolean,
+  flipA: boolean,
+  listP: readonly Box4[],
+  listA: readonly Box4[],
+  dx: number,
+  dy: number,
+): boolean {
   for (const a of listP) {
     const ax1 = flipP ? -a[2] : a[0];
     const ax2 = flipP ? -a[0] : a[2];

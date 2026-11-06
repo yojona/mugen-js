@@ -79,7 +79,28 @@ function params(c: ControllerDef, env: TriggerEnv<P>) {
     return v === undefined ? undefined : toInt(v);
   };
   // Validate expressions eagerly.
-  for (const k of ['id', 'pos', 'facing', 'vfacing', 'bindid', 'bindtime', 'vel', 'accel', 'removetime', 'scale', 'angle', 'sprpriority', 'ontop', 'ownpal', 'removeongethit', 'ignorehitpause', 'random', 'supermovetime', 'supermove', 'pausemovetime']) {
+  for (const k of [
+    'id',
+    'pos',
+    'facing',
+    'vfacing',
+    'bindid',
+    'bindtime',
+    'vel',
+    'accel',
+    'removetime',
+    'scale',
+    'angle',
+    'sprpriority',
+    'ontop',
+    'ownpal',
+    'removeongethit',
+    'ignorehitpause',
+    'random',
+    'supermovetime',
+    'supermove',
+    'pausemovetime',
+  ]) {
     if (c.params.has(k)) list(k);
   }
   return { list, num, int, has: (k: string) => c.params.has(k), raw: (k: string) => c.params.get(k)?.trim() };
@@ -212,7 +233,11 @@ export function transBlend(raw: string): Blend {
  * screen position as its offset and, while bound, adds the stage position
  * on top (the reference does the same).
  */
-function explodOrigin(p: P, posType: string, space: Explod['space']): { x: number; y: number; ox: number; oy: number; dir: number; bindTo: P | undefined } {
+function explodOrigin(
+  p: P,
+  posType: string,
+  space: Explod['space'],
+): { x: number; y: number; ox: number; oy: number; dir: number; bindTo: P | undefined } {
   const w = p.world;
   const zero = { x: 0, y: 0, ox: 0, oy: 0 };
   switch (posType) {
@@ -220,7 +245,13 @@ function explodOrigin(p: P, posType: string, space: Explod['space']): { x: numbe
     case 'p2': {
       const ref = posType === 'p1' ? p : (w.enemyOf(p) ?? p);
       if (space === 'screen') {
-        return { ...zero, ox: ref.wx - (w.camera.x - w.screenWidth / 2), oy: w.groundY + ref.wy - w.camera.y - (w.shakeBase + w.cropTop), dir: ref.facing, bindTo: ref };
+        return {
+          ...zero,
+          ox: ref.wx - (w.camera.x - w.screenWidth / 2),
+          oy: w.groundY + ref.wy - w.camera.y - (w.shakeBase + w.cropTop),
+          dir: ref.facing,
+          bindTo: ref,
+        };
       }
       return { ...zero, x: ref.wx, y: ref.wy, dir: ref.facing, bindTo: ref };
     }
@@ -248,7 +279,8 @@ export function compileModifyExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P
     for (const e of p.world.explods) {
       if (e.owner !== p || e.system || (id !== -1 && e.id !== id)) continue;
       const sc = p.scale;
-      const v2 = (k: string, unit = sc): [number, number] | undefined => (prm.has(k) ? [(prm.num(p, k, 0) ?? 0) * unit, (prm.num(p, k, 1) ?? 0) * unit] : undefined);
+      const v2 = (k: string, unit = sc): [number, number] | undefined =>
+        prm.has(k) ? [(prm.num(p, k, 0) ?? 0) * unit, (prm.num(p, k, 1) ?? 0) * unit] : undefined;
       // explod.c: position, velocity, acceleration, facing and the random
       // offset are only re-set when postype is given (two draws as for an
       // Explod); scale, angle, times and the rest always apply.
@@ -312,7 +344,16 @@ export function compileGameMakeAnim(c: ControllerDef, env: TriggerEnv<P>): (p: P
     const a = p.world.fightFx?.anims.get(prm.int(p, 'value') ?? 0);
     if (!a) return;
     const under = (prm.int(p, 'under') ?? 0) !== 0;
-    p.world.explods.push(simpleExplod(p, a, true, p.wx + (prm.num(p, 'pos', 0) ?? 0) * p.facing * p.scale, p.wy + (prm.num(p, 'pos', 1) ?? 0) * p.scale, under ? -10 : 10));
+    p.world.explods.push(
+      simpleExplod(
+        p,
+        a,
+        true,
+        p.wx + (prm.num(p, 'pos', 0) ?? 0) * p.facing * p.scale,
+        p.wy + (prm.num(p, 'pos', 1) ?? 0) * p.scale,
+        under ? -10 : 10,
+      ),
+    );
   };
 }
 
@@ -331,16 +372,51 @@ export function compileMakeDust(c: ControllerDef, env: TriggerEnv<P>): (p: P) =>
       // from the shared generator (measured: KFM's hop-back landing, 106).
       const jx = p.world.random(3) - 1;
       const jy = p.world.random(3) - 1;
-      p.world.explods.push(simpleExplod(p, a, true, p.wx + (prm.num(p, k, 0) ?? 0) * p.facing * p.scale + jx, p.wy + (prm.num(p, k, 1) ?? 0) * p.scale + jy, 0));
+      p.world.explods.push(
+        simpleExplod(
+          p,
+          a,
+          true,
+          p.wx + (prm.num(p, k, 0) ?? 0) * p.facing * p.scale + jx,
+          p.wy + (prm.num(p, k, 1) ?? 0) * p.scale + jy,
+          0,
+        ),
+      );
     }
   };
 }
 
 export function simpleExplod(p: P, a: Animation, common: boolean, x: number, y: number, sprPriority: number, facing = p.facing): Explod {
   return {
-    owner: p, id: -1, anim: new AnimPlayer(a), common, space: 'stage', x, y, facing, vfacing: 1, bindTo: undefined, bindTime: 0, bindOffset: [0, 0],
-    vel: [0, 0], velDir: facing, accel: [0, 0], removeTime: -2, age: 0, scale: [1, 1], angle: 0, sprPriority, onTop: false, ownPal: true, removeOnGetHit: false, shadow: false,
-    ignoreHitPause: true, trans: undefined, superMoveTime: 0, pauseMoveTime: 0, drawScale: common ? p.world.fightFxScale : p.scale,
+    owner: p,
+    id: -1,
+    anim: new AnimPlayer(a),
+    common,
+    space: 'stage',
+    x,
+    y,
+    facing,
+    vfacing: 1,
+    bindTo: undefined,
+    bindTime: 0,
+    bindOffset: [0, 0],
+    vel: [0, 0],
+    velDir: facing,
+    accel: [0, 0],
+    removeTime: -2,
+    age: 0,
+    scale: [1, 1],
+    angle: 0,
+    sprPriority,
+    onTop: false,
+    ownPal: true,
+    removeOnGetHit: false,
+    shadow: false,
+    ignoreHitPause: true,
+    trans: undefined,
+    superMoveTime: 0,
+    pauseMoveTime: 0,
+    drawScale: common ? p.world.fightFxScale : p.scale,
   };
 }
 

@@ -10,7 +10,16 @@ import { BOTTOM, compileExpr, compileExprList, R, toInt, type Fn, type TriggerEn
 import type { ControllerDef } from './cns';
 import { compileHitDef, parseAttrList } from './hitdef';
 import { attrBits } from './ai-learn';
-import { compileExplod, compileExplodBindTime, compileGameMakeAnim, compileMakeDust, compileModifyExplod, compileRemoveExplod, simpleExplod, transBlend } from './explod';
+import {
+  compileExplod,
+  compileExplodBindTime,
+  compileGameMakeAnim,
+  compileMakeDust,
+  compileModifyExplod,
+  compileRemoveExplod,
+  simpleExplod,
+  transBlend,
+} from './explod';
 import { makeEnvShake, newAfterImage, startAfterImage, type PalFxState } from './fx';
 import { compileBindTo, compileDestroySelf, compileHelper, compileParentVar } from './helper';
 import { compileProjectile } from './projectile';
@@ -79,7 +88,19 @@ class Params {
 type Impl = (c: ControllerDef, prm: Params, env: TriggerEnv<P>) => (p: P) => void;
 
 /** AssertSpecial flags kept in GameVars instead of the player. */
-const GLOBAL_ASSERTS = new Set(['intro', 'roundnotover', 'noko', 'nokosnd', 'nokoslow', 'nomusic', 'globalnoshadow', 'timerfreeze', 'nobardisplay', 'nobg', 'nofg']);
+const GLOBAL_ASSERTS = new Set([
+  'intro',
+  'roundnotover',
+  'noko',
+  'nokosnd',
+  'nokoslow',
+  'nomusic',
+  'globalnoshadow',
+  'timerfreeze',
+  'nobardisplay',
+  'nobg',
+  'nofg',
+]);
 
 const IMPLS: Record<string, Impl> = {
   null: () => () => {},
@@ -380,11 +401,14 @@ const IMPLS: Record<string, Impl> = {
   },
 };
 
-
 // ---------------------------------------------------------------------------
 // Effects, pauses, targets and misc controllers.
 
-const v3 = (prm: Params, p: P, k: string, def: [number, number, number]): [number, number, number] => [prm.num(p, k, 0) ?? def[0], prm.num(p, k, 1) ?? def[1], prm.num(p, k, 2) ?? def[2]];
+const v3 = (prm: Params, p: P, k: string, def: [number, number, number]): [number, number, number] => [
+  prm.num(p, k, 0) ?? def[0],
+  prm.num(p, k, 1) ?? def[1],
+  prm.num(p, k, 2) ?? def[2],
+];
 
 function palFxFrom(prm: Params, p: P): PalFxState {
   return {
@@ -486,13 +510,25 @@ const EXTRA: Record<string, Impl> = {
   },
   envshake: (_c, prm) => (p) => {
     const unit = p.scale * (p.world.gameWidth / p.world.screenWidth);
-    p.world.envShake = makeEnvShake(prm.int(p, 'time') ?? 0, prm.num(p, 'freq') ?? 60, prm.num(p, 'ampl') ?? Math.trunc((-4 * p.prog.data.def.localCoord[0]) / 320), prm.num(p, 'phase'), unit);
+    p.world.envShake = makeEnvShake(
+      prm.int(p, 'time') ?? 0,
+      prm.num(p, 'freq') ?? 60,
+      prm.num(p, 'ampl') ?? Math.trunc((-4 * p.prog.data.def.localCoord[0]) / 320),
+      prm.num(p, 'phase'),
+      unit,
+    );
   },
   fallenvshake: () => (p) => {
     const g = p.ghv;
     if (g['fall.envshake.time'] <= 0) return;
     const unit = (p.ghvAttacker ?? p).scale * (p.world.gameWidth / p.world.screenWidth);
-    p.world.envShake = makeEnvShake(g['fall.envshake.time'], g['fall.envshake.freq'], g['fall.envshake.ampl'], g['fall.envshake.phase'], unit);
+    p.world.envShake = makeEnvShake(
+      g['fall.envshake.time'],
+      g['fall.envshake.freq'],
+      g['fall.envshake.ampl'],
+      g['fall.envshake.phase'],
+      unit,
+    );
     g['fall.envshake.time'] = 0;
   },
   pause: (_c, prm) => (p) => {
@@ -527,7 +563,14 @@ const EXTRA: Record<string, Impl> = {
         const a = ownAnim ? p.prog.data.anims.get(animNo) : w.fightFx?.anims.get(animNo);
         if (a) {
           const k = p.scale;
-          const e = simpleExplod(p, a, !ownAnim, p.wx + (prm.num(p, 'pos', 0) ?? 0) * p.facing * k, p.wy + (prm.num(p, 'pos', 1) ?? 0) * k, 5);
+          const e = simpleExplod(
+            p,
+            a,
+            !ownAnim,
+            p.wx + (prm.num(p, 'pos', 0) ?? 0) * p.facing * k,
+            p.wy + (prm.num(p, 'pos', 1) ?? 0) * k,
+            5,
+          );
           e.superMoveTime = -1;
           w.explods.push(e);
         }
@@ -655,8 +698,10 @@ const EXTRA: Record<string, Impl> = {
       const k = w.gameWidth / w.screenWidth;
       // Foot / mid / head offsets in internal units, truncated.
       const tk = t.scale * k;
-      const ox = postype === 1 ? Math.trunc(t.const('size.mid.pos.x') * tk) : postype === 2 ? Math.trunc(t.const('size.head.pos.x') * tk) : 0;
-      const oy = postype === 1 ? Math.trunc(t.const('size.mid.pos.y') * tk) : postype === 2 ? Math.trunc(t.const('size.head.pos.y') * tk) : 0;
+      const ox =
+        postype === 1 ? Math.trunc(t.const('size.mid.pos.x') * tk) : postype === 2 ? Math.trunc(t.const('size.head.pos.x') * tk) : 0;
+      const oy =
+        postype === 1 ? Math.trunc(t.const('size.mid.pos.y') * tk) : postype === 2 ? Math.trunc(t.const('size.head.pos.y') * tk) : 0;
       let time = prm.int(p, 'time') ?? 1;
       if (time < -1) time = 1;
       const pk = p.scale * k;
@@ -793,7 +838,6 @@ const EXTRA: Record<string, Impl> = {
 Object.assign(IMPLS, EXTRA);
 
 let playerEnvRef: TriggerEnv<P> | undefined;
-
 
 /**
  * NotHitBy / HitBy (sctrl.c SCTRL_HITBY): value writes the first attribute

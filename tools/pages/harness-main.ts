@@ -20,7 +20,8 @@ const source: typeof rawSource = selectB64
       ...rawSource,
       list: () => rawSource.list(),
       readRange: rawSource.readRange?.bind(rawSource),
-      read: async (path) => (path.toLowerCase() === 'data/select.def' ? Uint8Array.from(atob(selectB64), (c) => c.charCodeAt(0)) : rawSource.read(path)),
+      read: async (path) =>
+        path.toLowerCase() === 'data/select.def' ? Uint8Array.from(atob(selectB64), (c) => c.charCodeAt(0)) : rawSource.read(path),
     }
   : rawSource;
 
@@ -71,7 +72,7 @@ if (ticksParam) {
   // transitions (promises) settle exactly as they do in real time; then draw.
   const target = parseInt(ticksParam, 10);
   void (async () => {
-    for (let done = 0; done < target; ) {
+    for (let done = 0; done < target;) {
       if (engine.busy) {
         await new Promise((r) => setTimeout(r, 0));
         continue;

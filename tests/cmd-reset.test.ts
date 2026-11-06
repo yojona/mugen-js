@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CommandInput, IN_X, parseCmd } from '../src/engine/cmd';
 
-
 describe('CommandInput.reset', () => {
   it('forgets the command history (Player_Reset every round)', () => {
     const set = parseCmd('[Command]\nname = "x"\ncommand = x\n\n[Command]\nname = "tap"\ncommand = ~x, x\ntime = 30\n');

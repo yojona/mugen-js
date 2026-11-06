@@ -19,13 +19,30 @@ import { Match } from '../../../src/engine/match';
 import { FightHud } from '../../../src/motif/fight';
 
 const KEYS: Record<string, number> = {
-  ArrowUp: IN_U, ArrowDown: IN_D, ArrowLeft: IN_L, ArrowRight: IN_R,
-  KeyA: IN_X, KeyS: IN_Y, KeyD: IN_Z, KeyZ: IN_A, KeyX: IN_B, KeyC: IN_C, Enter: IN_S,
+  ArrowUp: IN_U,
+  ArrowDown: IN_D,
+  ArrowLeft: IN_L,
+  ArrowRight: IN_R,
+  KeyA: IN_X,
+  KeyS: IN_Y,
+  KeyD: IN_Z,
+  KeyZ: IN_A,
+  KeyX: IN_B,
+  KeyC: IN_C,
+  Enter: IN_S,
 };
 // Second player (match mode): I J K L to move, U O P / M , . buttons.
 const KEYS2: Record<string, number> = {
-  KeyI: IN_U, KeyK: IN_D, KeyJ: IN_L, KeyL: IN_R,
-  KeyU: IN_X, KeyO: IN_Y, KeyP: IN_Z, KeyM: IN_A, Comma: IN_B, Period: IN_C,
+  KeyI: IN_U,
+  KeyK: IN_D,
+  KeyJ: IN_L,
+  KeyL: IN_R,
+  KeyU: IN_X,
+  KeyO: IN_Y,
+  KeyP: IN_Z,
+  KeyM: IN_A,
+  Comma: IN_B,
+  Period: IN_C,
 };
 let held = 0;
 let held2 = 0;
@@ -137,8 +154,7 @@ function draw(): void {
     for (const layer of [0, 1, 2]) hud.drawLayer(renderer, match, layer);
     hud.drawAnnouncements(renderer, match);
     hud.drawCombos(renderer);
-  }
-  else drawLifebars();
+  } else drawLifebars();
   playSounds();
   const f = (n: number) => n.toFixed(2);
   info.textContent = [

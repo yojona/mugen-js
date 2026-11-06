@@ -34,7 +34,14 @@ describe('air', () => {
 });
 
 describe('sff', () => {
-  for (const f of ['chars/kfm/kfm.sff', 'chars/kfm720/kfm720.sff', 'data/fight.sff', 'data/system.sff', 'font/num1.sff', 'data/fightfx.sff']) {
+  for (const f of [
+    'chars/kfm/kfm.sff',
+    'chars/kfm720/kfm720.sff',
+    'data/fight.sff',
+    'data/system.sff',
+    'font/num1.sff',
+    'data/fightfx.sff',
+  ]) {
     it(`decodes every sprite in ${f}`, async () => {
       const s = await parseSff(bin(f));
       expect(s.sprites.length).toBeGreaterThan(0);

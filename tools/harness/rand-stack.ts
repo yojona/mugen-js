@@ -18,7 +18,18 @@ World.prototype.tick = function (this: World, inp: number[]) {
 const origRand = World.prototype.random;
 World.prototype.random = function (this: World, n: number) {
   const v = origRand.call(this, n);
-  if (on) console.log('rand', n, '=', v, new Error().stack!.split('\n').slice(2, 5).map((l) => l.trim().replace(/\(.*src\//, '(')).join(' < '));
+  if (on)
+    console.log(
+      'rand',
+      n,
+      '=',
+      v,
+      new Error()
+        .stack!.split('\n')
+        .slice(2, 5)
+        .map((l) => l.trim().replace(/\(.*src\//, '('))
+        .join(' < '),
+    );
   return v;
 };
 await runProbe(Number(process.env.TICKS ?? 9000), { char: 'probeai', seed: 937167434, ai: [4, 4] });

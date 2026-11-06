@@ -194,7 +194,11 @@ export async function loadStage(vfs: Vfs, defPath: string): Promise<Stage> {
  * "bg" for stages, "titlebg" / "selectbg" / ... for motif screens and
  * storyboard layers.
  */
-export function parseBackground(doc: IniDoc, bgdef: Section | undefined, prefix: string): { elements: BgElementDef[]; ctrlDefs: BgCtrlDef[] } {
+export function parseBackground(
+  doc: IniDoc,
+  bgdef: Section | undefined,
+  prefix: string,
+): { elements: BgElementDef[]; ctrlDefs: BgCtrlDef[] } {
   prefix = prefix.toLowerCase();
   const elements: BgElementDef[] = [];
   const ctrlDefs: BgCtrlDef[] = [];
@@ -277,7 +281,9 @@ export function parseBackground(doc: IniDoc, bgdef: Section | undefined, prefix:
 
 function idList(v: string | undefined): number[] | null {
   if (!v) return null;
-  return splitCsv(v).map((x) => parseInt(x, 10)).filter((x) => Number.isFinite(x));
+  return splitCsv(v)
+    .map((x) => parseInt(x, 10))
+    .filter((x) => Number.isFinite(x));
 }
 
 // ---------------------------------------------------------------------------

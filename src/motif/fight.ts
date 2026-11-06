@@ -148,7 +148,13 @@ export class FightHud {
       const p = w.slot(i + 1);
       if (!p) continue;
       const leader = w.slot((i % 2) + 1) ?? p;
-      this.shown[i] = { life: p.lifebarLife, red: p.lifebarRed, max: p.lifeMax, power: p.powerbarPower, powerMax: leader.const('data.power') };
+      this.shown[i] = {
+        life: p.lifebarLife,
+        red: p.lifebarRed,
+        max: p.lifeMax,
+        power: p.powerbarPower,
+        powerMax: leader.const('data.power'),
+      };
       if (simulated) this.tickLife(p);
       if (i < 2) this.tickPower(m, p, simulated);
     }
@@ -277,7 +283,8 @@ export class FightHud {
         if (w.slot(i + 1) && v) this.drawGauge(r, this.lifeSets[sd.kind][i]!, v.life, v.max, v.red, w.slot(i + 1)!.life);
       }
     }
-    for (const k of ['bg0', 'bg1'] as const) for (const sd of sides) this.power[sd.side]![k]?.draw(r, this.power[sd.side]!.pos[0], this.power[sd.side]!.pos[1]);
+    for (const k of ['bg0', 'bg1'] as const)
+      for (const sd of sides) this.power[sd.side]![k]?.draw(r, this.power[sd.side]!.pos[0], this.power[sd.side]!.pos[1]);
     for (const sd of sides) {
       const v = this.barValues(m, sd.side);
       if (w.slot(sd.side + 1) && v) this.drawGauge(r, this.power[sd.side]!, v.power, v.powerMax, undefined);
@@ -428,7 +435,8 @@ export class FightHud {
       // Lifebar_Draw with GameVars.debug: the life at the bar's end and what's still red.
       const font = this.debugFont;
       const k = r.toDevice(1, 0)[0] - r.toDevice(0, 0)[0];
-      const text = (s: string, px: number, align: number, color: [number, number, number] | undefined) => drawText(r, font, s, px / k, y + 5 / k, 0, align, [1 / k, 1 / k], color);
+      const text = (s: string, px: number, align: number, color: [number, number, number] | undefined) =>
+        drawText(r, font, s, px / k, y + 5 / k, 0, align, [1 / k, 1 / k], color);
       const left = rtl ? x2 - showLen + 1 : showLen + x1 - 1;
       text(String(life), left, rtl ? 1 : -1, fontColor(0x80, 0x80, 0));
       if (red - life > 0) {
@@ -439,7 +447,15 @@ export class FightHud {
   }
 
   /** A face: its backgrounds (bg0..bg2) at pos, then the character's face sprite. */
-  private drawFace(r: Renderer, sec: Section | undefined, pre: string, data: import('../engine/character').CharacterData | undefined, px: number | undefined, py: number | undefined, part: 'bg' | 'face'): void {
+  private drawFace(
+    r: Renderer,
+    sec: Section | undefined,
+    pre: string,
+    data: import('../engine/character').CharacterData | undefined,
+    px: number | undefined,
+    py: number | undefined,
+    part: 'bg' | 'face',
+  ): void {
     const [x, y] = px === undefined ? pair(getValue(sec, `${pre}.pos`)) : [px, py!];
     if (part === 'bg') {
       for (const k of ['bg', 'bg0', 'bg1', 'bg2']) {

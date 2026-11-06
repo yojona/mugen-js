@@ -311,7 +311,8 @@ export class GameOptions {
     put('Input', 'P1.Joystick.type', this.input[0]![1]!);
     put('Input', 'P2.Joystick.type', this.input[1]![1]!);
     // Options_SaveKeys: an unused entry is written as 0.
-    const putKeys = (section: string, keys: number[], none: number) => KEY_NAMES.forEach((name, i) => put(section, name, keys[i] === none ? 0 : keys[i]!));
+    const putKeys = (section: string, keys: number[], none: number) =>
+      KEY_NAMES.forEach((name, i) => put(section, name, keys[i] === none ? 0 : keys[i]!));
     putKeys('P1 Keys', this.keys[0]!, KEY_NONE);
     putKeys('P2 Keys', this.keys[1]!, KEY_NONE);
     putKeys('P1 Joystick', this.joyKeys[0]!, JOY_NONE);

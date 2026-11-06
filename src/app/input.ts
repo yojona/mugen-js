@@ -130,29 +130,41 @@ export class Keyboard {
   ) {
     this.setMaps(BROWSER_DEFAULT_KEYS);
     const { signal } = this.listeners;
-    target.addEventListener('keydown', (ev) => {
-      const e = ev as KeyboardEvent;
-      this.onFirstInput?.();
-      if (e.code === 'Escape') this.escapeDown = true;
-      if (!e.repeat) {
-        this.pressQueue.push(e.code);
-        this.queueKey(e.code, 0);
-      }
-      this.held.add(e.code);
-      this.tapped.add(e.code);
-      const shortcut = !this.capture && this.onKeyDown?.(e);
-      if (shortcut || this.keyMap.has(e.code) || (this.capture && !e.metaKey && !e.ctrlKey)) e.preventDefault();
-    }, { signal });
-    target.addEventListener('keyup', (ev) => {
-      const e = ev as KeyboardEvent;
-      if (e.code === 'Escape') this.escapeDown = false;
-      this.queueKey(e.code, KEYBOARD_RELEASE);
-      this.held.delete(e.code);
-    }, { signal });
-    target.addEventListener('blur', () => {
-      this.held.clear();
-      this.escapeDown = false;
-    }, { signal });
+    target.addEventListener(
+      'keydown',
+      (ev) => {
+        const e = ev as KeyboardEvent;
+        this.onFirstInput?.();
+        if (e.code === 'Escape') this.escapeDown = true;
+        if (!e.repeat) {
+          this.pressQueue.push(e.code);
+          this.queueKey(e.code, 0);
+        }
+        this.held.add(e.code);
+        this.tapped.add(e.code);
+        const shortcut = !this.capture && this.onKeyDown?.(e);
+        if (shortcut || this.keyMap.has(e.code) || (this.capture && !e.metaKey && !e.ctrlKey)) e.preventDefault();
+      },
+      { signal },
+    );
+    target.addEventListener(
+      'keyup',
+      (ev) => {
+        const e = ev as KeyboardEvent;
+        if (e.code === 'Escape') this.escapeDown = false;
+        this.queueKey(e.code, KEYBOARD_RELEASE);
+        this.held.delete(e.code);
+      },
+      { signal },
+    );
+    target.addEventListener(
+      'blur',
+      () => {
+        this.held.clear();
+        this.escapeDown = false;
+      },
+      { signal },
+    );
   }
 
   /** Removes the event listeners. */

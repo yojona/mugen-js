@@ -19,7 +19,14 @@ World.prototype.tick = function (this: World, inp: number[]) {
   orig.call(this, inp);
   const c = this.players[0]!.vars[58]!;
   const r = ref.get(c);
-  const ai = this.players[1]!.ai as unknown as { state: number; stateTime: number; watching: boolean; watchTime: number; cooldown: number; watchRec: { total: { mean: number }; hit: { time: { mean: number } }[] } | null };
+  const ai = this.players[1]!.ai as unknown as {
+    state: number;
+    stateTime: number;
+    watching: boolean;
+    watchTime: number;
+    cooldown: number;
+    watchRec: { total: { mean: number }; hit: { time: { mean: number } }[] } | null;
+  };
   if (!r || !ai || shown > 8) return;
   const ours = [ai.state, ai.stateTime, ai.watching ? 1 : 0, ai.watchTime, ai.cooldown];
   const theirs = [r[0], r[1], r[3], r[4], r[5]];

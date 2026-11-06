@@ -56,7 +56,8 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
   // every player's but the pauser's by 1/2 (blue 3/4).
   const pauser = w.darkened ? w.superPause!.owner : undefined;
   const dimBg = pauser ? DARKEN_BG : undefined;
-  const dimOf = (owner: Player | undefined): [number, number, number] | undefined => (pauser && owner !== pauser ? DARKEN_PLAYER : undefined);
+  const dimOf = (owner: Player | undefined): [number, number, number] | undefined =>
+    pauser && owner !== pauser ? DARKEN_PLAYER : undefined;
   const tinted = (t: [number, number, number] | undefined, f: () => void) => {
     r.tint = t;
     f();
@@ -81,7 +82,17 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
   const list: Drawable[] = [];
   const top: Drawable[] = [];
   let order = 0;
-  const sprite = (s: Sprite | undefined, palette: Uint8Array | undefined, x: number, y: number, scaleX: number, scaleY: number, angle: number, blend: Blend, palfx?: PalFx) => {
+  const sprite = (
+    s: Sprite | undefined,
+    palette: Uint8Array | undefined,
+    x: number,
+    y: number,
+    scaleX: number,
+    scaleY: number,
+    angle: number,
+    blend: Blend,
+    palfx?: PalFx,
+  ) => {
     if (!s) return;
     r.draw({ sprite: s, palette, x, y, scaleX, scaleY, angle, blend, palfx });
   };
@@ -101,18 +112,33 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
     list.push({
       priority: pr.sprPriority,
       order: order++,
-      draw: () => tinted(dimOf(pr.owner), () => {
-        const v = pr.anim.view();
-        if (!v || v.element.group < 0) return;
-        const o = pr.owner;
-        const s = o.prog.data.sff.get(v.element.group, v.element.number);
-        sprite(s, s ? o.prog.data.paletteFor(s, o.palRemap ?? o.palNo) : undefined, sx(pr.x + pr.facing * v.x * pr.scale[0]), sy(pr.y + v.y * pr.scale[1]), pr.facing * (v.element.flipH ? -1 : 1) * v.scaleX * pr.scale[0], (v.element.flipV ? -1 : 1) * v.scaleY * pr.scale[1], pr.facing * v.angle, v.blend, palFxUniforms(o.palFx));
-      }),
+      draw: () =>
+        tinted(dimOf(pr.owner), () => {
+          const v = pr.anim.view();
+          if (!v || v.element.group < 0) return;
+          const o = pr.owner;
+          const s = o.prog.data.sff.get(v.element.group, v.element.number);
+          sprite(
+            s,
+            s ? o.prog.data.paletteFor(s, o.palRemap ?? o.palNo) : undefined,
+            sx(pr.x + pr.facing * v.x * pr.scale[0]),
+            sy(pr.y + v.y * pr.scale[1]),
+            pr.facing * (v.element.flipH ? -1 : 1) * v.scaleX * pr.scale[0],
+            (v.element.flipV ? -1 : 1) * v.scaleY * pr.scale[1],
+            pr.facing * v.angle,
+            v.blend,
+            palFxUniforms(o.palFx),
+          );
+        }),
     });
   }
 
   for (const e of w.explods) {
-    const d: Drawable = { priority: e.sprPriority, order: order++, draw: () => tinted(e.common ? dimBg : dimOf(e.owner), () => drawExplod(e)) };
+    const d: Drawable = {
+      priority: e.sprPriority,
+      order: order++,
+      draw: () => tinted(e.common ? dimBg : dimOf(e.owner), () => drawExplod(e)),
+    };
     // explod.c: only ontop leaves the sprite queue; a screen-space explod sorts by priority too.
     if (e.onTop) top.push(d);
     else list.push(d);
@@ -127,7 +153,15 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
       list.push({
         priority: Math.min(f.layer, p.sprPriority) - 1 - ai.k,
         order: order++,
-        draw: () => tinted(dimOf(p), () => sprite(f.sprite, f.palette, sx(f.x), sy(f.y), f.scaleX, f.scaleY, f.angle, p.afterImage.blend, { add: ai.add, mul: ai.mul, color: ai.color, invertAll: ai.invertAll })),
+        draw: () =>
+          tinted(dimOf(p), () =>
+            sprite(f.sprite, f.palette, sx(f.x), sy(f.y), f.scaleX, f.scaleY, f.angle, p.afterImage.blend, {
+              add: ai.add,
+              mul: ai.mul,
+              color: ai.color,
+              invertAll: ai.invertAll,
+            }),
+          ),
       });
     }
   }
@@ -152,7 +186,11 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
       s,
       s ? p.prog.data.paletteFor(s, p.palRemap ?? p.palNo) : undefined,
       // Player_Draw: a player shaking from a hit moves a 320th of the screen on odd ticks.
-      sx(p.clsnX + p.facing * v.x * k * ownerAnimScale(p)[0] + (p.moveType === 'h' && p.ghv.hitshaketime > 0 ? (w.screenWidth / 320) * (p.time % 2) * p.facing : 0)),
+      sx(
+        p.clsnX +
+          p.facing * v.x * k * ownerAnimScale(p)[0] +
+          (p.moveType === 'h' && p.ghv.hitshaketime > 0 ? (w.screenWidth / 320) * (p.time % 2) * p.facing : 0),
+      ),
       sy(p.clsnY + v.y * k * ownerAnimScale(p)[1]),
       p.facing * (v.element.flipH ? -1 : 1) * v.scaleX * p.drawScale[0] * p.const('size.xscale') * k,
       (v.element.flipV ? -1 : 1) * v.scaleY * p.drawScale[1] * p.const('size.yscale') * k,
@@ -174,7 +212,17 @@ export function drawScene(r: Renderer, w: World, opts: SceneOptions = {}): void 
     const x = e.space === 'screen' ? e.x : sx(e.x);
     const y = e.space === 'screen' ? e.y : sy(e.y);
     const k = e.drawScale;
-    sprite(s, palette, x + e.facing * v.x * k * e.scale[0], y + e.vfacing * v.y * k * e.scale[1], e.facing * (v.element.flipH ? -1 : 1) * v.scaleX * e.scale[0] * k, e.vfacing * (v.element.flipV ? -1 : 1) * v.scaleY * e.scale[1] * k, e.facing * (v.angle + e.angle), e.trans ?? v.blend, fx);
+    sprite(
+      s,
+      palette,
+      x + e.facing * v.x * k * e.scale[0],
+      y + e.vfacing * v.y * k * e.scale[1],
+      e.facing * (v.element.flipH ? -1 : 1) * v.scaleX * e.scale[0] * k,
+      e.vfacing * (v.element.flipV ? -1 : 1) * v.scaleY * e.scale[1] * k,
+      e.facing * (v.angle + e.angle),
+      e.trans ?? v.blend,
+      fx,
+    );
   }
 }
 
@@ -327,4 +375,3 @@ function drawShadows(r: Renderer, w: World, sx: (x: number) => number, sy: (y: n
     });
   }
 }
-

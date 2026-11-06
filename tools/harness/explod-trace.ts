@@ -22,8 +22,10 @@ const hud = await FightHud.load(vfs, 'data/fight.def');
 const w = new World();
 w.applyStage(stage.info);
 w.fightFx = { anims: parseAir(await vfs.text('data/fightfx.air')), sff: await parseSff(await vfs.read('data/fightfx.sff')) };
-const p1 = new Player(prog1, w, 0), p2 = new Player(prog2, w, 1);
-p2.palNo = 2; w.players.push(p1, p2);
+const p1 = new Player(prog1, w, 0),
+  p2 = new Player(prog2, w, 1);
+p2.palNo = 2;
+w.players.push(p1, p2);
 [p1, p2].forEach((p) => (p.ai = new MugenAI(p, 4)));
 const m = new Match(w, hud.roundConfig(), [
   { x: stage.info.p1.x, y: stage.info.p1.y, facing: stage.info.p1.facing },
@@ -34,5 +36,8 @@ const [from, to] = process.argv.slice(2).map(Number);
 for (let i = 1; i <= to!; i++) {
   const go = m.tick();
   if (go) w.tick([0, 0]);
-  if (i >= from!) console.log(`EX ${i} ${w.roundState} ${w.explods.length} ${w.explods.map((e) => `${e.owner.name[0]}${e.id}:${e.age}/${e.removeTime}/${e.anim.totalTime}${e.common ? "F" : ""}`).join(",")} ${go ? '' : 'skip'} ${w.superPause ? 'SP' : w.pause ? 'P' : ''}`);
+  if (i >= from!)
+    console.log(
+      `EX ${i} ${w.roundState} ${w.explods.length} ${w.explods.map((e) => `${e.owner.name[0]}${e.id}:${e.age}/${e.removeTime}/${e.anim.totalTime}${e.common ? 'F' : ''}`).join(',')} ${go ? '' : 'skip'} ${w.superPause ? 'SP' : w.pause ? 'P' : ''}`,
+    );
 }

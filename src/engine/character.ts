@@ -31,11 +31,15 @@ export async function loadCharacter(vfs: Vfs, defPath: string): Promise<Characte
   const [sff, anims, snd] = await Promise.all([
     vfs.read(f.sprite, dir).then(parseSff),
     vfs.text(f.anim, dir).then(parseAir),
-    f.sound ? vfs.read(f.sound, dir).then(parseSnd).catch(() => undefined) : Promise.resolve(undefined),
+    f.sound
+      ? vfs
+          .read(f.sound, dir)
+          .then(parseSnd)
+          .catch(() => undefined)
+      : Promise.resolve(undefined),
   ]);
 
   return withPalettes(vfs, defPath, dir, def, sff, anims, snd);
-
 }
 
 /**
@@ -43,7 +47,11 @@ export async function loadCharacter(vfs: Vfs, defPath: string): Promise<Characte
  * the given sprites (portraits), read by ranges from the SFF. Animations and
  * sounds are left for loadCharacter when the character is picked.
  */
-export async function loadCharacterPreview(vfs: Vfs, defPath: string, sprites: readonly (readonly [number, number])[]): Promise<CharacterData> {
+export async function loadCharacterPreview(
+  vfs: Vfs,
+  defPath: string,
+  sprites: readonly (readonly [number, number])[],
+): Promise<CharacterData> {
   const dir = dirname(defPath);
   const def = parseCharDef(await vfs.text(defPath));
   const f = def.files;
@@ -54,7 +62,15 @@ export async function loadCharacterPreview(vfs: Vfs, defPath: string, sprites: r
   return c;
 }
 
-async function withPalettes(vfs: Vfs, defPath: string, dir: string, def: CharDef, sff: Sff, anims: AnimationMap, snd: Snd | undefined): Promise<CharacterData> {
+async function withPalettes(
+  vfs: Vfs,
+  defPath: string,
+  dir: string,
+  def: CharDef,
+  sff: Sff,
+  anims: AnimationMap,
+  snd: Snd | undefined,
+): Promise<CharacterData> {
   const f = def.files;
   // Palette slots: ACT files from the def take priority, then SFF v2 palettes 1,n.
   const palettes: (Uint8Array | undefined)[] = [];

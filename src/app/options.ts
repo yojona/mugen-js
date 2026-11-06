@@ -243,7 +243,8 @@ export function fontDrawText(r: Renderer, font: Font, text: string, x: number, y
     return;
   }
   // Glyphs at the advances of the string's prefixes (the browser lays the line out as SDL_ttf would).
-  const advance = (t: string) => (font.measure ? Math.round(font.measure(t)) : [...t].reduce((a, ch) => a + (font.glyph(ch)?.width ?? font.spaceWidth), 0));
+  const advance = (t: string) =>
+    font.measure ? Math.round(font.measure(t)) : [...t].reduce((a, ch) => a + (font.glyph(ch)?.width ?? font.spaceWidth), 0);
   const w = advance(text);
   const x0 = Math.trunc(align === ALIGN_LEFT ? x : align === ALIGN_RIGHT ? x - w + 1 : x - w * 0.5) + font.offset[0];
   const mul = rgb.map((c) => Math.min(c, 0xff) / 255) as Rgb;
@@ -463,7 +464,8 @@ export class KeyConfig {
     const py = boxY - lineGap + lineH;
     fontDrawText(r, font, 'PLAYER 1', Math.trunc(boxW / 4) + boxX, py, ALIGN_CENTER, [0x80, 0x100, 0x100]);
     fontDrawText(r, font, 'PLAYER 2', Math.trunc((boxW * 3) / 4) + boxX, py, ALIGN_CENTER, [0x100, 0x80, 0x80]);
-    const help = ticks % 450 < 150 ? 'Press a key to assign to entry' : ticks % 450 < 300 ? 'Press spacebar to disable entry' : 'Press esc to cancel';
+    const help =
+      ticks % 450 < 150 ? 'Press a key to assign to entry' : ticks % 450 < 300 ? 'Press spacebar to disable entry' : 'Press esc to cancel';
     const helpY = rowH * 15 + boxY + lineH;
     if (state === 1) fontDrawText(r, font, help, boxX, helpY, ALIGN_LEFT, [0xc0, 0xc0, 0xc0]);
     else if (state === 2) fontDrawText(r, font, help, boxX + boxW, helpY, ALIGN_RIGHT, [0xc0, 0xc0, 0xc0]);
@@ -940,7 +942,7 @@ export class OptionsScreen implements Screen {
     } else fontDrawText(r, font, title, Math.trunc(W / 2), boxY - 30, ALIGN_CENTER, [0x100, 0x100, 0x100]);
 
     // items: one column, or one per player in the input menu
-    for (let col = 0; ; ) {
+    for (let col = 0; ;) {
       const x0 = Math.trunc((col * boxW) / 2) + boxX;
       const widthDiv = (this.columns !== 1 ? 1 : 0) + 1;
       let gaps = 0;
@@ -1013,7 +1015,15 @@ export class OptionsScreen implements Screen {
         return;
       }
       if (item === OPTIONS_LOAD_SAVE) {
-        fontDrawText(r, font, o.main[OPTIONS_LOAD_SAVE] === 0 ? 'Options Loaded' : 'Options Saved', cx, ty, ALIGN_CENTER, [0x100, 0x100, 0x100]);
+        fontDrawText(
+          r,
+          font,
+          o.main[OPTIONS_LOAD_SAVE] === 0 ? 'Options Loaded' : 'Options Saved',
+          cx,
+          ty,
+          ALIGN_CENTER,
+          [0x100, 0x100, 0x100],
+        );
       }
     }
   }

@@ -386,12 +386,20 @@ export class World {
     // The back edge always takes the back width (the original compares facing with -facing).
     const x = body ? round(p.bodyWidth(front ? 'front' : 'back', 'edge') * p.scale * k) + add : add;
     const px = p.wx * k;
-    const d = front ? (x * p.facing + px - (p.facing === 1 ? sr : sl)) * -p.facing : (px - x * p.facing - (p.facing === 1 ? sl : sr)) * p.facing;
+    const d = front
+      ? (x * p.facing + px - (p.facing === 1 ? sr : sl)) * -p.facing
+      : (px - x * p.facing - (p.facing === 1 ? sl : sr)) * p.facing;
     return d / k / p.scale;
   }
 
   /** Pause / SuperPause controllers. */
-  startPause(owner: Player, time: number, moveTime: number, isSuper: boolean, opts: { darken?: boolean; unhittable?: boolean; p2defmul?: number; endCmdBufTime?: number } = {}): void {
+  startPause(
+    owner: Player,
+    time: number,
+    moveTime: number,
+    isSuper: boolean,
+    opts: { darken?: boolean; unhittable?: boolean; p2defmul?: number; endCmdBufTime?: number } = {},
+  ): void {
     const e = opts.endCmdBufTime ?? 0;
     // Pause_Apply: time < 0 is 0; a movetime below 0 or past time is 0.
     if (time < 0) time = 0;
@@ -399,7 +407,15 @@ export class World {
     // The owner's movetime is its pause_movetime for that kind.
     if (isSuper) owner.superMoveTime = moveTime;
     else owner.pauseMoveTime = moveTime;
-    const st: PauseState = { owner, time, moveTime, fresh: true, darken: opts.darken ?? false, unhittable: opts.unhittable ?? false, endCmdBufTime: e < 0 || e > time ? 0 : e };
+    const st: PauseState = {
+      owner,
+      time,
+      moveTime,
+      fresh: true,
+      darken: opts.darken ?? false,
+      unhittable: opts.unhittable ?? false,
+      endCmdBufTime: e < 0 || e > time ? 0 : e,
+    };
     if (isSuper) this.superPause = time > 0 ? st : undefined;
     else if (this.superPause) this.queuedPause = st;
     else this.pause = time > 0 ? st : undefined;
@@ -648,10 +664,18 @@ export class World {
     if (hitsOn) {
       // Projectiles_HitPlayer runs for every pair of the hit list, paused
       // players included (Kisarah, frozen by a SuperPause's last tick).
-      applyHits(detectProjectileHits(this.projectiles, this.allPlayers().filter((p) => !p.destroyed)));
+      applyHits(
+        detectProjectileHits(
+          this.projectiles,
+          this.allPlayers().filter((p) => !p.destroyed),
+        ),
+      );
       applyProjectileHits(this.projectiles);
       // Players_CheckHits: projectiles against projectiles come after.
-      collideProjectiles(this.projectiles, this.allPlayers().filter((p) => !p.destroyed));
+      collideProjectiles(
+        this.projectiles,
+        this.allPlayers().filter((p) => !p.destroyed),
+      );
     }
     this.projectiles = this.projectiles.filter((pr) => pr.phase !== 'dead');
     // The second push pass (mugen.exe 0x43de16; measured: walking into a
@@ -946,8 +970,6 @@ export class World {
     const want = p.stateType === 's' ? 5 : p.stateType === 'c' ? 6 : undefined;
     if (want !== undefined && p.hasAnim(want) && !(p.animNo === want && p.animProg === p.prog)) p.changeAnim(want);
   }
-
-
 
   /** Player push: players whose bodies overlap vertically are pushed apart. */
   private pushPlayers(): void {
@@ -1261,7 +1283,8 @@ export class World {
     const f = Math.fround;
     const k = this.gameWidth / this.screenWidth;
     const vfollow = this.verticalFollow;
-    if (this.roundState !== 0 && vfollow >= 0 && f(Math.abs(this.camYTarget - oldTy)) > 1) this.camYTarget = f(oldTy * 0.85 + this.camYTarget * 0.15);
+    if (this.roundState !== 0 && vfollow >= 0 && f(Math.abs(this.camYTarget - oldTy)) > 1)
+      this.camYTarget = f(oldTy * 0.85 + this.camYTarget * 0.15);
     const wf2 = f(Math.trunc(this.gameWidth));
     const hw = f((0.5 * wf2) / 320);
     const m = f((wf2 * 5) / 320);
@@ -1294,7 +1317,6 @@ export class World {
   private updateCamera(): void {
     this.stepCameraX();
   }
-
 
   /** Camera_UpdateZoom (camera.c 0x4157b0), in internal units and float precision. */
   private updateZoom(): void {
@@ -1379,7 +1401,17 @@ export interface SparkPos {
 
 /** A sound to start (PlaySnd and engine sounds) or a channel control. */
 export type SoundCmd =
-  | { kind?: 'play'; owner: Player | null; group: number; number: number; key?: string; lowPriority?: boolean; volume?: number; loop?: boolean; pan?: number }
+  | {
+      kind?: 'play';
+      owner: Player | null;
+      group: number;
+      number: number;
+      key?: string;
+      lowPriority?: boolean;
+      volume?: number;
+      loop?: boolean;
+      pan?: number;
+    }
   | { kind: 'stop'; key: string | undefined }
   | { kind: 'pan'; key: string; pan: number };
 

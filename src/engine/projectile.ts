@@ -139,7 +139,10 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
       accel: kp(pair(p, 'accel', [0, 0])),
       velMul: pair(p, 'velmul', [1, 1]),
       clsnScale: [p.const('size.xscale') * k, p.const('size.yscale') * k] as [number, number],
-      scale: (doScale ? [ps[0] * p.const('size.xscale') * k, ps[1] * p.const('size.yscale') * k] : [ps[0] * k, ps[1] * k]) as [number, number],
+      scale: (doScale ? [ps[0] * p.const('size.xscale') * k, ps[1] * p.const('size.yscale') * k] : [ps[0] * k, ps[1] * k]) as [
+        number,
+        number,
+      ],
       removeOnHit: (int(p, 'projremove') ?? 1) !== 0,
       removeTime: int(p, 'projremovetime') ?? -1,
       hitsLeft: int(p, 'projhits') ?? 1,
@@ -150,7 +153,10 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
       shadow: shadowOn(int(p, 'projshadow', 0), int(p, 'projshadow', 1), int(p, 'projshadow', 2)),
       edgeBound: (int(p, 'projedgebound') ?? Math.trunc(40 * local)) * k,
       stageBound: (int(p, 'projstagebound') ?? Math.trunc(40 * local)) * k,
-      heightBound: [(int(p, 'projheightbound', 0) ?? Math.trunc(-240 * local)) * k, (int(p, 'projheightbound', 1) ?? Math.trunc(1 * local)) * k],
+      heightBound: [
+        (int(p, 'projheightbound', 0) ?? Math.trunc(-240 * local)) * k,
+        (int(p, 'projheightbound', 1) ?? Math.trunc(1 * local)) * k,
+      ],
       hd: projHitDef(hdBuild(p), p),
       phase: 'active',
       endBehind: 0,

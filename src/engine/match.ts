@@ -35,7 +35,6 @@ export interface RoundConfig {
   framesPerCount: number;
 }
 
-
 export const DEFAULT_ROUND: RoundConfig = {
   matchWins: 2,
   maxDrawGames: 1,
@@ -201,10 +200,15 @@ export class Match {
   private checkIntroSkip(inputs: readonly number[] | undefined): void {
     if (!inputs) return;
     const buttons = IN_A | IN_B | IN_C | IN_X | IN_Y | IN_Z;
-    const pressed = this.world.players.some((p, i) => p.pad !== undefined && !p.isHelper && ((inputs[i] ?? 0) & ~(this.lastBits[i] ?? 0) & buttons) !== 0);
+    const pressed = this.world.players.some(
+      (p, i) => p.pad !== undefined && !p.isHelper && ((inputs[i] ?? 0) & ~(this.lastBits[i] ?? 0) & buttons) !== 0,
+    );
     this.lastBits = [...inputs];
     if (!pressed || this.introSkipped) return;
-    const ok = (this.phase === 'wait' && this.phaseTime > 2) || this.phase === 'intro' || (this.phase === 'announce' && this.phaseTime <= this.cfg.roundTime);
+    const ok =
+      (this.phase === 'wait' && this.phaseTime > 2) ||
+      this.phase === 'intro' ||
+      (this.phase === 'announce' && this.phaseTime <= this.cfg.roundTime);
     if (!ok) return;
     this.introSkipped = true;
     this.fade = { out: true, ticks: 0, time: this.round <= 1 ? 12 : 6, bars: true };
@@ -314,7 +318,8 @@ export class Match {
     w.players = w.players.filter((p) => p.side !== t);
     const made: Player[] = [];
     for (let k = 0; k < ts.slots; k++) {
-      const member = ts.mode === 'turns' ? ts.cur : this.opts.survivalSide !== undefined && this.opts.survivalSide !== t ? this.survivalNo : 0;
+      const member =
+        ts.mode === 'turns' ? ts.cur : this.opts.survivalSide !== undefined && this.opts.survivalSide !== t ? this.survivalNo : 0;
       const p = plan.spawn(member, k);
       p.slotNoSet = t + 1 + 2 * k;
       if (k > 0) p.powerLeader = made[0];
@@ -330,7 +335,10 @@ export class Match {
   private matchStart(): void {
     const [a, b] = this.teams;
     if (a.memberCount >= 2 || b.memberCount >= 2) {
-      for (const [x, y] of [[a, b], [b, a]] as const) {
+      for (const [x, y] of [
+        [a, b],
+        [b, a],
+      ] as const) {
         x.recoveryRate = 275;
         x.recoveryBase = 125;
         x.recoveryWeight = 0.6;
@@ -571,7 +579,8 @@ export class Match {
         // and after a round reset): until then the screen keeps what it
         // showed, black after the versus screen or the last step of the
         // previous round's fade out.
-        if (this.phaseTime === 0) this.fade = { out: false, ticks: -2, time: 16, hold: this.round === 1 && !this.fade ? 1 : this.fadeAlpha };
+        if (this.phaseTime === 0)
+          this.fade = { out: false, ticks: -2, time: 16, hold: this.round === 1 && !this.fade ? 1 : this.fadeAlpha };
         if (this.phaseTime >= c.startWaitTime) {
           w.hitsEnabled = true;
           // RoundState 1 is visible from this very tick (KFM's intro waits for it).
@@ -658,7 +667,8 @@ export class Match {
           }
           this.roundWinnerSide = koSides === 2 ? null : ko[1] === 1 ? 0 : ko[0] === 1 ? 1 : this.decideWinner();
           // Round_CheckResult: time over gives the winner (both on a tie) the time-over icon.
-          if (!koSides) for (const t of [0, 1]) if (this.roundWinnerSide === t || this.roundWinnerSide === null) w.setWinType(t, WIN_ICON.t);
+          if (!koSides)
+            for (const t of [0, 1]) if (this.roundWinnerSide === t || this.roundWinnerSide === null) w.setWinType(t, WIN_ICON.t);
           w.winType = koSides ? 1 : 2;
           w.roundWinnerSide = this.roundWinnerSide === null ? 0 : this.roundWinnerSide + 1;
           for (const p of this.players) if (p.life <= 0) p.alive = false;
@@ -780,8 +790,7 @@ export class Match {
               // (measured: their last tick is the one before, team co-op).
               return false;
             }
-          }
-          else {
+          } else {
             // The reset frame runs no tick; 5900 runs on the next one
             // (measured in mugen.exe: frame 3410 has no tick between the
             // last RoundState 4 tick and 5900).

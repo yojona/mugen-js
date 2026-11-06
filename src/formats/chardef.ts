@@ -56,9 +56,10 @@ export function parseCharDef(text: string): CharDef {
     palMask |= 1 << (n - 1);
     return n;
   });
-  if (!palMask) pal.forEach((f, i) => {
-    if (f) palMask |= 1 << i;
-  });
+  if (!palMask)
+    pal.forEach((f, i) => {
+      if (f) palMask |= 1 << i;
+    });
   const name = unquote(getValue(info, 'name') ?? '');
   const arcade = findSection(doc, 'Arcade');
   return {

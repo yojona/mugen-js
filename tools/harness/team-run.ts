@@ -22,7 +22,8 @@ const w = new World();
 w.applyStage(stage.info);
 w.fightFx = { anims: parseAir(await vfs.text('data/fightfx.air')), sff: await parseSff(await vfs.read('data/fightfx.sff')) };
 const progs = new Map<string, CharacterProgram>();
-const prog = async (c: string) => progs.get(c) ?? progs.set(c, await loadProgram(vfs, await loadCharacter(vfs, `chars/${c}/${c}.def`))).get(c)!;
+const prog = async (c: string) =>
+  progs.get(c) ?? progs.set(c, await loadProgram(vfs, await loadCharacter(vfs, `chars/${c}/${c}.def`))).get(c)!;
 const plan = async (arg: string, side: number): Promise<TeamPlan> => {
   const [mode, list] = arg.split(':') as [TeamMode, string];
   const chars = list.split(',');
@@ -46,7 +47,9 @@ w.seed = 16808;
 let last = '';
 for (let f = 1; f <= Number(framesArg ?? 30000) && !m.finished; f++) {
   if (m.tick()) w.tick([0, 0]);
-  const s = `round ${m.round} rs ${w.roundState} wins ${m.wins} | ` + w.players.map((p) => `P${p.slotNo} ${p.name} ${p.life}/${p.lifeMax} st ${p.stateNo}`).join(' | ');
+  const s =
+    `round ${m.round} rs ${w.roundState} wins ${m.wins} | ` +
+    w.players.map((p) => `P${p.slotNo} ${p.name} ${p.life}/${p.lifeMax} st ${p.stateNo}`).join(' | ');
   const key = `${m.round}${w.roundState}${w.players.map((p) => p.name + p.alive).join()}`;
   if (key !== last) console.log(`f ${f}: ${s}`);
   last = key;

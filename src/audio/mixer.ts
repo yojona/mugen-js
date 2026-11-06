@@ -49,7 +49,7 @@ export class Mixer {
     const src = ctx.createBufferSource();
     const gain = ctx.createGain();
     const pan = ctx.createStereoPanner();
-    gain.gain.value = this.volume * Math.max(0, Math.min(100, o.volume ?? 100)) / 100;
+    gain.gain.value = (this.volume * Math.max(0, Math.min(100, o.volume ?? 100))) / 100;
     pan.pan.value = (o.pan ?? 0) / 127;
     src.loop = !!o.loop;
     src.connect(gain).connect(pan).connect(ctx.destination);
@@ -86,7 +86,10 @@ export class Mixer {
   }
 
   /** Run a tick's sound commands; `resolve` finds the sound of a play. */
-  run(cmds: readonly import('../engine/world').SoundCmd[], resolve: (owner: import('../engine/player').Player | null, group: number, number: number) => Sound | undefined): void {
+  run(
+    cmds: readonly import('../engine/world').SoundCmd[],
+    resolve: (owner: import('../engine/player').Player | null, group: number, number: number) => Sound | undefined,
+  ): void {
     for (const c of cmds) {
       if (c.kind === 'stop') this.stop(c.key);
       else if (c.kind === 'pan') this.setPan(c.key, c.pan);

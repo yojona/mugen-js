@@ -53,7 +53,9 @@ export async function peekMatch(o: PeekOptions): Promise<string[]> {
   w.fightFx = { anims: parseAir(await vfs.text('data/fightfx.air')), sff: await parseSff(await vfs.read('data/fightfx.sff')) };
   const levels = o.ai ?? [4, 4];
   const partner = o.partners ?? [undefined, undefined];
-  const partnerProg = await Promise.all(partner.map(async (c) => (c ? loadProgram(vfs, await loadCharacter(vfs, `chars/${c}/${c}.def`)) : undefined)));
+  const partnerProg = await Promise.all(
+    partner.map(async (c) => (c ? loadProgram(vfs, await loadCharacter(vfs, `chars/${c}/${c}.def`)) : undefined)),
+  );
   const mk = (prog: typeof prog1, side: number, slot: number) => {
     const p = new Player(prog, w, side);
     p.palNo = quickVsPal(prog.data.def.palDefaults, slot);
@@ -73,17 +75,24 @@ export async function peekMatch(o: PeekOptions): Promise<string[]> {
     m = new Match(w, hud.roundConfig(), [stage.info.p1, stage.info.p2, stage.info.p3, stage.info.p4], { teams, quickVs: true });
   } else {
     w.players.push(mk(prog1, 0, 1), mk(prog2, 1, 2));
-    m = new Match(w, hud.roundConfig(), [
-      { x: stage.info.p1.x, y: stage.info.p1.y, facing: stage.info.p1.facing },
-      { x: stage.info.p2.x, y: stage.info.p2.y, facing: stage.info.p2.facing },
-    ], { quickVs: true });
+    m = new Match(
+      w,
+      hud.roundConfig(),
+      [
+        { x: stage.info.p1.x, y: stage.info.p1.y, facing: stage.info.p1.facing },
+        { x: stage.info.p2.x, y: stage.info.p2.y, facing: stage.info.p2.facing },
+      ],
+      { quickVs: true },
+    );
   }
   w.seed = o.seed;
   const lines: string[] = [];
   const f = (x: number) => (o.exact ? String(x) : x.toFixed(4));
   for (let i = 1; i <= o.frames; i++) {
     if (m.tick()) w.tick([0, 0]);
-    const shown = partner.some(Boolean) ? [w.slot(1), w.slot(2), w.slot(3), ...(partner[1] ? [w.slot(4)] : [])].filter((p): p is Player => !!p) : w.players.slice(0, 2);
+    const shown = partner.some(Boolean)
+      ? [w.slot(1), w.slot(2), w.slot(3), ...(partner[1] ? [w.slot(4)] : [])].filter((p): p is Player => !!p)
+      : w.players.slice(0, 2);
     const pl = shown.flatMap((p) => [p.stateNo, p.time, p.life, f(p.pos.x), f(p.pos.y), f(p.vel.x * p.facing), f(p.vel.y)]);
     lines.push(`P|${i}|${[i, w.roundState, w.seed, ...pl].join(',')}`);
     if (m.finished) break;

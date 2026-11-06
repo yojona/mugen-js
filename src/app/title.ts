@@ -45,7 +45,9 @@ export class TitleScreen implements Screen {
   ) {
     this.bg = new MotifBackground(ctx, 'title');
     this.fade = fader(ctx, 'Title Info');
-    this.items = TITLE_ITEMS.map((i) => ({ name: this.v(`menu.itemname.${i.key}`)?.replace(/^"|"$/g, '') ?? i.name, mode: i.key })).filter((i) => i.name !== '');
+    this.items = TITLE_ITEMS.map((i) => ({ name: this.v(`menu.itemname.${i.key}`)?.replace(/^"|"$/g, '') ?? i.name, mode: i.key })).filter(
+      (i) => i.name !== '',
+    );
     this.cursor = Math.min(start, this.items.length - 1);
   }
 

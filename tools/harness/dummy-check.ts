@@ -14,5 +14,17 @@ World.prototype.tick = function (this: World, inp: number[]) {
   seen.set(key, (seen.get(key) ?? 0) + 1);
 };
 void MugenAI;
-await runProbe(Number(process.env.TICKS ?? 1000), { char: 'probeai', inputs: process.env.INPUTS ?? 'aivs', seed: 937167434, ai: [undefined, 4] });
-console.log(JSON.stringify(settings), [...seen].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, n]) => `${k}:${n}`).join(' '));
+await runProbe(Number(process.env.TICKS ?? 1000), {
+  char: 'probeai',
+  inputs: process.env.INPUTS ?? 'aivs',
+  seed: 937167434,
+  ai: [undefined, 4],
+});
+console.log(
+  JSON.stringify(settings),
+  [...seen]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12)
+    .map(([k, n]) => `${k}:${n}`)
+    .join(' '),
+);

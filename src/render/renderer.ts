@@ -146,7 +146,29 @@ export class Renderer {
     this.gl = gl;
     this.prog = link(gl, VS, FS);
     gl.useProgram(this.prog);
-    for (const n of ['uCornerMode', 'uCorners', 'uQ', 'uMatrix', 'uSize', 'uIndex', 'uRgba', 'uPalette', 'uIndexed', 'uMask', 'uAdd', 'uMul', 'uColorBal', 'uInvertAll', 'uSrcAlphaMul', 'uPremulOut', 'uSoft', 'uCanvasH', 'uSoftX', 'uSoftY', 'uSoftFlip']) {
+    for (const n of [
+      'uCornerMode',
+      'uCorners',
+      'uQ',
+      'uMatrix',
+      'uSize',
+      'uIndex',
+      'uRgba',
+      'uPalette',
+      'uIndexed',
+      'uMask',
+      'uAdd',
+      'uMul',
+      'uColorBal',
+      'uInvertAll',
+      'uSrcAlphaMul',
+      'uPremulOut',
+      'uSoft',
+      'uCanvasH',
+      'uSoftX',
+      'uSoftY',
+      'uSoftFlip',
+    ]) {
       this.u[n] = gl.getUniformLocation(this.prog, n);
     }
     gl.uniform1i(this.u.uIndex!, 0);
@@ -340,7 +362,17 @@ export class Renderer {
     const v = this.view;
     const kx = (2 / this.width) * v.s;
     const ky = (-2 / this.height) * v.s;
-    gl.uniformMatrix3fv(this.u.uMatrix!, false, [m00 * kx, m10 * ky, 0, m01 * kx, m11 * ky, 0, tx * kx + (v.ox * 2) / this.width - 1, ty * ky - (v.oy * 2) / this.height + 1, 1]);
+    gl.uniformMatrix3fv(this.u.uMatrix!, false, [
+      m00 * kx,
+      m10 * ky,
+      0,
+      m01 * kx,
+      m11 * ky,
+      0,
+      tx * kx + (v.ox * 2) / this.width - 1,
+      ty * ky - (v.oy * 2) / this.height + 1,
+      1,
+    ]);
     gl.uniform2f(this.u.uSize!, s.width, s.height);
     gl.uniform1i(this.u.uSoft!, soft ? 1 : 0);
     if (soft) {
@@ -386,7 +418,15 @@ export class Renderer {
   /** Draw an untextured rectangle outline or fill (debug: collision boxes); `blend`: additive / subtractive fills. */
   rect(x1: number, y1: number, x2: number, y2: number, rgba: [number, number, number, number], blend?: DrawBlend): void {
     const pal = solidPalette(rgba);
-    this.draw({ sprite: SOLID_SPRITE, palette: pal, x: Math.min(x1, x2), y: Math.min(y1, y2), scaleX: Math.abs(x2 - x1), scaleY: Math.abs(y2 - y1), blend });
+    this.draw({
+      sprite: SOLID_SPRITE,
+      palette: pal,
+      x: Math.min(x1, x2),
+      y: Math.min(y1, y2),
+      scaleX: Math.abs(x2 - x1),
+      scaleY: Math.abs(y2 - y1),
+      blend,
+    });
   }
 
   private spriteTexture(s: Sprite): SpriteTex {
@@ -498,7 +538,7 @@ function softAxis(d: number, flip: boolean, sc: number, size: number, axis: numb
   let frac = 0;
   if (start > first) {
     if (start - 0.5 > first) first++;
-    frac = Math.floor(f(((first - start) * size) / scaled * 65536));
+    frac = Math.floor(f((((first - start) * size) / scaled) * 65536));
   }
   let step = Math.trunc((size * 65536) / scaled);
   const last = Math.ceil(f(start + scaled - 1));
