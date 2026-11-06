@@ -119,6 +119,8 @@ export class DebugMode {
   matchLoaded(): void {
     this.player = this.on ? 1 : 0;
     this.queue.length = 0;
+    // Game_ReadInput: Escape, the way out of a fight, cancels the pause.
+    this.paused = this.step = false;
   }
 
   /** Con_DebugAllowed. */
