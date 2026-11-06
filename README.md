@@ -88,6 +88,7 @@ Only `canvas` and `source` are required.
 | `screen` | The current screen |
 | `loading`, `busy` | What is loading now; ticks do nothing while busy |
 | `running` | Whether the loop is running |
+| `audioLocked` | The browser is waiting for a key press, click or touch to play sound. A gamepad button does not count |
 | `hooks` | Called around every tick (used by the comparison harness) |
 
 ### `FileSource`
@@ -197,7 +198,8 @@ are in `ref/`.
 ### Browser notes
 
 - Needs WebGL2 and Web Audio.
-- Audio starts on the first key press, as browsers require.
+- Audio starts on the first key press, click or touch, as browsers require. A gamepad
+  alone cannot start it; check `audioLocked` to tell the player. `pause()` holds the sound too.
 - Files are read through `fetch`, so a page opened from `file://` will not work.
 - Browsers keep some shortcuts for themselves, such as Ctrl+W and Ctrl+T.
 

@@ -39,3 +39,8 @@ const engine = await createEngine({
   onExit: () => location.reload(),
 });
 engine.start();
+
+// A gamepad alone can't start the sound: browsers want a key press, click or touch.
+setInterval(() => {
+  if (!engine.loading) status.textContent = engine.audioLocked ? 'Press a key or click for sound' : '';
+}, 500);
