@@ -32,6 +32,8 @@ status.textContent = 'Loading files…';
 const engine = await createEngine({
   canvas: document.getElementById('screen') as HTMLCanvasElement,
   source: await httpSource('/ref/mugen-1.1b1', '/__ref.json'),
+  // The dark title screen, whatever mugen.cfg's motif says.
+  motif: 'data/system.def',
   onProgress: showProgress,
   onTrainingDummy: showDummy,
   onExit: () => location.reload(),
