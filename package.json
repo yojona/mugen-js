@@ -12,14 +12,16 @@
     ".": {
       "types": "./dist/types/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./mugen.min.js": "./dist/mugen.min.js"
   },
   "files": [
     "dist"
   ],
   "scripts": {
     "dev": "vite",
-    "build": "vite build --config vite.lib.config.ts && tsc -p tsconfig.build.json",
+    "build": "vite build --config vite.lib.config.ts && vite build --config vite.lib.config.ts --mode min && tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
     "build:example": "vite build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
