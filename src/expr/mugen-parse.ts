@@ -177,7 +177,7 @@ export function parseAt(s: string, start: number, stop: boolean): { node: Node; 
             prev?.kind === 'node' &&
             prev.node.kind === 'call' &&
             (prev.node.name === 'var' || prev.node.name === 'fvar');
-          if (!ok) fail('El lado izquierdo de := debe ser var/fvar');
+          if (!ok) fail('The left side of := must be var/fvar');
           if (PREC[':=']! < topPrec) {
             const top = ops[ops.length - 1];
             if (top !== '(' && top !== ':=') fail();
@@ -229,7 +229,7 @@ export function parseAt(s: string, start: number, stop: boolean): { node: Node; 
         cur = t.end;
       } else if (isSpace(c)) {
         cur++;
-      } else fail(`Texto inesperado "${c}"`);
+      } else fail(`Unexpected text "${c}"`);
     }
     if (cur >= s.length) break;
   }
@@ -506,10 +506,10 @@ function parseArgs(s: string, i: number, count: number): { args: Node[]; end: nu
       }
     }
     cur = r.end;
-    if (s[r.end] !== ',' && k < count - 1) throw new Fail('Faltan argumentos');
+    if (s[r.end] !== ',' && k < count - 1) throw new Fail('Missing arguments');
   }
   while (isSpace(s[cur])) cur++;
-  if (s[cur] !== ')') throw new Fail('Se esperaba ")"');
+  if (s[cur] !== ')') throw new Fail('Expected ")"');
   return { args, end: cur + 1 };
 }
 
@@ -665,7 +665,7 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
     let p = pos;
     if (s[p] === '(' && lname !== 'parent' && lname !== 'root') {
       const r = parseAt(s, p + 1, true);
-      if (s[r.end] !== ')') throw new Fail('Se esperaba ")"');
+      if (s[r.end] !== ')') throw new Fail('Expected ")"');
       id = r.node;
       p = r.end + 1;
     } else if (lname === 'playerid') throw new Fail('PlayerID takes an ID');
@@ -702,20 +702,20 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
     return wrap(call({ args: r.args }), skip(s, r.end));
   }
   if (id === 'gethitvar' || id === 'const' || id === 'stagevar') {
-    if (s[pos] !== '(') throw new Fail(`Se esperaba ${id}(nombre)`);
+    if (s[pos] !== '(') throw new Fail(`Expected ${id}(name)`);
     let p = pos + 1;
     while (isSpace(s[p])) p++;
     const [word, q] = readWord(s, p, true);
     p = q;
     while (isSpace(s[p])) p++;
     // gethitvar needs ')'; const / stagevar take any character there (original bug).
-    if (id === 'gethitvar' ? s[p] !== ')' : p >= s.length) throw new Fail('Se esperaba ")"');
+    if (id === 'gethitvar' ? s[p] !== ')' : p >= s.length) throw new Fail('Expected ")"');
     if (id === 'stagevar') {
       // stagevar(info.name) etc. compare as strings: = "text".
       const v = scanToValue(s, p + 1);
       if (s[v.at] !== '"') throw new Fail('stagevar takes = "text"');
       const close = s.indexOf('"', v.at + 1);
-      if (close < 0) throw new Fail('Falta "');
+      if (close < 0) throw new Fail('Missing "');
       return wrap(
         { kind: 'clause', name: 'stagevar', op: v.op, words: [word.toLowerCase(), s.slice(v.at + 1, close)], nums: [] },
         close + 1,
@@ -797,7 +797,7 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
     const v = scanToValue(s, pos);
     if (s[v.at] !== '"') throw new Fail(`${id} takes = "text"`);
     const close = s.indexOf('"', v.at + 1);
-    if (close < 0) throw new Fail('Falta "');
+    if (close < 0) throw new Fail('Missing "');
     return wrap({ kind: 'clause', name: id === 'p1name' ? 'name' : id, op: v.op, words: [s.slice(v.at + 1, close)], nums: [] }, close + 1);
   }
   if (id === 'statetype' || id === 'p2statetype' || id === 'movetype' || id === 'p2movetype') {

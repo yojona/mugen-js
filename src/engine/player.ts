@@ -433,7 +433,7 @@ export class Player {
     this.lifebarLife = this.lifebarRed = this.life;
     this.guardDist = this.const('size.attack.dist');
     const first = prog.data.anims.get(0) ?? prog.data.anims.values().next().value;
-    if (!first) throw new Error(`${prog.data.def.name}: sin animaciones`);
+    if (!first) throw new Error(`${prog.data.def.name}: no animations`);
     this.anim = new AnimPlayer(first);
   }
 
@@ -1025,7 +1025,7 @@ export class Player {
     for (let guard = 0; guard < 16; guard++) {
       if (!this.runState(this.stateNo)) return;
     }
-    this.warn(`Bucle de ChangeState en el estado ${this.stateNo}`);
+    this.warn(`ChangeState loop in state ${this.stateNo}`);
   }
 
   /**

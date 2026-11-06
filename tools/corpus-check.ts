@@ -41,7 +41,7 @@ function kind(msg: string): string {
   return msg
     .replace(/^.*?\] /, '')
     .replace(/^Statedef -?\d+: /, '')
-    .replace(/\(en ".*"(, posición \d+)?\)/, '')
+    .replace(/\(at ".*"(, position \d+)?\)/, '')
     .replace(/"[^"]*"/g, '"…"')
     .replace(/-?\d+(\.\d+)?/g, 'N')
     .trim();
@@ -79,7 +79,7 @@ for (const name of readdirSync(dir).sort()) {
     (p as unknown as { warn: (m: string) => void }).warn = (m) => warns.push(m);
     for (const no of prog.states.keys()) p.compiledState(no);
     for (const m of warns) {
-      if (m.startsWith('Animación')) continue;
+      if (m.startsWith('Animation')) continue;
       const k = kind(m);
       let e = byKind.get(k);
       if (!e) byKind.set(k, (e = { chars: new Set(), count: 0, examples: [] }));

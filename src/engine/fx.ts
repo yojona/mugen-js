@@ -134,9 +134,7 @@ export function recordAfterImage(a: AfterImageState, frame: AfterImageFrame | un
  * palcontrast; the k-th one drawn (from 0) also paladd * k and palmul to
  * the k-th power. Returned oldest first (drawing order).
  */
-export function afterImageDraws(
-  a: AfterImageState,
-): {
+export function afterImageDraws(a: AfterImageState): {
   frame: AfterImageFrame;
   add: [number, number, number];
   mul: [number, number, number];
