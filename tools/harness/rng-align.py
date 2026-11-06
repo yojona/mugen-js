@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Find where mugen.exe and mugen-web stop drawing the same random numbers.
+"""Find where mugen.exe and mugen-js stop drawing the same random numbers.
 
 Inputs:
   mugen.log  drive.py output with RNGLOG=1 (P| rows, then R| rows: site,s0,s1,s2;...)

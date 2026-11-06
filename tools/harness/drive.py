@@ -213,7 +213,7 @@ def main():
         batch = []
         for i in (0, 1):
             # Sorted, so simultaneous key changes reach MUGEN in a fixed order
-            # (it consumes one key event per tick); mugen-web replays the same.
+            # (it consumes one key event per tick); mugen-js replays the same.
             for k in sorted(held[i] - want[i]):
                 batch += ['keyup', KEYS[i][k]]
             for k in sorted(want[i] - held[i]):

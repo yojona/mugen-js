@@ -1,4 +1,4 @@
-// Run the probe match in mugen-web and return harness log lines
+// Run the probe match in mugen-js and return harness log lines
 // (S|step|side|vars(60)|fvars(40)), the same layout memread.py reads from MUGEN.
 
 import { join } from 'node:path';

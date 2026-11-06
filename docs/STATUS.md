@@ -29,7 +29,7 @@ power, camera, RNG).
 ### Whole game flow (lockstep captures, `tools/harness/run-flow.sh LOCKSTEP=1`)
 
 Compared screen by screen and frame by frame with the same key script
-(`tools/harness/flow-ours.ts` drives mugen-web in headless Chrome):
+(`tools/harness/flow-ours.ts` drives mugen-js in headless Chrome):
 
 | Flow | Matches |
 |---|---|

@@ -1,4 +1,4 @@
-// Write mugen-web's probe log. Usage: npx tsx tools/harness/run-ours.ts <ticks> <out.log>
+// Write mugen-js's probe log. Usage: npx tsx tools/harness/run-ours.ts <ticks> <out.log>
 import { writeFileSync } from 'node:fs';
 import { runProbe } from './probe-run';
 

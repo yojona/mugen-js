@@ -1,4 +1,4 @@
-// Compare harness state logs (MUGEN vs mugen-web), aligned on the probe's
+// Compare harness state logs (MUGEN vs mugen-js), aligned on the probe's
 // script clock var(58). Both sides log S|step|side|vars(60)|fvars(40).
 
 /** Fields the probe CNS captures (overlay/chars/probe/probe.st). */

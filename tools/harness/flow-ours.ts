@@ -1,4 +1,4 @@
-// Run mugen-web's whole game flow in headless Chrome (CDP over WebSocket) and
+// Run mugen-js's whole game flow in headless Chrome (CDP over WebSocket) and
 // collect the flow harness output of tools/pages/harness-main.ts: FLOW lines and canvas
 // shots. The page runs with ?ticks=N (as fast as possible, deterministic).
 //

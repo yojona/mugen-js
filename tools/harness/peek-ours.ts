@@ -1,4 +1,4 @@
-// mugen-web side of a NOPROBE capture (drive.py with NOPROBE=1 and PEEKALL):
+// mugen-js side of a NOPROBE capture (drive.py with NOPROBE=1 and PEEKALL):
 // any two characters, CPU vs CPU, one line per tick with the same fields as
 // tools/harness/peek-fields.txt reads out of mugen.exe:
 //   P|tick|gametime,roundstate,rng,{stateno,time,life,x,y,velx,vely} x2
