@@ -1,7 +1,7 @@
 {
   "name": "mugen-js",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.1.0",
   "type": "module",
   "description": "M.U.G.E.N 1.1 rebuilt for the browser, in TypeScript and WebGL2",
   "license": "MIT",
