@@ -187,20 +187,20 @@ function check(specs: ParamSpec[], c: ControllerDef, pre10: boolean): void {
     if (spec.key === 'var(n)') continue;
     const raw = c.params.get(spec.key);
     if (raw === undefined) {
-      if (spec.required) throw new Error(`falta el parámetro ${spec.key}`);
+      if (spec.required) throw new Error(`missing parameter ${spec.key}`);
       continue;
     }
-    if (spec.fatal && !kindOk(spec, raw, c, pre10)) throw new Error(`parámetro ${spec.key} inválido: "${raw.trim()}"`);
+    if (spec.fatal && !kindOk(spec, raw, c, pre10)) throw new Error(`invalid parameter ${spec.key}`);
   }
   if (specs.some((s) => s.key === 'var(n)') && !c.params.has('value') && !varLineOk(c, c.type === 'varset' || c.type === 'varadd')) {
-    throw new Error('falta var(n) = valor');
+    throw new Error('missing var(n) = value');
   }
 }
 
 /** Throws where mugen.exe would refuse this controller (and the character). */
 export function checkControllerParams(c: ControllerDef, mugenVersion = '1.0'): void {
   const specs = SCTRL_SPECS[c.type];
-  if (!specs) throw new Error(`controller desconocido "${c.type}"`);
+  if (!specs) throw new Error(`unknown controller "${c.type}"`);
   check(specs, c, isPre10(mugenVersion));
 }
 

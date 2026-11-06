@@ -17,7 +17,7 @@ P['enterLater'] = function (this: Player, no: number) {
   const c = this.world.players[0]!.vars[58]!;
   if (c >= from && c <= to && this.side === side) console.log(c, this.stateNo, '=> later', no, 'face', this.facing, [...this.commands].filter((x) => x.startsWith('hold')).join(' '));
   return origLater.call(this, no);
-};
+} as (...a: unknown[]) => unknown;
 import { World } from '../../src/engine/world';
 const W = World.prototype as unknown as Record<string, (...a: unknown[]) => unknown>;
 const origTurn = W['autoTurn']!;
@@ -27,6 +27,6 @@ W['autoTurn'] = function (this: World, p: Player) {
   const c = this.players[0]!.vars[58]!;
   if (c >= from && c <= to && p.side === side && f0 !== p.facing) console.log(c, 'TURN', p.wx, this.enemyOf(p)?.wx, new Error().stack?.split('\n')[2]?.trim());
   return r;
-};
+} as (...a: unknown[]) => unknown;
 const ai = (process.env.AI ?? ',4').split(',').map((v) => (v ? Number(v) : undefined)) as [number | undefined, number | undefined];
 await runProbe(Number(process.env.TICKS ?? 1500), { char: 'probeai', seed: 937167434, ai });

@@ -9,7 +9,7 @@ import { DEFAULT_ROUND, type Match, type RoundConfig } from '../engine/match';
 import type { Player } from '../engine/player';
 import { dirname, type Vfs } from '../engine/vfs';
 import type { Renderer } from '../render/renderer';
-import { ElementInstance, parseElement, drawText, type ElementAssets } from './element';
+import { ElementInstance, parseElement, type ElementAssets } from './element';
 import { loadFont, textWidth, type Font } from './font';
 
 const pair = (v: string | undefined, d: [number, number] = [0, 0]): [number, number] => {
@@ -286,12 +286,12 @@ export class FightHud {
     }
     for (const sd of sides) if (sd.kind === 'turns') this.drawTeammates(r, m, sd.side, sd.faceSec, 'bg');
     for (const sd of sides) {
-      for (const i of sd.slots) if (w.slot(i + 1)) this.drawFace(r, sd.faceSec, `p${i + 1}`, undefined, 0, undefined, undefined, 'bg');
+      for (const i of sd.slots) if (w.slot(i + 1)) this.drawFace(r, sd.faceSec, `p${i + 1}`, undefined, undefined, undefined, 'bg');
     }
     for (const sd of sides) {
       for (const i of [...sd.slots].reverse()) {
         const p = w.slot(i + 1);
-        if (p) this.drawFace(r, sd.faceSec, `p${i + 1}`, p.prog.data, p.palNo, undefined, undefined, 'face');
+        if (p) this.drawFace(r, sd.faceSec, `p${i + 1}`, p.prog.data, undefined, undefined, 'face');
       }
     }
     for (const sd of sides) if (sd.kind === 'turns') this.drawTeammates(r, m, sd.side, sd.faceSec, 'faces');
@@ -327,7 +327,7 @@ export class FightHud {
       for (let k = 0; k < t.memberCount; k++) {
         if (k === t.cur) continue;
         const f = t.faces?.[k];
-        if (f) this.drawFace(r, sec, pre, f.data, f.pal, x0 + dx * n, y0 + dy * n, 'face');
+        if (f) this.drawFace(r, sec, pre, f.data, x0 + dx * n, y0 + dy * n, 'face');
         n++;
       }
     } else {
@@ -424,7 +424,7 @@ export class FightHud {
   }
 
   /** A face: its backgrounds (bg0..bg2) at pos, then the character's face sprite. */
-  private drawFace(r: Renderer, sec: Section | undefined, pre: string, data: import('../engine/character').CharacterData | undefined, pal: number, px: number | undefined, py: number | undefined, part: 'bg' | 'face'): void {
+  private drawFace(r: Renderer, sec: Section | undefined, pre: string, data: import('../engine/character').CharacterData | undefined, px: number | undefined, py: number | undefined, part: 'bg' | 'face'): void {
     const [x, y] = px === undefined ? pair(getValue(sec, `${pre}.pos`)) : [px, py!];
     if (part === 'bg') {
       for (const k of ['bg', 'bg0', 'bg1', 'bg2']) {

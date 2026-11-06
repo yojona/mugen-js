@@ -26,7 +26,7 @@ export async function loadCharacter(vfs: Vfs, defPath: string): Promise<Characte
   const dir = dirname(defPath);
   const def = parseCharDef(await vfs.text(defPath));
   const f = def.files;
-  if (!f.sprite || !f.anim) throw new Error(`${defPath}: falta sprite o anim en [Files]`);
+  if (!f.sprite || !f.anim) throw new Error(`${defPath}: no sprite or anim in [Files]`);
 
   const [sff, anims, snd] = await Promise.all([
     vfs.read(f.sprite, dir).then(parseSff),
@@ -47,7 +47,7 @@ export async function loadCharacterPreview(vfs: Vfs, defPath: string, sprites: r
   const dir = dirname(defPath);
   const def = parseCharDef(await vfs.text(defPath));
   const f = def.files;
-  if (!f.sprite || !f.anim) throw new Error(`${defPath}: falta sprite o anim en [Files]`);
+  if (!f.sprite || !f.anim) throw new Error(`${defPath}: no sprite or anim in [Files]`);
   const sff = await parseSffSprites((a, b) => vfs.readRange(f.sprite!, a, b, dir), sprites);
   const c = await withPalettes(vfs, defPath, dir, def, sff, new Map(), undefined);
   c.preview = true;

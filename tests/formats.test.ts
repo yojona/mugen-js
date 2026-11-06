@@ -5,7 +5,6 @@ import { parseAir } from '../src/formats/air';
 import { parseCharDef } from '../src/formats/chardef';
 import { parseSff } from '../src/formats/sff';
 import { parseSnd } from '../src/formats/snd';
-import { parseAct } from '../src/formats/act';
 
 const REF = join(__dirname, '..', 'ref', 'mugen-1.1b1');
 const bin = (p: string) => new Uint8Array(readFileSync(join(REF, p)));

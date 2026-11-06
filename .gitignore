@@ -6,3 +6,4 @@ ref/
 .vitest/
 tools/harness/work/
 tools/harness/overlay/data/
+dist-examples/

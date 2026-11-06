@@ -1,7 +1,8 @@
 // The page: the engine on #screen, its options from the URL.
 
-import { httpSource } from '../engine/vfs';
-import { createEngine } from './engine';
+import type { DummySettings } from '../src/engine/ai';
+import { httpSource } from '../src/engine/vfs';
+import { createEngine } from '../src/index';
 import { makeHarness } from './harness';
 
 const params = new URLSearchParams(location.search);
@@ -22,6 +23,19 @@ const source: typeof rawSource = selectB64
     }
   : rawSource;
 
+/** The key help, or the training dummy's settings while it runs. */
+const help = document.getElementById('help')!;
+const keyHelp = help.textContent ?? '';
+function showDummy(d: DummySettings | undefined): void {
+  if (!d) {
+    help.textContent = keyHelp;
+    return;
+  }
+  const stance = ['de pie', 'agachado', 'salta', 'salta seguido'][d.stance];
+  const button = d.button ? 'abcxyzs'[d.button - 1] : 'ninguno';
+  help.textContent = `Entrenamiento: 1 postura (${stance}) / 2 bloqueo (${d.guard ? 'sí' : 'no'}) / 3 distancia (${d.distance || 'libre'}) / 4 alejarse (${d.jumpDistance || 'no'}) / 5 botón (${button}) / Esc volver`;
+}
+
 const ticksParam = params.get('ticks');
 const engine = await createEngine({
   canvas: document.getElementById('screen') as HTMLCanvasElement,
@@ -35,7 +49,12 @@ const engine = await createEngine({
   contentFixes: !params.get('pristine'),
   keysFromCfg: params.has('cfgkeys'),
   noTtf: !!params.get('nottf'),
-  onStatus: setStatus,
+  onProgress: (p) => {
+    if (!p) return setStatus('');
+    const count = p.phase === 'characters' && p.done !== undefined ? ` ${p.done}/${p.total}` : '';
+    setStatus(`Cargando ${{ motif: 'motif', characters: 'personajes', hud: 'HUD', loading: '' }[p.phase]}…${count}`.replace(' …', '…'));
+  },
+  onTrainingDummy: showDummy,
   // The page starts afresh.
   onExit: () => location.reload(),
   manual: !!ticksParam,

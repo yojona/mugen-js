@@ -48,14 +48,14 @@ export class Vfs {
 
   async read(file: string, ...bases: string[]): Promise<Uint8Array> {
     const p = this.resolve(file, ...bases);
-    if (!p) throw new Error(`Archivo no encontrado: ${file} (en ${bases.join(', ') || '/'})`);
+    if (!p) throw new Error(`File not found: ${file} (in ${bases.join(', ') || '/'})`);
     return this.src.read(p);
   }
 
   /** Bytes [start, end) of a file: what a portrait-only SFF read needs. */
   async readRange(file: string, start: number, end: number, ...bases: string[]): Promise<Uint8Array> {
     const p = this.resolve(file, ...bases);
-    if (!p) throw new Error(`Archivo no encontrado: ${file} (en ${bases.join(', ') || '/'})`);
+    if (!p) throw new Error(`File not found: ${file} (in ${bases.join(', ') || '/'})`);
     if (this.src.readRange) return this.src.readRange(p, start, end);
     return (await this.src.read(p)).slice(start, end);
   }
@@ -77,7 +77,7 @@ export async function httpSource(baseUrl: string, listUrl: string): Promise<File
     list: () => files,
     read: async (p) => {
       const r = await fetch(url(p));
-      if (!r.ok) throw new Error(`HTTP ${r.status} al leer ${p}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status} reading ${p}`);
       return new Uint8Array(await r.arrayBuffer());
     },
     readRange: async (p, start, end) => {
@@ -85,7 +85,7 @@ export async function httpSource(baseUrl: string, listUrl: string): Promise<File
       const r = await fetch(url(p), { headers: { Range: `bytes=${start}-${end - 1}` } });
       // 416: the range starts past the end of the file.
       if (r.status === 416) return new Uint8Array(0);
-      if (!r.ok) throw new Error(`HTTP ${r.status} al leer ${p}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status} reading ${p}`);
       const b = new Uint8Array(await r.arrayBuffer());
       // A server without range support sends the whole file (200).
       return r.status === 206 ? b : b.slice(start, end);

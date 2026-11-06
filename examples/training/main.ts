@@ -1,21 +1,21 @@
 // Training mode: P1 on keyboard vs an idle P2, rendered with the real engine.
 
-import { withContentFixes } from '../engine/content-fixes';
-import { loadCharacter } from '../engine/character';
-import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../engine/cmd';
-import { loadProgram, Player } from '../engine/player';
-import { httpSource, Vfs } from '../engine/vfs';
-import { World } from '../engine/world';
-import { Mixer } from '../audio/mixer';
-import { parseAir } from '../formats/air';
-import { parseSff } from '../formats/sff';
-import { parseSnd } from '../formats/snd';
-import { Renderer } from '../render/renderer';
-import { drawScene } from '../render/scene';
-import { drawStageLayer } from '../render/stage-draw';
-import { loadStage, StageRuntime } from '../stage/stage';
-import { Match } from '../engine/match';
-import { FightHud } from '../motif/fight';
+import { withContentFixes } from '../../src/engine/content-fixes';
+import { loadCharacter } from '../../src/engine/character';
+import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../../src/engine/cmd';
+import { loadProgram, Player } from '../../src/engine/player';
+import { httpSource, Vfs } from '../../src/engine/vfs';
+import { World } from '../../src/engine/world';
+import { Mixer } from '../../src/audio/mixer';
+import { parseAir } from '../../src/formats/air';
+import { parseSff } from '../../src/formats/sff';
+import { parseSnd } from '../../src/formats/snd';
+import { Renderer } from '../../src/render/renderer';
+import { drawScene } from '../../src/render/scene';
+import { drawStageLayer } from '../../src/render/stage-draw';
+import { loadStage, StageRuntime } from '../../src/stage/stage';
+import { Match } from '../../src/engine/match';
+import { FightHud } from '../../src/motif/fight';
 
 const KEYS: Record<string, number> = {
   ArrowUp: IN_U, ArrowDown: IN_D, ArrowLeft: IN_L, ArrowRight: IN_R,

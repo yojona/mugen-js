@@ -585,11 +585,8 @@ function applyHit({ attacker: a, defender: d, hd, guarded: guardedIn, proj }: Pe
   // (a trade: the hit taken cancels the pause of the hit given).
   d.hitPause = 0;
   d.hitPauseFresh = false;
-  const src = proj ? { x: proj.x, y: proj.y } : { x: a.wx, y: a.wy };
-  const towardA = src.x >= d.wx ? 1 : -1;
   // HitDef values are in the attacker's units; the defender stores its own.
   const conv = a.scale / d.scale;
-  const facesA = d.facing === towardA;
   // Hit and guard velocities push along the attacker's facing (the
   // projectile's for projectiles; p1facing = -1 turns it), whichever side
   // the defender is on (mugen.exe HitDef_Apply / Player_Guard: vel x times

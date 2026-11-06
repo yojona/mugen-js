@@ -1,21 +1,21 @@
 // Development page: a CPU match played to a frame and drawn at 640x480, to
 // compare with a mugen.exe screenshot of the same frame (tools/harness SHOTS).
 // ?c1=&c2=&frame=N[&seed=16808][&stage=stages/kfm.def][&motif=data/system.def][&w=640][&cam=x,y]  -> window.__done
-import { withContentFixes } from '../engine/content-fixes';
-import { Mixer } from '../audio/mixer';
-import { loadCharacter } from '../engine/character';
-import { loadProgram } from '../engine/player';
-import { httpSource, Vfs } from '../engine/vfs';
-import { parseAir } from '../formats/air';
-import { parseSff } from '../formats/sff';
-import { parseSnd } from '../formats/snd';
-import { FightHud } from '../motif/fight';
-import { loadMotif } from '../motif/system';
-import { Renderer } from '../render/renderer';
-import { loadStage } from '../stage/stage';
-import { FightScreen } from '../app/fight-screen';
-import { Keyboard } from '../app/input';
-import type { RosterChar } from '../app/select';
+import { withContentFixes } from '../src/engine/content-fixes';
+import { Mixer } from '../src/audio/mixer';
+import { loadCharacter } from '../src/engine/character';
+import { loadProgram } from '../src/engine/player';
+import { httpSource, Vfs } from '../src/engine/vfs';
+import { parseAir } from '../src/formats/air';
+import { parseSff } from '../src/formats/sff';
+import { parseSnd } from '../src/formats/snd';
+import { FightHud } from '../src/motif/fight';
+import { loadMotif } from '../src/motif/system';
+import { Renderer } from '../src/render/renderer';
+import { loadStage } from '../src/stage/stage';
+import { FightScreen } from '../src/app/fight-screen';
+import { Keyboard } from '../src/app/input';
+import type { RosterChar } from '../src/app/select';
 
 const q = new URLSearchParams(location.search);
 const vfs = new Vfs(withContentFixes(await httpSource('/ref/mugen-1.1b1', '/__ref.json')));

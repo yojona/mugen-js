@@ -64,7 +64,7 @@ export function parseAt(s: string, start: number, stop: boolean): { node: Node; 
   let cur = start;
   let last: 'none' | 'number' | 'op' | 'interval' | 'trigger' | 'group' = 'none';
   let topPrec = 0;
-  const fail = (msg = 'Expresión mal formada'): never => {
+  const fail = (msg = 'Malformed expression'): never => {
     throw new Fail(msg);
   };
   const pushOp = (op: Op) => {
@@ -193,7 +193,7 @@ function clampInt(v: number): number {
 function build(items: Item[]): Node {
   const st: Node[] = [];
   const need = (n: number) => {
-    if (st.length < n) throw new Fail('Expresión mal formada');
+    if (st.length < n) throw new Fail('Malformed expression');
   };
   for (let i = 0; i < items.length; i++) {
     const it = items[i]!;
@@ -221,7 +221,7 @@ function build(items: Item[]): Node {
       const target = st.pop()! as CallNode;
       st.push({ kind: 'assign', target, value });
     } else if (op === '(') {
-      throw new Fail('Expresión mal formada');
+      throw new Fail('Malformed expression');
     } else {
       need(2);
       const r = st.pop()!;
@@ -229,7 +229,7 @@ function build(items: Item[]): Node {
       st.push({ kind: 'binary', op, l, r });
     }
   }
-  if (st.length !== 1) throw new Fail('Expresión mal formada');
+  if (st.length !== 1) throw new Fail('Malformed expression');
   return st[0]!;
 }
 
@@ -446,7 +446,7 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
       if (s[r.end] !== ')') throw new Fail('Se esperaba ")"');
       id = r.node;
       p = r.end + 1;
-    } else if (lname === 'playerid') throw new Fail('PlayerID necesita un ID');
+    } else if (lname === 'playerid') throw new Fail('PlayerID takes an ID');
     while (isSpace(s[p])) p++;
     if (s[p] === ',') {
       redirect = { to: lname, id };
@@ -455,11 +455,11 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
       [name, pos] = readWord(s, p, false);
       while (isSpace(s[pos])) pos++;
     } else if (lname !== 'enemy' && lname !== 'enemynear' && lname !== 'partner') {
-      throw new Fail(`Redirección "${name}" sin coma`);
-    } else throw new Fail(`Redirección "${name}" sin coma`);
+      throw new Fail(`Redirection "${name}" without a comma`);
+    } else throw new Fail(`Redirection "${name}" without a comma`);
   }
   const id = lookup(name);
-  if (!id) throw new Fail(`Trigger desconocido: ${name.toLowerCase()}`);
+  if (!id) throw new Fail(`Unknown trigger: ${name.toLowerCase()}`);
   const wrap = (node: Node, end: number) => ({ node: redirect ? ({ kind: 'redirect', to: redirect.to, id: redirect.id, expr: node } as Node) : node, end });
   const call = (extra: Partial<CallNode> = {}): CallNode => ({ kind: 'call', name: id, args: [], ...extra });
 
@@ -472,7 +472,7 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
     return wrap(call(), skip(s, pos));
   }
   if (ONE_ARG.has(id) || id === 'log' || id === 'ifelse' || id === 'cond') {
-    if (s[pos] !== '(') throw new Fail(`${id} necesita "("`);
+    if (s[pos] !== '(') throw new Fail(`${id} takes "("`);
     const r = parseArgs(s, pos + 1, id === 'log' ? 2 : id === 'ifelse' || id === 'cond' ? 3 : 1);
     return wrap(call({ args: r.args }), skip(s, r.end));
   }
@@ -488,7 +488,7 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
     if (id === 'stagevar') {
       // stagevar(info.name) etc. compare as strings: = "text".
       const v = scanToValue(s, p + 1);
-      if (s[v.at] !== '"') throw new Fail('stagevar necesita = "texto"');
+      if (s[v.at] !== '"') throw new Fail('stagevar takes = "text"');
       const close = s.indexOf('"', v.at + 1);
       if (close < 0) throw new Fail('Falta "');
       return wrap({ kind: 'clause', name: 'stagevar', op: v.op, words: [word.toLowerCase(), s.slice(v.at + 1, close)], nums: [] }, close + 1);
@@ -500,22 +500,22 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
     const lnameNow = name.toLowerCase().slice(id.length);
     const kind = lnameNow.startsWith('ko') ? 'ko' : lnameNow.startsWith('ti') ? 'time' : lnameNow === '' ? '' : undefined;
     void rest;
-    if (kind === undefined) throw new Fail(`Trigger desconocido: ${name.toLowerCase()}`);
+    if (kind === undefined) throw new Fail(`Unknown trigger: ${name.toLowerCase()}`);
     return wrap(call({ name: id + kind }), skip(s, pos));
   }
   if (AXIS.has(id)) {
     const c = s[pos]?.toLowerCase();
-    if (c !== 'x' && c !== 'y' && c !== 'z') throw new Fail(`${id} necesita x / y`);
+    if (c !== 'x' && c !== 'y' && c !== 'z') throw new Fail(`${id} takes x / y`);
     return wrap(call({ axis: c }), skip(s, pos + 1));
   }
   if (id === 'animelem' || id === 'timemod') {
     // "= n" then an optional ", comparison".
     const v = scanToValue(s, pos);
     const m = /^\d+/.exec(s.slice(v.at));
-    if (!m) throw new Fail(`${id} necesita un número`);
+    if (!m) throw new Fail(`${id} takes a number`);
     let n = parseInt(m[0], 10);
-    if (id === 'timemod' && n <= 0) throw new Fail('TimeMod necesita un número > 0');
-    if (id === 'animelem' && n <= 0) throw new Fail('AnimElem necesita un número > 0');
+    if (id === 'timemod' && n <= 0) throw new Fail('TimeMod takes a number > 0');
+    if (id === 'animelem' && n <= 0) throw new Fail('AnimElem takes a number > 0');
     let p = v.at;
     while (isDigit(s[p]) || isSpace(s[p])) p++;
     if (s[p] === ',') p++;
@@ -523,7 +523,7 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
     const end0 = p;
     const cmp = parseCompare(s, p);
     if (id === 'timemod') {
-      if (!cmp) throw new Fail('TimeMod necesita un valor');
+      if (!cmp) throw new Fail('TimeMod takes a value');
       return wrap({ kind: 'clause', name: 'timemod', op: cmp.second.op, words: [], nums: [{ kind: 'num', value: n, isFloat: false }, cmp.second.value] }, skip(s, cmp.end));
     }
     void n;
@@ -532,7 +532,7 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
   if (id === 'projhit' || id === 'projguarded' || id === 'projcontact') {
     const idNum = parseInt(name.slice(id.length), 10) || 0;
     const v = scanToValue(s, pos);
-    if (!isDigit(s[v.at])) throw new Fail(`${id} necesita 0 / 1`);
+    if (!isDigit(s[v.at])) throw new Fail(`${id} takes 0 / 1`);
     const want = parseInt(/^\d+/.exec(s.slice(v.at))![0], 10);
     let p = v.at;
     while (isDigit(s[p]) || isSpace(s[p])) p++;
@@ -544,7 +544,7 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
   }
   if (id === 'command' || STRINGS.has(id)) {
     const v = scanToValue(s, pos);
-    if (s[v.at] !== '"') throw new Fail(`${id} necesita = "texto"`);
+    if (s[v.at] !== '"') throw new Fail(`${id} takes = "text"`);
     const close = s.indexOf('"', v.at + 1);
     if (close < 0) throw new Fail('Falta "');
     return wrap({ kind: 'clause', name: id === 'p1name' ? 'name' : id, op: v.op, words: [s.slice(v.at + 1, close)], nums: [] }, close + 1);
@@ -553,7 +553,7 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
     const v = scanToValue(s, pos);
     const c = s[v.at]?.toLowerCase();
     const ok = id.endsWith('statetype') ? 'acls' : 'ahi';
-    if (!c || !ok.includes(c)) throw new Fail(`${id} con valor inválido`);
+    if (!c || !ok.includes(c)) throw new Fail(`${id} with an invalid value`);
     return wrap({ kind: 'clause', name: id, op: v.op, words: [c], nums: [] }, v.at + 1);
   }
   if (id === 'teammode') {
@@ -561,13 +561,13 @@ function parseTrigger(s: string, i: number): { node: Node; end: number } {
     let e = v.at;
     while (e < s.length && !isSpace(s[e]) && s[e] !== ',' && s[e] !== ')') e++;
     const w = s.slice(v.at, e).toLowerCase();
-    if (w !== 'single' && w !== 'simul' && w !== 'turns') throw new Fail(`TeamMode inválido: ${w}`);
+    if (w !== 'single' && w !== 'simul' && w !== 'turns') throw new Fail(`Invalid TeamMode: ${w}`);
     return wrap({ kind: 'clause', name: 'teammode', op: v.op, words: [w], nums: [] }, e);
   }
   if (id === 'hitdefattr') {
     const v = scanToValue(s, pos);
     const r = parseHitDefAttr(s, v.at);
-    if (r.bits < 0) throw new Fail('HitDefAttr inválido');
+    if (r.bits < 0) throw new Fail('Invalid HitDefAttr');
     return wrap({ kind: 'clause', name: 'hitdefattr', op: v.op, words: [], nums: [], bits: r.bits }, r.end);
   }
   return wrap(call(), skip(s, pos));

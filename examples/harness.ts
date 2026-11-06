@@ -1,11 +1,11 @@
 // The page's headless controls: scripted keys and the flow harness
 // (tools/harness/flow-ours.ts), set from the URL. Not part of the engine.
 
-import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../engine/cmd';
-import { World } from '../engine/world';
-import type { Engine, EngineHooks } from './engine';
-import { FightScreen } from './fight-screen';
-import type { Screen } from './screen';
+import { IN_A, IN_B, IN_C, IN_D, IN_L, IN_R, IN_S, IN_U, IN_X, IN_Y, IN_Z } from '../src/engine/cmd';
+import { World } from '../src/engine/world';
+import type { Engine, EngineHooks } from '../src/app/engine';
+import { FightScreen } from '../src/app/fight-screen';
+import type { Screen } from '../src/app/screen';
 
 const KEYMAP: Record<string, number> = { u: IN_U, d: IN_D, l: IN_L, r: IN_R, x: IN_X, y: IN_Y, z: IN_Z, a: IN_A, b: IN_B, c: IN_C, s: IN_S };
 

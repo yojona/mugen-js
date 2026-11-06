@@ -502,7 +502,7 @@ export class Player {
     const src = fromOwner && this.stateOwner ? this.stateOwner.prog : this.prog;
     const a: Animation | undefined = src.data.anims.get(no);
     if (!a) {
-      this.warn(`Animación ${no} no existe`);
+      this.warn(`No animation ${no}`);
       // Player_ChangeAnimSelf / ChangeAnim2 switch the AnimState to the
       // other AIR before setting the action: when that fails, the action
       // index (KeyedArray slot) and time stay and now read the new AIR
@@ -555,7 +555,7 @@ export class Player {
     if (!cs && no !== 0) {
       // mugen.exe (Player_ChangeState 0x43BF40) changes to a missing state
       // anyway, with a warning: the state number moves and nothing runs.
-      this.warn(`Estado ${no} no existe`);
+      this.warn(`No state ${no}`);
       this.prevStateNo = this.stateNo;
       this.stateNo = no;
       this.time = 0;
@@ -993,7 +993,7 @@ export class Player {
     if (!this.compiledState(no)) {
       // Missing (Evil Robert has no 120): the number moves anyway and
       // nothing runs, as with a ChangeState (Player_ChangeState warns).
-      this.warn(`Estado ${no} no existe`);
+      this.warn(`No state ${no}`);
       this.prevStateNo = this.stateNo;
       this.stateNo = no;
       this.time = 0;

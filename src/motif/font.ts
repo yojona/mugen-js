@@ -30,7 +30,7 @@ export interface Font {
 
 export async function loadFont(vfs: Vfs, file: string, ...bases: string[]): Promise<Font> {
   const path = vfs.resolve(file, ...bases, 'font');
-  if (!path) throw new Error(`Fuente no encontrada: ${file}`);
+  if (!path) throw new Error(`Font not found: ${file}`);
   if (/\.def$/i.test(path)) return loadFontV2(vfs, path);
   return parseFntV1(await vfs.read(path));
 }
@@ -42,7 +42,7 @@ export async function loadFont(vfs: Vfs, file: string, ...bases: string[]): Prom
  */
 export async function loadFontSized(vfs: Vfs, file: string, height: number): Promise<Font> {
   const path = vfs.resolve(file, 'font');
-  if (!path) throw new Error(`Fuente no encontrada: ${file}`);
+  if (!path) throw new Error(`Font not found: ${file}`);
   if (/\.def$/i.test(path)) return loadFontV2(vfs, path, height);
   return parseFntV1(await vfs.read(path));
 }

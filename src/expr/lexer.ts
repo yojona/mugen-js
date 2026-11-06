@@ -19,7 +19,7 @@ export class ExprError extends Error {
     readonly source: string,
     readonly pos: number,
   ) {
-    super(`${message} (en "${source}", posición ${pos + 1})`);
+    super(`${message} (in "${source}", position ${pos + 1})`);
     this.name = 'ExprError';
   }
 }
@@ -58,14 +58,14 @@ export function tokenize(src: string): Token[] {
     }
     if (c === '"') {
       const end = src.indexOf('"', i + 1);
-      if (end < 0) throw new ExprError('Comillas sin cerrar', src, i);
+      if (end < 0) throw new ExprError('Unterminated quote', src, i);
       const raw = src.slice(i + 1, end);
       out.push({ type: 'str', text: raw, raw, pos: start });
       i = end + 1;
       continue;
     }
     const op = OPS.find((o) => src.startsWith(o, i));
-    if (!op) throw new ExprError(`Carácter inesperado "${c}"`, src, i);
+    if (!op) throw new ExprError(`Unexpected character "${c}"`, src, i);
     out.push({ type: 'op', text: op, raw: op, pos: start });
     i += op.length;
   }

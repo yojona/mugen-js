@@ -1,6 +1,7 @@
 // Shared screen plumbing: fades, backgrounds and motif sounds.
 
 import type { Mixer } from '../audio/mixer';
+import type { DummySettings } from '../engine/ai';
 import type { GameOptions } from './game-options';
 import type { Renderer } from '../render/renderer';
 import { drawStageLayer } from '../render/stage-draw';
@@ -16,6 +17,8 @@ export interface AppContext {
   motif: Motif;
   /** CPU AI level (mugen.cfg [Options] Difficulty, 1..8). */
   aiLevel: number;
+  /** Training mode: the dummy's settings changed; undefined when it ends. */
+  onTrainingDummy?: (dummy: DummySettings | undefined) => void;
   /** GameVars.frames: ticks run on every screen since startup (GameTime, the hit order). */
   frames?: number;
   /** The options screen's settings (mugen.cfg [Options], [Sound]). */

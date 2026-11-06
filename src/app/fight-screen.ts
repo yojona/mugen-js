@@ -231,27 +231,13 @@ export class FightScreen implements Screen {
     }
   }
 
-  private helpText: string | undefined;
-
-  /** Put the normal key help back when the fight ends. */
-  private restoreHelp(): void {
-    const el = typeof document !== 'undefined' ? document.getElementById('help') : null;
-    if (el && this.helpText !== undefined) el.textContent = this.helpText;
-  }
-
   private showDummy(): void {
-    const el = typeof document !== 'undefined' ? document.getElementById('help') : null;
-    if (!el) return;
-    this.helpText ??= el.textContent ?? '';
-    const d = this.dummy;
-    const stance = ['de pie', 'agachado', 'salta', 'salta seguido'][d.stance];
-    const button = d.button ? 'abcxyzs'[d.button - 1] : 'ninguno';
-    el.textContent = `Entrenamiento: 1 postura (${stance}) / 2 bloqueo (${d.guard ? 'sí' : 'no'}) / 3 distancia (${d.distance || 'libre'}) / 4 alejarse (${d.jumpDistance || 'no'}) / 5 botón (${button}) / Esc volver`;
+    this.ctx.onTrainingDummy?.(this.dummy);
   }
 
   /** The players leave: their AI move records stay with the characters. */
   private saveRecords(): void {
-    this.restoreHelp();
+    if (this.s.training) this.ctx.onTrainingDummy?.(undefined);
     for (const p of this.world.players) p.recorder?.saveToCharacter();
   }
 

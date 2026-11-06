@@ -126,7 +126,7 @@ export function compileNode<C>(n: Node, env: TriggerEnv<C>): Fn<C> {
       const args = n.args.map((a) => fromEvaluator(compileNode(a, env)));
       const vk = n.name as VarKind;
       if (vk === 'var' || vk === 'fvar' || vk === 'sysvar' || vk === 'sysfvar') {
-        if (args.length !== 1) throw new CompileError(`${n.name} necesita 1 argumento`);
+        if (args.length !== 1) throw new CompileError(`${n.name} takes 1 argument`);
         const idx = args[0]!;
         return (c) => {
           let i = idx(c);
@@ -138,7 +138,7 @@ export function compileNode<C>(n: Node, env: TriggerEnv<C>): Fn<C> {
       const m = mathTrigger(n, args);
       if (m) return m;
       const fn = env.call(n, args);
-      if (!fn) throw new CompileError(`Trigger desconocido: ${n.name}${n.axis ? ' ' + n.axis : ''}`);
+      if (!fn) throw new CompileError(`Unknown trigger: ${n.name}${n.axis ? ' ' + n.axis : ''}`);
       return fn;
     }
     case 'clause': {
@@ -146,9 +146,9 @@ export function compileNode<C>(n: Node, env: TriggerEnv<C>): Fn<C> {
         n,
         n.nums.map((a) => fromEvaluator(compileNode(a, env))),
       );
-      if (!fn) throw new CompileError(`Trigger desconocido: ${n.name}`);
+      if (!fn) throw new CompileError(`Unknown trigger: ${n.name}`);
       if (n.second && n.name !== 'animelem' && n.name !== 'projcontact' && n.name !== 'projguarded' && n.name !== 'projhit') {
-        throw new CompileError(`${n.name} no admite segunda comparación`);
+        throw new CompileError(`${n.name} takes no second comparison`);
       }
       return fn;
     }
@@ -267,7 +267,7 @@ function binary<C>(op: string, a: Fn<C>, b: Fn<C>): Fn<C> {
     case '^':
       return (c) => (!both(a, b, c, o) ? 0 : o.float ? bottom() : ((R.t = INT), o.x ^ o.y));
   }
-  throw new CompileError(`Operador desconocido ${op}`);
+  throw new CompileError(`Unknown operator ${op}`);
 }
 
 export function relFn(op: RelOp): (x: number, y: number) => boolean {
@@ -313,7 +313,7 @@ function interval<C>(negate: boolean, x: Fn<C>, lo: Fn<C>, hi: Fn<C>, loOpen: bo
 function assign<C>(target: CallNode, value: Fn<C>, env: TriggerEnv<C>): Fn<C> {
   const kind = target.name as VarKind;
   const idx = target.args[0] ? compileNode(target.args[0], env) : null;
-  if (!idx || target.args.length !== 1) throw new CompileError(`${kind} necesita 1 argumento`);
+  if (!idx || target.args.length !== 1) throw new CompileError(`${kind} takes 1 argument`);
   const isFloatVar = kind === 'fvar' || kind === 'sysfvar';
   return (c) => {
     // Bottom index or value: read as the int it carries (Expr_Eval).
@@ -347,7 +347,7 @@ function floatFn<C>(a: Fn<C>, f: (x: number) => number, valid: (x: number) => bo
 
 function mathTrigger<C>(n: CallNode, args: Fn<C>[]): Fn<C> | undefined {
   const arity = (k: number) => {
-    if (args.length !== k) throw new CompileError(`${n.name} necesita ${k} argumento(s)`);
+    if (args.length !== k) throw new CompileError(`${n.name} takes ${k} argument(s)`);
   };
   const a = args[0]!;
   switch (n.name) {

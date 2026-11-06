@@ -49,7 +49,13 @@ function refListing(): Plugin {
 
 export default defineConfig({
   plugins: [refListing()],
-  build: { rollupOptions: { input: ['index.html', 'viewer.html', 'training.html'] } },
-  server: { port: 8120, fs: { allow: ['.'] } },
-  test: { include: ['tests/**/*.test.ts'] },
+  // The examples are the dev site; the package itself is src/ (vite.lib.config.ts).
+  root: 'examples',
+  build: {
+    outDir: '../dist-examples',
+    emptyOutDir: true,
+    rollupOptions: { input: ['examples/index.html', 'examples/viewer.html', 'examples/training.html', 'examples/frame.html'].map((p) => join(import.meta.dirname, p)) },
+  },
+  server: { port: 8120, fs: { allow: ['..'] } },
+  test: { root: import.meta.dirname, include: ['tests/**/*.test.ts'] },
 });

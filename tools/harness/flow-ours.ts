@@ -1,5 +1,5 @@
 // Run mugen-web's whole game flow in headless Chrome (CDP over WebSocket) and
-// collect the flow harness output of src/app/main.ts: FLOW lines and canvas
+// collect the flow harness output of examples/main.ts: FLOW lines and canvas
 // shots. The page runs with ?ticks=N (as fast as possible, deterministic).
 //
 // Usage: tsx tools/harness/flow-ours.ts <outDir> <ticks> '<query string>'

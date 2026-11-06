@@ -142,7 +142,7 @@ export class Renderer {
 
   constructor(readonly canvas: HTMLCanvasElement) {
     const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, premultipliedAlpha: false });
-    if (!gl) throw new Error('WebGL2 no disponible');
+    if (!gl) throw new Error('WebGL2 not available');
     this.gl = gl;
     this.prog = link(gl, VS, FS);
     gl.useProgram(this.prog);

@@ -827,7 +827,7 @@ export function compileController(c: ControllerDef, env: TriggerEnv<P>, mugenVer
   const ignoreHitPause = (parseInt(c.params.get('ignorehitpause') ?? '0', 10) || 0) !== 0;
   const triggerAll = c.triggerAll.map((t) => compileExpr(t, env));
   const triggers = c.triggers.map((g) => g.map((t) => compileExpr(t, env)));
-  if (!c.type) throw new Error('falta type');
+  if (!c.type) throw new Error('no type');
   // mugen.exe refuses the character on any parameter it cannot read.
   checkControllerParams(c, mugenVersion);
   const impl = IMPLS[c.type];

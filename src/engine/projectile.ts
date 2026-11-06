@@ -94,7 +94,7 @@ export function compileProjectile(c: ControllerDef, env: TriggerEnv<P>): (p: P) 
     const animNo = int(p, 'projanim') ?? 0;
     const a: Animation | undefined = p.prog.data.anims.get(animNo);
     if (!a) {
-      p.warn(`Projectile: animación ${animNo} no existe`);
+      p.warn(`Projectile: no animation ${animNo}`);
       return;
     }
     // Projectiles live in world units; parameters are in the owner's units.

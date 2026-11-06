@@ -155,7 +155,6 @@ export class Match {
   winner: Player | null = null;
   private phaseTime = 0;
   private phase: 'wait' | 'intro' | 'announce' | 'fight' | 'ko' | 'over' | 'win' = 'wait';
-  private roundWinner: Player | null = null;
   /** KO slowdown: frame-skip accumulator, its rate and the ticks run since the KO. */
   private slowAcc = 0;
   private slowRate = 0;
@@ -481,7 +480,6 @@ export class Match {
     this.phase = 'wait';
     this.phaseTime = 0;
     this.announce = undefined;
-    this.roundWinner = null;
     w.winType = 0;
     w.roundWinnerSide = 0;
     this.roundCounted = false;
@@ -625,7 +623,6 @@ export class Match {
             this.pendingKo = undefined;
           }
           this.roundWinnerSide = koSides === 2 ? null : ko[1] === 1 ? 0 : ko[0] === 1 ? 1 : this.decideWinner();
-          this.roundWinner = this.roundWinnerSide === null ? null : (this.leader(this.roundWinnerSide) ?? null);
           // Round_CheckResult: time over gives the winner (both on a tie) the time-over icon.
           if (!koSides) for (const t of [0, 1]) if (this.roundWinnerSide === t || this.roundWinnerSide === null) w.setWinType(t, WIN_ICON.t);
           w.winType = koSides ? 1 : 2;

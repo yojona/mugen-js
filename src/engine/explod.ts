@@ -110,7 +110,7 @@ export function compileExplod(c: ControllerDef, env: TriggerEnv<P>): (p: P) => v
     if (R.t === BOTTOM) return;
     const a = lookupAnim(p, anim.common, toInt(no));
     if (!a) {
-      p.warn(`Explod: animación ${anim.common ? 'F' : ''}${toInt(no)} no existe`);
+      p.warn(`Explod: no animation ${anim.common ? 'F' : ''}${toInt(no)}`);
       return;
     }
     const posType = (prm.raw('postype') ?? (legacy(p) ? 'p1' : 'none')).toLowerCase();
