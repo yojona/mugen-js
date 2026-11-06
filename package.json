@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "description": "M.U.G.E.N 1.1 rebuilt for the browser, in TypeScript and WebGL2",
+  "license": "MIT",
   "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/types/index.d.ts",
