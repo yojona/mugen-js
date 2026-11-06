@@ -3,11 +3,26 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
+  "description": "M.U.G.E.N 1.1 rebuilt for the browser, in TypeScript and WebGL2",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "vite build --config vite.lib.config.ts && tsc -p tsconfig.build.json",
+    "build:example": "vite build",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check": "tsc --noEmit && vitest run"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
