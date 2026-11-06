@@ -37,7 +37,7 @@ Compared screen by screen and frame by frame with the same key script
 | Arcade, P1 loses (P1 life held at 1) | Same up to the lost match, continue screen ("No"), back to title. |
 
 Screen boundaries agree within one frame (mugen.exe switches its gameflow
-variable on the leaving screen's last frame). Comparisons use `?pristine=1`
+variable on the leaving screen's last frame). Comparisons use `?pristine=1` on the harness page
 (no content fixes).
 
 ### Community characters
@@ -78,12 +78,4 @@ documentation but not yet compared against the original.
 
 ## Roadmap
 
-| # | Stage | Goal | State |
-|---|---|---|---|
-| 1 | Community characters | CPU vs CPU with real characters until whole matches match | Fourteen KOF pairs match (Iori/Kyo, Kim/Benimaru, Clark/Kula, Athena/Leona, Andy/Chris, Billy/Daimon, King/Joe, Chang/Choi, Chin/Kensou, Heidern/Geese, D-Yashiro/Evil Robert, Cool Choi/Bebum Ryo, Kensou EX/Geese NW, Asura Rugal/Geo Kensou); next: more characters |
-| 2 | AI coverage | Whole matches at levels 1, 3, 5, 6 and 8; time-over round; draw | Ready to start |
-| 3 | Exact camera | Reproduce the float math at `0x4167xx` (tiny drifts left in round 1) | Optional hardening |
-| 4 | Game modes | Team (simul/turns), Survival, Arcade with AI ramp; demo mode (title idle 600 frames); continue "Yes" path verified | Pending |
-| 5 | Interface | Options menu, key config, gamepad | Pending |
-| 6 | Audio | Stage and menu music (no music files in `ref/`) | Pending |
-| 7 | External content | Load user characters and stages from files | Pending |
+See the [README](../README.md#roadmap).
