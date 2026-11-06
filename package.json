@@ -5,6 +5,11 @@
   "type": "module",
   "description": "M.U.G.E.N 1.1 rebuilt for the browser, in TypeScript and WebGL2",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yojona/mugen-js.git"
+  },
+  "homepage": "https://github.com/yojona/mugen-js",
   "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/types/index.d.ts",
