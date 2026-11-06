@@ -2,8 +2,6 @@
   <img width="320" height="240" alt="mugen-js title screen" src="https://github.com/user-attachments/assets/a2903d42-f163-4d8c-972d-330737ae3abd" />
 </p>
 
-By Jonathan Ayala.
-
 M.U.G.E.N 1.1 rebuilt from scratch for the browser, in TypeScript and WebGL2. It
 plays existing MUGEN content (characters, stages, motifs) and is checked frame by
 frame against the original `mugen.exe`.
@@ -258,3 +256,12 @@ are used with [its author's agreement](https://github.com/zxmarcos/mugen-unleash
 itself, its data files, or any characters, stages and motifs you load, which belong to their
 owners, and it grants no rights Elecbyte or others may hold over the original M.U.G.E.N.
 M.U.G.E.N is a name of Elecbyte, and this project is not affiliated with or endorsed by them.
+
+## Author and contributors
+
+<a href="https://github.com/yojona"><img src="https://github.com/yojona.png" width="64" height="64" alt="Jonathan Ayala"></a>
+
+M.U.G.E.N.js was created by **Jonathan Ayala** ([@yojona](https://github.com/yojona)).
+Everyone who contributes is listed in [AUTHORS](AUTHORS); add yourself in your first
+pull request. It stands on the work of zxmarcos in
+[mugen-unleashed](https://github.com/zxmarcos/mugen-unleashed).
