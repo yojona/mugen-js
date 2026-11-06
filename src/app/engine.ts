@@ -74,6 +74,8 @@ export interface Engine {
   readonly loading: LoadProgress | undefined;
   /** Loading: ticks do nothing meanwhile. */
   readonly busy: boolean;
+  /** The browser is waiting for a key press, click or touch to play sound. A pad button doesn't count. */
+  readonly audioLocked: boolean;
   readonly running: boolean;
   /** Starts the game flow and, unless manual, the loop. */
   start(): void;
@@ -119,6 +121,11 @@ export async function createEngine(options: EngineOptions): Promise<Engine> {
   const mixer = new Mixer();
   const keys = new Keyboard(options.inputTarget ?? window);
   keys.onFirstInput = () => mixer.unlock();
+  // A page that already had a gesture can start its audio without another one.
+  const unlockIfAllowed = () => {
+    if (navigator.userActivation?.hasBeenActive) mixer.unlock();
+  };
+  keys.onPadPress = unlockIfAllowed;
   // System_Init: Config_Load, Options_SetDefaults, Options_Load. The options
   // screen's saves live in localStorage (not under the flow harness, which
   // compares against a fresh mugen.cfg).
@@ -227,21 +234,27 @@ export async function createEngine(options: EngineOptions): Promise<Engine> {
     get busy() {
       return flow.busy;
     },
+    get audioLocked() {
+      return mixer.locked;
+    },
     get running() {
       return raf !== 0;
     },
     start() {
       if (started || destroyed) return;
       started = true;
+      unlockIfAllowed();
       void flow.run();
       if (!options.manual) engine.resume();
     },
     pause() {
       cancelAnimationFrame(raf);
       raf = 0;
+      mixer.pause();
     },
     resume() {
       if (raf !== 0 || !started || destroyed || options.manual) return;
+      mixer.resume();
       acc = 0;
       last = performance.now();
       raf = requestAnimationFrame(frame);

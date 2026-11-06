@@ -7,10 +7,28 @@ export class Mixer {
   private cache = new WeakMap<Sound, Promise<AudioBuffer | undefined>>();
   volume = 0.7;
 
+  private paused = false;
+
   /** Must be called from a user gesture (browser autoplay policy). */
   unlock(): void {
     if (!this.ctx) this.ctx = new AudioContext();
-    if (this.ctx.state === 'suspended') void this.ctx.resume();
+    if (!this.paused && this.ctx.state === 'suspended') void this.ctx.resume();
+  }
+
+  /** No sound can be heard yet: the browser is waiting for a user gesture, or it's paused. */
+  get locked(): boolean {
+    return this.ctx?.state !== 'running';
+  }
+
+  /** Holds the sounds that are playing, to continue them with resume(). */
+  pause(): void {
+    this.paused = true;
+    void this.ctx?.suspend();
+  }
+
+  resume(): void {
+    this.paused = false;
+    if (this.ctx?.state === 'suspended') void this.ctx.resume();
   }
 
   /** Stops every sound and frees the audio context. */

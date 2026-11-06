@@ -108,8 +108,10 @@ export class Keyboard {
   private escapePrev = false;
   /** Sees every key going down; true keeps the browser's shortcut for that key away. */
   onKeyDown?: (e: KeyboardEvent) => boolean;
-  /** Called on the first key press (audio unlock). */
+  /** A key, click or touch: what browsers accept as a user gesture (audio unlock). */
   onFirstInput?: () => void;
+  /** A pad button went down. Browsers don't take it as a gesture, but they honour an earlier one. */
+  onPadPress?: () => void;
   /**
    * g_keyboardQueue: SDL codes in order, releases with KEYBOARD_RELEASE.
    * KeyConfig_Run reads one per frame. No auto-repeat: System_Init turns SDL's
@@ -147,6 +149,9 @@ export class Keyboard {
       },
       { signal },
     );
+    for (const gesture of ['pointerdown', 'touchend']) {
+      target.addEventListener(gesture, () => this.onFirstInput?.(), { signal });
+    }
     target.addEventListener(
       'keyup',
       (ev) => {
@@ -223,7 +228,11 @@ export class Keyboard {
         if (pad) for (const button of padButtonsHeld(pad)) held.add(i * PAD_BUTTONS + button);
       });
     }
-    for (const code of held) if (!this.padHeld.has(code)) this.queuePad(code);
+    for (const code of held) {
+      if (this.padHeld.has(code)) continue;
+      this.queuePad(code);
+      this.onPadPress?.();
+    }
     for (const code of this.padHeld) if (!held.has(code)) this.queuePad(code | PAD_RELEASE);
     this.padHeld = held;
   }

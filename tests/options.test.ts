@@ -711,3 +711,29 @@ describe('options fades (FADE_PALETTE)', () => {
     expect(r.tint).toBeUndefined();
   });
 });
+
+describe('audio unlock gestures', () => {
+  it('takes keys, clicks and touches as gestures, and reports pad presses apart', () => {
+    const pad = { mapping: 'standard', axes: [0, 0, 0, 0], buttons: [{ pressed: false }] } as GamepadLike;
+    const target = new EventTarget();
+    const keys = new Keyboard(target, () => [pad]);
+    keys.setMaps([], [], true);
+    let gestures = 0;
+    let pads = 0;
+    keys.onFirstInput = () => gestures++;
+    keys.onPadPress = () => pads++;
+    target.dispatchEvent(new Event('pointerdown'));
+    target.dispatchEvent(new Event('touchend'));
+    expect(gestures).toBe(2);
+    keys.poll();
+    expect(pads).toBe(0);
+    pad.buttons[0]!.pressed = true;
+    keys.poll();
+    keys.poll();
+    expect(pads).toBe(1);
+    expect(gestures).toBe(2);
+    keys.dispose();
+    target.dispatchEvent(new Event('pointerdown'));
+    expect(gestures).toBe(2);
+  });
+});
